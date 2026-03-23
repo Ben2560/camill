@@ -15,25 +15,35 @@ class DataScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final statusBarH = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.background,
-        title: Text('コミュニティ', style: camillHeadingStyle(17, colors.textPrimary)),
-        elevation: 0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.construction_outlined, size: 56, color: colors.textMuted),
-            const SizedBox(height: 16),
-            Text(
-              'ただいま準備中…',
-              style: camillBodyStyle(16, colors.textMuted, weight: FontWeight.w600),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 8, 4),
+            child: Text(
+              'コミュニティ',
+              style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),
             ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.construction_outlined, size: 56, color: colors.textMuted),
+                  const SizedBox(height: 16),
+                  Text(
+                    'ただいま準備中…',
+                    style: camillBodyStyle(16, colors.textMuted, weight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

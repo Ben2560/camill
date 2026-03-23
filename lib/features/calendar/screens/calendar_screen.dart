@@ -854,16 +854,19 @@ class _CalendarScreenState extends State<CalendarScreen>
   Widget build(BuildContext context) {
     final colors = context.colors;
 
+    final statusBarH = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.background,
-        scrolledUnderElevation: 0,
-        title: Text('カレンダー', style: camillHeadingStyle(17, colors.textPrimary)),
-      ),
       body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 8, 4),
+              child: Text(
+                'カレンダー',
+                style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),
+              ),
+            ),
             // ── カスタムヘッダー（アニメーション付き）──
             _buildAnimatedHeader(colors),
             // ── 月ビュー / 年ビュー の切り替え ──

@@ -1,0 +1,51 @@
+enum BillStatus { unpaid, pending, paid }
+
+class Bill {
+  final String billId;
+  final String title;
+  final int amount;
+  final DateTime? dueDate;
+  final BillStatus status;
+  final DateTime createdAt;
+
+  Bill({
+    required this.billId,
+    required this.title,
+    required this.amount,
+    this.dueDate,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory Bill.fromJson(Map<String, dynamic> json) => Bill(
+        billId: json['bill_id'] as String,
+        title: json['title'] as String,
+        amount: (json['amount'] as num).toInt(),
+        dueDate: json['due_date'] != null
+            ? DateTime.parse(json['due_date'] as String)
+            : null,
+        status: _statusFromString(json['status'] as String? ?? 'unpaid'),
+        createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  static BillStatus _statusFromString(String s) {
+    switch (s) {
+      case 'pending':
+        return BillStatus.pending;
+      case 'paid':
+        return BillStatus.paid;
+      default:
+        return BillStatus.unpaid;
+    }
+  }
+
+  int? get daysUntilDue {
+    if (dueDate == null) return null;
+    return dueDate!.difference(DateTime.now()).inDays;
+  }
+
+  bool get isUrgent {
+    final days = daysUntilDue;
+    return days != null && days <= 3 && days >= 0;
+  }
+}

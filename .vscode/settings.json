@@ -1,0 +1,6 @@
+{
+  "java.import.exclusions": [
+    "**/smartreceipt-api/smartreceipt/android/**"
+  ],
+  "java.configuration.updateBuildConfiguration": "interactive"
+}

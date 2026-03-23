@@ -1,0 +1,473 @@
+================================================================
+SmartReceipt 実装状況レポート
+作成日: 2026-03-06
+================================================================
+
+【flutter analyze 結果】
+  No issues found. エラー・警告 0件。
+
+================================================================
+■ 依存パッケージ (pubspec.yaml)
+================================================================
+
+追加済み:
+  - firebase_core: ^3.0.0        Firebase初期化
+  - firebase_auth: ^5.0.0        メール+SMS二段階認証
+  - http: ^1.2.0                 APIリクエスト
+  - image_picker: ^1..0.0        カメラ/ギャラリー選択
+  - go_router: ^13.0.0           画面遷移ルーティング
+  - intl: ^0.19.0                日本語日付・通貨フォーマット
+  - fl_chart: ^0.69.0            PieChart / LineChart / BarChart
+  - table_calendar: ^3.1.2       カレンダー表示
+  - flutter_riverpod: ^2.5.1     テーマ状態管理
+  - shared_preferences: ^2.3.0   テーマ設定の永続化
+  - google_fonts: ^6.2.0         Outfit (数字) / Zen Maru Gothic (日本語)
+  - confetti: ^0.7.0             紙吹雪アニメーション（パッケージのみ、未使用）
+  - provider: ^6.1.0             (旧状態管理、現在未使用)
+
+
+================================================================
+■ テーマシステム (lib/core/theme/)
+================================================================
+
+▼ nyamo_theme_mode.dart
+  - NyamoThemeMode enum (6値)
+      midnightCat ... v2.0予定（猫Riveアニメーション）、現在無効
+      midnight    ... ダークテーマ（デフォルト起動）
+      naturalCat  ... v2.0予定、現在無効
+      natural     ... ナチュラルベージュ
+      classicCat  ... v2.0予定、現在無効
+      classic     ... クラシック白
+  - .hasCat / .isDark / .displayName ゲッター実装済み
+
+▼ nyamo_colors.dart
+  - NyamoColors extends ThemeExtension<NyamoColors>
+  - カラーフィールド16種:
+      background, surface, surfaceBorder,
+      primary, primaryLight,
+      textPrimary, textSecondary, textMuted,
+      navBackground, navActive, navInactive,
+      fabBackground, fabIcon,
+      danger, success, isDark
+  - パレット3種:
+      midnight  : background #0D1117 / primary #7EE8A2（緑）
+      natural   : background #F5F0E8 / primary #6AA864（草緑）
+      classic   : background #FFFFFF / primary #2E6DA4（青）
+  - fromMode() ファクトリ実装済み
+  - copyWith() / lerp() 実装済み（テーマ切替アニメーション対応）
+  - BuildContext拡張: context.colors でどこからでも取得可能
+
+▼ nyamo_theme.dart
+  - NyamoThemeData.build(mode) → ThemeData 生成
+  - GoogleFonts.zenMaruGothicTextTheme() をベーステキストに適用
+  - ヘルパー関数3種:
+      nyamoAmountStyle(size, color)   → Outfit Bold（金額用）
+      nyamoHeadingStyle(size, color)  → Zen Maru Gothic Bold
+      nyamoBodyStyle(size, color, weight) → Zen Maru Gothic
+
+▼ theme_provider.dart
+  - StateNotifierProvider<ThemeNotifier, NyamoThemeMode>
+  - 起動時にSharedPreferencesから前回テーマを復元
+  - setTheme(mode) で保存＋画面即時切替
+  - 猫テーマは setTheme() で早期リターン（現在選択不可）
+
+
+================================================================
+■ 共通ウィジェット (lib/shared/widgets/)
+================================================================
+
+▼ nyamo_card.dart
+  - NyamoCard(child, padding, onTap, borderRadius)
+  - ダークテーマ (isDark=true) のとき:
+      ClipRRect → BackdropFilter(blur 20px) → 半透明コンテナ
+      → 液体ガラス効果（Liquid Glass）
+  - ライトテーマのとき:
+      surface色コンテナ + 薄いborder + boxShadow
+
+▼ loading_overlay.dart
+  - ローディングオーバーレイ（既存ファイル、未変更）
+
+
+================================================================
+■ データモデル (lib/shared/models/)
+================================================================
+
+▼ receipt_model.dart
+  ReceiptAnalysis: storeName, purchasedAt, totalAmount, paymentMethod,
+                   items[], couponsDetected[], duplicateCheckHash
+  ReceiptItem: itemName, itemNameRaw, category, unitPrice, quantity, amount
+               + copyWith() 実装済み
+  DetectedCoupon: description, discountAmount
+
+▼ summary_model.dart
+  MonthlySummary: yearMonth, totalExpense, totalIncome,
+                  byCategory[], recentReceipts[]
+  CategorySummary: category, amount
+  RecentReceipt: receiptId, storeName, totalAmount, purchasedAt
+
+▼ coupon_model.dart
+  Coupon: couponId, storeName, description, discountAmount,
+          validUntil, isUsed, isFromOcr, createdAt
+  ゲッター: daysUntilExpiry, isExpiringSoon(3日以内), isExpired
+
+▼ bill_model.dart
+  BillStatus enum: unpaid / pending / paid
+  Bill: billId, title, amount, dueDate, status, createdAt
+  ゲッター: daysUntilDue, isUrgent(3日以内)
+
+
+================================================================
+■ APIサービス (lib/shared/services/api_service.dart)
+================================================================
+
+  - FirebaseAuth.instance.currentUser?.getIdToken() を自動付与
+  - get(path, query) / post(path, body) 実装済み
+  - ベースURL: Androidエミュレータ http://10.0.2.2:8000/v1
+              macOS http://localhost:8000/v1 (constants.dartで切替)
+  - エラー時は例外スロー（呼び出し側でキャッチ）
+
+
+================================================================
+■ 認証 (lib/features/auth/)
+================================================================
+
+▼ auth_service.dart
+  - signInWithEmail(email, password)
+  - registerWithEmail(email, password, displayName, phoneNumber)
+    → メール登録後 /v1/auth/register をAPIコール
+  - signOut()
+
+▼ login_screen.dart  【旧テーマ・未移行】
+  - メールアドレス + パスワード フォーム
+  - ローディング中ボタン無効化
+  - Firebase Authエラーを日本語メッセージに変換
+  - /register への遷移ボタン
+  - 注: AppThemeなし、色はハードコード (#2E7D32) のまま
+
+▼ register_screen.dart  【未確認・旧テーマの可能性あり】
+  - 表示名 / メール / パスワード / 電話番号 フォーム
+  - SMS認証フロー → /phone-verify へ遷移
+
+▼ phone_verify_screen.dart  【未確認・旧テーマの可能性あり】
+  - SMS 6桁コード入力
+  - 再送信ボタン付き
+
+
+================================================================
+■ ナビゲーション (lib/main.dart + lib/features/shell/)
+================================================================
+
+▼ main.dart
+  - ProviderScope でアプリ全体をラップ
+  - SmartReceiptApp extends ConsumerWidget
+    → themeProvider を watch して MaterialApp.router に渡す
+  - GoRouter ルート定義:
+      /              → MainShell（メインタブ）
+      /login         → LoginScreen
+      /register      → RegisterScreen
+      /phone-verify  → PhoneVerifyScreen（extra: email, displayName）
+      /camera        → CameraScreen
+      /receipt-preview → AnalysisPreviewScreen（extra: ReceiptAnalysis）
+      /manual-input  → ManualInputScreen
+      /coupon-wallet → CouponWalletScreen
+      /bills         → BillScreen
+  - redirect: 未ログイン→/login、ログイン済み+/login→/ に自動リダイレクト
+  - _AuthChangeNotifier でFirebase authStateChanges監視
+
+▼ main_shell.dart  【テーマ完全対応済み】
+  - BottomAppBar (CircularNotchedRectangle) + FAB centerDocked
+  - IndexedStack で 4タブを管理（破棄せず状態保持）
+      index 0: HomeScreen
+      index 1: DataScreen
+      index 3: CalendarScreen  ← index 2はFABのためスキップ
+      index 4: ProfileScreen
+  - FABタップでSpeedDial展開（アニメーション付き）
+      SlideTransition + FadeTransition で3ボタンが下から浮き上がる
+      ① 撮影 → /camera
+      ② 手動入力 → /manual-input
+      ③ 請求書 → /bills
+  - FABが開いている間はオーバーレイ（半透明黒）表示
+      ダーク: alpha 153、ライト: alpha 77
+  - FABボタン: 開閉で色変化（fabBackground ↔ danger）、45°回転アニメ
+  - BottomNavItem: selected時にactiveIcon + navActive色
+
+
+================================================================
+■ ホーム画面 (lib/features/home/screens/home_screen.dart)
+================================================================
+
+【テーマ完全対応済み】
+
+- 月選択ヘッダー（前月/翌月ボタン、当月なら右矢印無効）
+- API失敗時はデモデータ自動表示（バックエンドなしで確認可能）
+  デモ: 支出¥32,400、5カテゴリ、最近3件のレシート
+
+▼ 支出カードブロック
+  - 中央: fl_chart PieChart（ドーナツ）
+      使用率80%超で色が danger に変化
+      中央に「残り¥XX,XXX」または「超過」表示
+  - 右側: 支出金額（大字）/ 予算金額 / LinearProgressIndicator
+  - 予算¥50,000（現在ハードコード）
+  - 右上: 週/月/年 切替セレクター（_PeriodSelector）※現在は表示切替のみ
+
+▼ 損得スコアカード
+  - スコア: 72点（現在デモ固定値）
+  - 累計 1,840pt
+  - 先月比 +8pt（緑矢印アイコン）
+  - AIコメント1行
+
+▼ 先月との比較カード
+  - 今月額 / 先月額（今月×0.9で算出したデモ値）
+  - 差分バッジ（↑超過=danger色 / ↓節約=success色）
+
+▼ 最近のレシートカード
+  - リスト表示（店名 / 日付 / 金額）
+  - 「すべて見る」ボタン（未実装、onPressed空）
+
+▼ 期間セレクター (_PeriodSelector)
+  - 週/月/年 の3ボタン、選択中は primaryLight 背景
+  - 画面更新ロジックは未実装（表示切替のみ）
+
+
+================================================================
+■ データ画面 (lib/features/data/screens/data_screen.dart)
+================================================================
+
+【テーマ完全対応済み】
+
+- AppBar: primary色背景、TabBar 2タブ
+
+▼ 収支グラフタブ
+  - 月選択ヘッダー + 週/月/年セレクター
+  - PieChart（カテゴリ別ドーナツ）+ 凡例5件まで
+  - カテゴリ別ランキングリスト
+      順位バッジ（円形）/ カテゴリ名 / 金額
+      LinearProgressIndicator（全体に対する割合）
+  - カテゴリカラー8色でループ
+
+▼ 損得レポートタブ
+  - スコアカード（primary色背景）: 72点、累計1,840pt（デモ固定値）
+  - 得/損サマリーカード: ¥3,200得 / ¥1,800損（デモ固定値）
+  - 内訳カード: 予算/クーポン/価格比較/サブスク の4行（デモ固定値）
+  - AIアドバイスカード（primaryLight背景、デモテキスト固定）
+  - confettiアニメーションは未実装（パッケージのみ追加済み）
+
+
+================================================================
+■ カレンダー画面 (lib/features/calendar/screens/calendar_screen.dart)
+================================================================
+
+【テーマ完全対応済み】
+
+- table_calendar: firstDay 2024/1、lastDay 2027/12
+- 当日: primary.withAlpha(80)の円
+- 選択日: primary色の円
+- ページ変更時に月次APIを自動リロード
+- markerBuilder: 支出合計を日付下に小さく表示（¥XXk / ¥XX万）
+- 日別明細パネル（カレンダー下半分）
+  - 日付未選択: 「日付をタップして明細を確認」
+  - レシートなし: 「この日の記録はありません」
+  - レシートあり: 店名 / 時刻 / 金額 のListTile
+  - 右上に日別合計表示
+- DraggableScrollableSheet（スライドアップ）は未実装
+
+
+================================================================
+■ プロフィール画面 (lib/features/profile/screens/profile_screen.dart)
+================================================================
+
+【テーマ完全対応済み】
+
+- ユーザー情報ヘッダー（名前の頭文字アバター + プラン表示）
+- セクション: アカウント / プラン / アプリ設定 / その他
+
+▼ テーマ選択グリッド（_ThemeGrid）
+  - 2行×3列 GridView
+  - 各テーマカードにカラーサンプル（primaryドット + backgroundドット）
+  - 選択中テーマにはチェックマーク表示
+  - 猫テーマは opacity 0.5 + タップ無効 + 「v2.0」バッジ
+  - テーマ切替は即時反映（Riverpod → ThemeNotifier → SharedPreferences保存）
+
+- 各設定項目はタップ可能（onTap空の未実装項目多数）:
+  - アイコン・表示名（未実装）
+  - セキュリティ（未実装）
+  - プラン・課金管理（未実装）
+  - ファミリー管理（未実装）
+  - 通知設定（未実装）
+  - プライバシーポリシー（未実装）
+  - 利用規約（未実装）
+  - ログアウト → AuthService.signOut() → /login へ遷移
+  - 退会する → 確認ダイアログ → AuthService.signOut() → /login
+
+
+================================================================
+■ クーポン財布 (lib/features/coupon/screens/coupon_wallet_screen.dart)
+================================================================
+
+【テーマ完全対応済み】
+
+- デモデータ3件（有効1件、期限間近1件、期限切れ1件）
+- 並び順セレクター: 有効期限 / 店舗名 / 金額
+- 有効クーポン一覧（_CouponCard）:
+  - 店名 / OCR自動バッジ or 手動バッジ
+  - クーポン内容（太字）
+  - 残りX日 or 期限切れ（警告アイコン + danger色）
+  - 割引金額（大字）
+  - 「使用済み」ボタン → タップで使用済み扱いに
+  - 期限3日以内: ボーダーdanger色
+- 使用済み・期限切れ折りたたみセクション（展開/折畳みトグル）
+- 「+」ボタンでクーポン手動追加ダイアログ
+- APIとの連携は未実装（Phase 2）
+
+
+================================================================
+■ 請求書管理 (lib/features/bill/screens/bill_screen.dart)
+================================================================
+
+【テーマ完全対応済み】
+
+- 3タブ: 未払い / 支払中 / 支払済み
+- デモデータ3件（未払い2件、支払済み1件）
+- _BillCard:
+  - 期限3日以内: ボーダーdanger色
+  - 支払済み: グレーアイコン
+  - 期限まで残りX日 / 期限切れ の警告表示
+  - 「支払いました」ボタン → 支払済みタブへ自動移動
+- 「+」ボタンで請求書手動追加ダイアログ
+- APIとの連携は未実装（Phase 2）
+
+
+================================================================
+■ レシート撮影 (lib/features/receipt/screens/camera_screen.dart)
+================================================================
+
+【テーマ未移行（AppThemeまたはハードコード色）】
+
+- image_picker でカメラ起動 or ギャラリー選択
+- 画像選択後に /v1/receipts/analyze をAPIコール
+- Claude Haiku でOCR解析
+- 成功 → /receipt-preview へ ReceiptAnalysis を渡す
+- ローディング中はオーバーレイ表示
+
+
+================================================================
+■ 解析結果確認 (lib/features/receipt/screens/analysis_preview_screen.dart)
+================================================================
+
+【テーマ未移行（AppTheme.primary 3箇所残存）】
+
+- 店名 / 購入日時 / 支払方法 の表示
+- 品目リスト（商品名 / カテゴリバッジ / 数量 / 金額）
+  - カテゴリバッジをタップ → BottomSheet でカテゴリ変更可能
+- クーポン検出結果表示（検出時のみ）
+- 「このレシートを登録」ボタン → POST /v1/receipts
+- 重複レシート検出時はエラーメッセージ表示
+- 登録成功 → / に遷移
+
+
+================================================================
+■ 手動入力 (lib/features/receipt/screens/manual_input_screen.dart)
+================================================================
+
+【テーマ未移行（AppTheme.primary 2箇所残存）】
+
+- 店名 入力（バリデーション付き）
+- 購入日時 ピッカー（showDatePicker）
+- 支払方法 ドロップダウン（現金/クレカ/電子マネー等）
+- 品目リスト（動的追加/削除）
+  - 各品目: 商品名 / 金額 / カテゴリドロップダウン
+  - 1品目は削除不可
+- 合計リアルタイム表示
+- 「確認画面へ」→ ReceiptAnalysis を構築して /receipt-preview へ
+
+
+================================================================
+■ 未実装（Phase 2以降）
+================================================================
+
+機能面:
+  - 週次/月次 予算設定API
+  - 損得スコアAPI（現在デモ固定値）
+  - クーポン取得/登録API
+  - 請求書取得/登録API
+  - 先月比較API（現在は今月×0.9の仮算出）
+  - 手動入力 → APIへの送信（現在は /receipt-preview 経由のみ）
+  - 通知設定（プッシュ通知）
+  - アイコン・表示名変更
+  - ファミリープラン
+  - プラン・課金管理
+
+UI面:
+  - confetti 紙吹雪アニメーション（スコア表示時）
+  - AnimatedCounter（スコアカウントアップ）
+  - 猫テーマ Riveアニメーション（v2.0）
+  - カレンダー DraggableScrollableSheet（日別明細スライドアップ）
+  - 「すべて見る」（レシート一覧画面）
+  - 認証画面3枚のNyamoテーマ移行
+  - analysis_preview_screen のNyamoテーマ移行
+  - manual_input_screen のNyamoテーマ移行
+  - camera_screen のNyamoテーマ移行
+
+================================================================
+■ ファイル一覧（30ファイル）
+================================================================
+
+lib/
+  main.dart                              ✅ テーマ対応済み
+  firebase_options.dart
+  core/
+    constants.dart                       カテゴリ・支払方法ラベル定数
+    theme.dart                           旧テーマ（後方互換用に残存）
+    theme/
+      nyamo_theme_mode.dart              ✅ 新規作成
+      nyamo_colors.dart                  ✅ 新規作成
+      nyamo_theme.dart                   ✅ 新規作成
+      theme_provider.dart                ✅ 新規作成
+  shared/
+    models/
+      receipt_model.dart
+      summary_model.dart
+      coupon_model.dart                  ✅ 新規作成
+      bill_model.dart                    ✅ 新規作成
+    services/
+      api_service.dart
+    widgets/
+      loading_overlay.dart
+      nyamo_card.dart                    ✅ 新規作成
+  features/
+    auth/
+      screens/
+        login_screen.dart               ⚠️ テーマ未移行
+        register_screen.dart            ⚠️ テーマ未移行
+        phone_verify_screen.dart        ⚠️ テーマ未移行
+      services/
+        auth_service.dart
+    shell/
+      main_shell.dart                   ✅ テーマ対応済み
+    home/
+      screens/
+        home_screen.dart                ✅ テーマ対応済み
+    data/
+      screens/
+        data_screen.dart                ✅ テーマ対応済み
+    calendar/
+      screens/
+        calendar_screen.dart            ✅ テーマ対応済み
+    profile/
+      screens/
+        profile_screen.dart             ✅ テーマ対応済み
+    coupon/
+      screens/
+        coupon_wallet_screen.dart       ✅ テーマ対応済み
+    bill/
+      screens/
+        bill_screen.dart                ✅ テーマ対応済み
+    receipt/
+      screens/
+        camera_screen.dart              ⚠️ テーマ未移行
+        manual_input_screen.dart        ⚠️ テーマ未移行（AppTheme 2箇所）
+        analysis_preview_screen.dart    ⚠️ テーマ未移行（AppTheme 3箇所）
+      services/
+        receipt_service.dart
+
+================================================================

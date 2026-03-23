@@ -1,0 +1,145 @@
+SmartReceipt Phase 1 MVP - 実装済み状況
+作成日: 2026-03-05
+================================================================================
+
+【環境構成】
+- Flutter (フロントエンド / iOS・Android・macOS)
+- Firebase Auth (認証)
+- FastAPI + PostgreSQL (バックエンド / ML系API)
+- LLM: Anthropic Claude Haiku (レシート画像解析)
+
+================================================================================
+【Flutter フロントエンド】
+================================================================================
+
+■ 認証 (features/auth/)
+  - ログイン画面 (login_screen.dart)
+      メールアドレス + パスワードでFirebase Auth ログイン
+      未ログイン時は自動的にログイン画面にリダイレクト
+  - 新規登録画面 (register_screen.dart)
+      表示名 / メールアドレス / パスワードを入力
+      登録後、電話番号認証画面へ自動遷移
+  - 電話番号SMS認証画面 (phone_verify_screen.dart)
+      Firebase Auth Phone でSMS送信・コード検証
+      認証完了後にバックエンドへユーザー情報を登録
+  - AuthService (auth_service.dart)
+      Firebase Auth のラッパー
+      signInWithEmail / registerWithEmail / verifyPhoneNumber / signOut
+
+■ ホーム画面 (features/home/)
+  - home_screen.dart
+      月次収支サマリーカード (支出・収入・収支)
+      カテゴリ別支出内訳 (プログレスバー付き)
+      最近のレシート一覧 (最大5件)
+      月選択ナビゲーション (前月・翌月)
+      プルトゥリフレッシュ対応
+      レシート撮影FABボタン
+
+■ レシート機能 (features/receipt/)
+  - camera_screen.dart
+      カメラ撮影 / ギャラリー選択 (image_picker)
+      選択後、自動でClaudeに解析リクエスト
+      解析中はローディングオーバーレイ表示
+  - analysis_preview_screen.dart
+      解析結果の確認画面
+      店名・購入日時・支払方法を表示
+      品目一覧 (カテゴリをタップして変更可能)
+      クーポン検出結果の表示
+      「このレシートを登録」ボタンでDB保存
+  - ReceiptService (receipt_service.dart)
+      analyzeReceipt: 画像をBase64エンコードしてAPIへ送信
+      saveReceipt: 確認済みデータをDB登録
+      getReceipts: レシート一覧取得
+
+■ 共通部品
+  - ApiService (shared/services/api_service.dart)
+      全リクエストにFirebase IDトークンを自動付与
+      エラーレスポンスをApiExceptionに変換
+  - Receipt / ReceiptItem / MonthlySummary モデル (shared/models/)
+  - LoadingOverlay ウィジェット (shared/widgets/)
+  - AppTheme: グリーン系テーマ (core/theme.dart)
+  - AppConstants: APIベースURL・カテゴリ/支払方法ラベル (core/constants.dart)
+
+■ ルーティング (main.dart)
+  GoRouterによる画面遷移管理
+  ログイン状態に応じた自動リダイレクト
+  /           → ホーム画面
+  /login      → ログイン画面
+  /register   → 新規登録画面
+  /phone-verify → 電話番号認証画面
+  /camera     → レシート撮影画面
+  /receipt-preview → 解析結果確認画面
+
+================================================================================
+【FastAPI バックエンド (smartreceipt-api/)】
+================================================================================
+
+■ 認証 (routers/auth.py)
+  POST /v1/auth/register   新規ユーザー登録 (usersテーブルに保存)
+  GET  /v1/auth/me         ログイン中ユーザー情報取得
+  DELETE /v1/auth/me       アカウント論理削除
+
+■ レシート (routers/receipts.py)
+  POST /v1/receipts/analyze  画像をClaudeで解析 (DB保存なし・プレビュー用)
+  POST /v1/receipts          解析済みデータをDB登録 (重複チェックあり)
+  GET  /v1/receipts          レシート一覧取得 (年月フィルタ・ページネーション)
+  GET  /v1/receipts/{id}     レシート詳細取得 (品目含む)
+  DELETE /v1/receipts/{id}   レシート論理削除
+
+■ 月次サマリー (routers/summary.py)
+  GET /v1/summary/monthly  月次収支・カテゴリ別集計・最近のレシートを返す
+
+■ LLMサービス (services/llm_service.py)
+  Claude Haiku でレシート画像を解析
+  店名・購入日時・支払方法・品目・クーポンをJSON形式で抽出
+  重複チェック用SHA256ハッシュを自動生成 (店名+日時+合計金額)
+
+■ DBモデル (app/models.py)
+  users         ユーザー情報
+  receipts      レシートヘッダー (重複防止ハッシュ・論理削除)
+  receipt_items レシート品目明細
+  budgets       カテゴリ別月次予算
+
+■ 認証ミドルウェア (app/dependencies.py)
+  Firebase Admin SDK でIDトークンを検証
+  全エンドポイントで Bearer トークンを必須化
+
+================================================================================
+【未実装 (Phase 2 以降)】
+================================================================================
+
+- 請求書管理 (bills)
+- クーポン管理 (coupons)
+- 損得スコア判定
+- 週次・月次レポート自動生成
+- サブスク自動検出
+- クレカ連携・銀行API連携
+- ファミリープラン・フレンド機能
+- プロプラン課金・トライアル
+- AdMob広告
+- FCM通知 (賢い沈黙ロジック)
+- PyTorchによる行動傾向学習
+
+================================================================================
+【起動方法】
+================================================================================
+
+Flutter アプリ:
+  cd ~/smartreceipt
+  flutter run -d emulator-5554   # Androidエミュレータ
+  flutter run -d macos           # macOSデスクトップ
+
+FastAPI バックエンド:
+  cd ~/smartreceipt-api
+  source venv/bin/activate
+  uvicorn main:app --reload
+  → http://localhost:8000/docs でSwagger UI確認
+
+事前に必要な設定:
+  1. Firebase Console で Email/Password と 電話番号 認証を有効化
+  2. smartreceipt-api/.env に DATABASE_URL と ANTHROPIC_API_KEY を設定
+  3. firebase-credentials.json を smartreceipt-api/ に配置
+
+AndroidエミュレータからのAPIアクセスURL: http://10.0.2.2:8000/v1
+macOSからのAPIアクセスURL: http://localhost:8000/v1
+  (macOSで動かす場合は lib/core/constants.dart の apiBaseUrl を変更)

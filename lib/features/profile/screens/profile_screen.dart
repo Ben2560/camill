@@ -1,0 +1,343 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/constants.dart';
+import '../../../core/theme/camill_colors.dart';
+import '../../../core/theme/camill_theme.dart';
+import '../../auth/services/auth_service.dart';
+import '../../../shared/widgets/budget_sheet.dart';
+import '../../../shared/widgets/top_notification.dart';
+
+class ProfileScreen extends ConsumerStatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _authService = AuthService();
+
+  static const _budgetKey = 'budget_monthly';
+  int _budget = 80000;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBudget();
+  }
+
+  Future<void> _loadBudget() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _budget = prefs.getInt(_budgetKey) ?? 80000);
+  }
+
+  Future<void> _showBudgetSheet(CamillColors colors) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => BudgetSheet(
+        initialBudget: _budget,
+        colors: colors,
+        onSave: (val) async {
+          await prefs.setInt(_budgetKey, val);
+          if (mounted) setState(() => _budget = val);
+        },
+      ),
+    );
+  }
+
+  String get _displayName =>
+      FirebaseAuth.instance.currentUser?.displayName ?? 'ユーザー';
+
+  // ── 表示名変更 ──────────────────────────────────────────────────────────────
+  Future<void> _editName(CamillColors colors) async {
+    final controller = TextEditingController(text: _displayName);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: Text('表示名の変更',
+            style: camillHeadingStyle(16, colors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: camillBodyStyle(14, colors.textPrimary),
+          decoration: InputDecoration(
+            hintText: '表示名を入力',
+            hintStyle: camillBodyStyle(14, colors.textMuted),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('キャンセル',
+                style: camillBodyStyle(14, colors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text('保存',
+                style: camillBodyStyle(14, colors.primary,
+                    weight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    // ダイアログの退場アニメーション完了後に dispose
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    if (result == null || result.isEmpty || !mounted) return;
+    try {
+      await _authService.updateDisplayName(result);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        showTopNotification(context, '更新に失敗しました');
+      }
+    }
+  }
+
+  // ── URL起動 ─────────────────────────────────────────────────────────────────
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        showTopNotification(context, 'URLを開けませんでした');
+      }
+    }
+  }
+
+  // ── 退会 ────────────────────────────────────────────────────────────────────
+  Future<void> _confirmDelete(CamillColors colors) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: Text('退会確認',
+            style: camillHeadingStyle(16, colors.textPrimary)),
+        content: Text(
+          'アカウントを削除すると、すべてのデータが失われます。本当に退会しますか？',
+          style: camillBodyStyle(14, colors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('キャンセル',
+                style: camillBodyStyle(14, colors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('退会する',
+                style: camillBodyStyle(14, colors.danger,
+                    weight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _authService.deleteAccount();
+      if (mounted) context.go('/login');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final msg = e.code == 'requires-recent-login'
+          ? '再度ログインしてから退会操作を行ってください'
+          : '退会処理に失敗しました';
+      showTopNotification(context, msg);
+    } catch (_) {
+      if (mounted) {
+        showTopNotification(context, '退会処理に失敗しました');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        backgroundColor: colors.background,
+        title: Text('プロフィール',
+            style: camillHeadingStyle(17, colors.textPrimary)),
+      ),
+      body: ListView(
+        children: [
+          // ユーザー情報ヘッダー
+          Container(
+            color: colors.primary.withAlpha(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: colors.primaryLight,
+                  child: Text(
+                    _displayName.isNotEmpty ? _displayName[0] : 'U',
+                    style: camillHeadingStyle(24, colors.primary),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_displayName,
+                          style: camillHeadingStyle(18, colors.textPrimary)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colors.primaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('無料プラン',
+                            style: camillBodyStyle(12, colors.primary)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'アカウント', colors: colors),
+          _SettingsItem(
+            icon: Icons.person_outline,
+            title: '表示名',
+            colors: colors,
+            onTap: () => _editName(colors),
+          ),
+          _SettingsItem(
+            icon: Icons.account_balance_wallet_outlined,
+            title: '月の予算',
+            subtitle: '¥${_budget.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
+            colors: colors,
+            onTap: () => _showBudgetSheet(colors),
+          ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'プラン', colors: colors),
+          _SettingsItem(
+            icon: Icons.workspace_premium_outlined,
+            title: 'プラン・課金管理',
+            subtitle: '無料プラン',
+            colors: colors,
+            onTap: () {},
+          ),
+          _SettingsItem(
+            icon: Icons.group_outlined,
+            title: 'ファミリー管理',
+            colors: colors,
+            onTap: () {},
+          ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'アプリ設定', colors: colors),
+          _SettingsItem(
+            icon: Icons.settings_outlined,
+            title: 'アプリ設定',
+            subtitle: 'テーマ・セキュリティ・通知など',
+            colors: colors,
+            onTap: () => context.push('/settings'),
+          ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'その他', colors: colors),
+          _SettingsItem(
+            icon: Icons.privacy_tip_outlined,
+            title: 'プライバシーポリシー',
+            colors: colors,
+            onTap: () => _openUrl(AppConstants.privacyPolicyUrl),
+          ),
+          _SettingsItem(
+            icon: Icons.description_outlined,
+            title: '利用規約',
+            colors: colors,
+            onTap: () => _openUrl(AppConstants.termsOfServiceUrl),
+          ),
+          _SettingsItem(
+            icon: Icons.logout,
+            title: 'ログアウト',
+            colors: colors,
+            onTap: () async {
+              final router = GoRouter.of(context);
+              await _authService.signOut();
+              router.go('/login');
+            },
+          ),
+          Divider(color: colors.surfaceBorder),
+          _SettingsItem(
+            icon: Icons.delete_forever_outlined,
+            title: '退会する',
+            titleColor: colors.danger,
+            colors: colors,
+            onTap: () => _confirmDelete(colors),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 共通ウィジェット ─────────────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final CamillColors colors;
+
+  const _SectionHeader({required this.title, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Text(
+        title,
+        style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _SettingsItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color? titleColor;
+  final CamillColors colors;
+  final VoidCallback onTap;
+
+  const _SettingsItem({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.titleColor,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon,
+          color: titleColor ?? colors.textSecondary, size: 22),
+      title: Text(
+        title,
+        style: camillBodyStyle(15, titleColor ?? colors.textPrimary),
+      ),
+      subtitle: subtitle != null
+          ? Text(subtitle!, style: camillBodyStyle(12, colors.textMuted))
+          : null,
+      trailing: Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
+      onTap: onTap,
+    );
+  }
+}

@@ -1,0 +1,9 @@
+#include "Generated.xcconfig"
+// Redirect build products to a .nosync directory so iCloud Drive does not
+// add com.apple.FinderInfo to framework directories, which breaks codesigning.
+SYMROOT = $(PROJECT_DIR)/build.nosync
+OBJROOT = $(PROJECT_DIR)/build.nosync/Intermediates.noindex
+// --no-strict prevents Xcode's codesign from rejecting Runner.app when iCloud
+// Drive adds com.apple.FinderInfo to the app bundle directory (race condition
+// on macOS Desktop with iCloud sync enabled).
+OTHER_CODE_SIGN_FLAGS = --no-strict

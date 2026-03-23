@@ -1,0 +1,5 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
+#include "Generated.xcconfig"
+// --no-strict prevents Xcode's codesign from rejecting Runner.app when iCloud
+// Drive adds com.apple.FinderInfo to the app bundle directory.
+OTHER_CODE_SIGN_FLAGS = --no-strict

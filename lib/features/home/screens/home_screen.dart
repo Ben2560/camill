@@ -183,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return '${from.month}/${from.day}〜${until.month}/${until.day}';
     }
     final days = c.daysUntilExpiry;
-    if (days != null) return '残り$days日';
+    if (days != null) return days == 0 ? '本日まで！' : '残り$days日';
     return '';
   }
 
@@ -2668,7 +2668,7 @@ class _FreeCouponCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         coupon.validUntil != null
-                            ? '残り${coupon.daysUntilExpiry}日'
+                            ? (coupon.daysUntilExpiry == 0 ? '本日まで！' : '残り${coupon.daysUntilExpiry}日')
                             : '',
                         style: camillBodyStyle(11, Colors.white70),
                       ),
@@ -2742,7 +2742,7 @@ class _DiscountCouponCard extends StatelessWidget {
                   )
                 else if (coupon.validUntil != null)
                   Text(
-                    '残り${coupon.daysUntilExpiry}日',
+                    coupon.daysUntilExpiry == 0 ? '本日まで！' : '残り${coupon.daysUntilExpiry}日',
                     style: camillBodyStyle(11, colors.textMuted),
                   ),
               ],

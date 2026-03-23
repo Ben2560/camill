@@ -19,7 +19,7 @@ class DataScreen extends StatelessWidget {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.background,
-        title: Text('データ', style: camillHeadingStyle(17, colors.textPrimary)),
+        title: Text('コミュニティ', style: camillHeadingStyle(17, colors.textPrimary)),
         elevation: 0,
       ),
       body: Center(

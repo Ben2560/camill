@@ -314,9 +314,9 @@ class _MainShellState extends State<MainShell>
                         onTap: () => _onNavTap(0),
                       ),
                       _BottomNavItem(
-                        icon: Icons.bar_chart_outlined,
-                        activeIcon: Icons.bar_chart,
-                        label: 'データ',
+                        icon: Icons.explore_outlined,
+                        activeIcon: Icons.explore,
+                        label: 'コミュニティ',
                         selected: _currentIndex == 1,
                         colors: colors,
                         onTap: () => _onNavTap(1),

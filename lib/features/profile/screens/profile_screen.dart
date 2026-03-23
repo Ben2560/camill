@@ -163,13 +163,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final statusBarH = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: colors.background,
       body: ListView(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 8, 4),
+            padding: const EdgeInsets.fromLTRB(20, 10, 8, 4),
             child: Text(
               'プロフィール',
               style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),

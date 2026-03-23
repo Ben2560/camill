@@ -22,7 +22,7 @@ class DataScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 8, 4),
+            padding: EdgeInsets.fromLTRB(20, statusBarH + 15, 8, 4),
             child: Text(
               'コミュニティ',
               style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),

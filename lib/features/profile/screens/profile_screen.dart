@@ -168,7 +168,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: ListView(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 8, 4),
+            padding: const EdgeInsets.fromLTRB(20, 15, 8, 4),
             child: Text(
               'プロフィール',
               style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),

@@ -455,9 +455,12 @@ class _CalendarScreenState extends State<CalendarScreen>
     if (_transitionController.isAnimating) return;
     HapticFeedback.lightImpact();
 
+    final now = DateTime.now();
+    final isCurrentMonth = year == now.year && month == now.month;
+    final targetDay = isCurrentMonth ? now.day : 1;
     setState(() {
-      _focusedDay = DateTime(year, month, 1);
-      _selectedDay = DateTime(year, month, 1);
+      _focusedDay = DateTime(year, month, targetDay);
+      _selectedDay = DateTime(year, month, targetDay);
       _isReturningFromYearView = true;
     });
 

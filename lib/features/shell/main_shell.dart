@@ -18,6 +18,7 @@ class _MainShellState extends State<MainShell>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   bool _speedDialOpen = false;
+  final _calendarReturnNotifier = ValueNotifier<int>(0);
   late AnimationController _animController;
   late CurvedAnimation _slideAnim;
   late CurvedAnimation _fadeAnim;
@@ -63,6 +64,7 @@ class _MainShellState extends State<MainShell>
     _slideAnim.dispose();
     _animController.dispose();
     _pageController.dispose();
+    _calendarReturnNotifier.dispose();
     super.dispose();
   }
 
@@ -88,6 +90,10 @@ class _MainShellState extends State<MainShell>
       return;
     }
     _closeSpeedDial();
+    if (index == 3 && _currentIndex == 3) {
+      _calendarReturnNotifier.value++;
+      return;
+    }
     final pageIndex = index > 2 ? index - 1 : index;
     _pageController.animateToPage(
       pageIndex,
@@ -114,10 +120,10 @@ class _MainShellState extends State<MainShell>
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              children: const [
+              children: [
                 HomeScreen(),
                 DataScreen(),
-                CalendarScreen(),
+                CalendarScreen(returnToTodayNotifier: _calendarReturnNotifier),
                 ProfileScreen(),
               ],
             ),

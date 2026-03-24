@@ -16,7 +16,9 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  const CalendarScreen({super.key, this.returnToTodayNotifier});
+
+  final ValueNotifier<int>? returnToTodayNotifier;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -66,14 +68,27 @@ class _CalendarScreenState extends State<CalendarScreen>
       ..addListener(_onYearScroll);
     _loadSummary(_focusedDay);
     _loadCoupons();
+    widget.returnToTodayNotifier?.addListener(_onReturnToToday);
   }
 
   @override
   void dispose() {
+    widget.returnToTodayNotifier?.removeListener(_onReturnToToday);
     _transitionController.dispose();
     _yearScrollController.dispose();
     _dayPageController.dispose();
     super.dispose();
+  }
+
+  void _onReturnToToday() {
+    final today = DateTime.now();
+    if (_isYearView) {
+      _tapMiniCalendar(today.year, today.month, Offset.zero).then((_) {
+        if (mounted) _goToDay(today);
+      });
+    } else {
+      _goToDay(today);
+    }
   }
 
   void _goToDay(DateTime day) {
@@ -167,8 +182,8 @@ class _CalendarScreenState extends State<CalendarScreen>
     final result = <({Coupon coupon, bool isStart, bool isEnd})>[];
     final d = DateTime(day.year, day.month, day.day);
     for (final c in _coupons) {
-      // 使用済みクーポンはバー表示しない
-      if (c.isUsed) continue;
+      // 使用済み・期限切れクーポンはバー表示しない
+      if (c.isUsed || c.isExpired) continue;
       // 有効期間が全く不明なクーポンはバー表示しない
       if (c.validFrom == null && c.validUntil == null) continue;
       // validFrom が null の場合は createdAt を開始日として使う
@@ -398,36 +413,29 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   void _enterYearView() {
     if (_isYearView) return;
-    setState(() => _yearViewYear = _focusedDay.year);
-    final p = _transitionController.value;
-    _transitionController.animateTo(
-      1.0,
-      duration: Duration(milliseconds: (300 * (1.0 - p)).round().clamp(150, 300)),
-      curve: Curves.easeOut,
-    ).then((_) {
-      if (!mounted) return;
-      // _buildYearView の ListView が初めてマウントされる前に、
-      // 正しい initialScrollOffset で ScrollController を再生成する。
-      // こうしないと最初の1フレームで offset=0（2000年）が描画される。
-      // 初回は LayoutBuilder 未実行で _yearItemExtent がデフォルト値のため、
-      // 画面幅から事前に計算する。
-      final screenW = MediaQuery.sizeOf(context).width;
-      final cellW = (screenW - 20 - 16) / 3;
-      final cellH = cellW / 0.85;
-      final gridH = 4 * cellH + 3 * 8.0;
-      _yearItemExtent = 28.0 + gridH + 16.0;
-      final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
-      _yearScrollController.removeListener(_onYearScroll);
-      _yearScrollController.dispose();
-      _yearScrollController = ScrollController(
-        initialScrollOffset: targetOffset,
-      );
-      _yearScrollController.addListener(_onYearScroll);
-      setState(() => _isYearView = true);
+
+    final screenW = MediaQuery.sizeOf(context).width;
+    final cellW = (screenW - 20 - 16) / 3;
+    final cellH = cellW / 0.85;
+    final gridH = 4 * cellH + 3 * 8.0;
+    _yearItemExtent = 28.0 + gridH + 16.0;
+    final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+
+    _yearScrollController.removeListener(_onYearScroll);
+    _yearScrollController.dispose();
+    _yearScrollController = ScrollController(
+      initialScrollOffset: targetOffset,
+    );
+    _yearScrollController.addListener(_onYearScroll);
+
+    setState(() {
+      _yearViewYear = _focusedDay.year;
+      _isYearView = true;
     });
   }
 
   void _onYearScroll() {
+    // debugPrint('[onYearScroll] offset=${_yearScrollController.offset}');
     final idx =
         (_yearScrollController.offset / _yearItemExtent).round();
     final yr = (_kBaseYear + idx).clamp(
@@ -521,7 +529,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               ),
               // 右シェブロン
               Positioned(
-                right: 4,
+                right: 44,
                 child: Opacity(
                   opacity: chevronOpacity,
                   child: IgnorePointer(
@@ -535,6 +543,43 @@ class _CalendarScreenState extends State<CalendarScreen>
                         );
                         setState(() => _focusedDay = next);
                         _loadSummary(next);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              // 年ビュー切替ボタン
+              Positioned(
+                right: 4,
+                child: Opacity(
+                  opacity: chevronOpacity,
+                  child: IgnorePointer(
+                    ignoring: p > 0.3,
+                    child: IconButton(
+                      icon: Icon(Icons.calendar_view_month, color: colors.textSecondary),
+                      onPressed: () {
+                        if (_isYearView || _transitionController.isAnimating) return;
+                        // アニメーション開始前に ScrollController を準備
+                        // （p > 0.15 で _buildYearView が使われるため）
+                        final screenW = MediaQuery.sizeOf(context).width;
+                        final cellW = (screenW - 20 - 16) / 3;
+                        final cellH = cellW / 0.85;
+                        final gridH = 4 * cellH + 3 * 8.0;
+                        _yearItemExtent = 28.0 + gridH + 16.0;
+                        final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+                        _yearScrollController.removeListener(_onYearScroll);
+                        _yearScrollController.dispose();
+                        _yearScrollController = ScrollController(
+                          initialScrollOffset: targetOffset,
+                        );
+                        _yearScrollController.addListener(_onYearScroll);
+                        _transitionController.animateTo(
+                          1.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        ).then((_) {
+                          if (mounted) _enterYearView();
+                        });
                       },
                     ),
                   ),
@@ -560,6 +605,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               final cellH = cellW / 0.85;
               final gridH = 4 * cellH + 3 * 8.0;
               _yearItemExtent = 28.0 + gridH + 16.0; // label + grid + v-pad
+              // debugPrint('[LayoutBuilder] maxWidth=$w, itemExtent=$_yearItemExtent');
               return ListView.builder(
                 controller: _yearScrollController,
                 itemCount: _kYearCount,
@@ -678,22 +724,27 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   Widget _buildYearSection(int year, CamillColors colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: Text(
-            '$year年',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: colors.textMuted,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // debugPrint('[YearSection $year] constraints=$constraints');
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: Text(
+                '$year年',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textMuted,
+                ),
+              ),
             ),
-          ),
-        ),
-        Expanded(child: _buildYearGrid(year, colors)),
-      ],
+            Expanded(child: _buildYearGrid(year, colors)),
+          ],
+        );
+      },
     );
   }
 
@@ -889,6 +940,19 @@ class _CalendarScreenState extends State<CalendarScreen>
                   final velocity = d.velocity.pixelsPerSecond.distance;
                   final shouldCommit = p >= 0.6 || (p >= 0.3 && velocity > 800);
                   if (shouldCommit) {
+                    // アニメーション開始前に ScrollController を準備
+                    final screenW = MediaQuery.sizeOf(context).width;
+                    final cellW = (screenW - 20 - 16) / 3;
+                    final cellH = cellW / 0.85;
+                    final gridH = 4 * cellH + 3 * 8.0;
+                    _yearItemExtent = 28.0 + gridH + 16.0;
+                    final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+                    _yearScrollController.removeListener(_onYearScroll);
+                    _yearScrollController.dispose();
+                    _yearScrollController = ScrollController(
+                      initialScrollOffset: targetOffset,
+                    );
+                    _yearScrollController.addListener(_onYearScroll);
                     _transitionController.animateTo(
                       1.0,
                       duration: Duration(milliseconds: (300 * (1.0 - p)).round().clamp(150, 300)),
@@ -1023,8 +1087,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                             ignoring: p < 0.7,
                             child: ColoredBox(
                               color: colors.background,
-                              child: _buildYearSection(
-                                  _focusedDay.year, colors),
+                              child: _buildYearView(colors),
                             ),
                           ),
                         ),

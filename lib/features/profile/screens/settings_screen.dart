@@ -261,7 +261,7 @@ class _ThemeGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentMode = ref.watch(themeProvider);
-    final themes = CamillThemeMode.values.where((m) => !m.hasCat).toList();
+    final themes = CamillThemeMode.values;
 
     return GridView.builder(
       shrinkWrap: true,

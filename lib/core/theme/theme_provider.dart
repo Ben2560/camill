@@ -15,7 +15,6 @@ class ThemeNotifier extends StateNotifier<CamillThemeMode> {
   ThemeNotifier.withInitial(super.initial);
 
   Future<void> setTheme(CamillThemeMode mode) async {
-    if (mode.hasCat) return; // v2.0まで猫テーマは選択不可
     state = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('camill_theme', mode.name);
@@ -26,8 +25,7 @@ class ThemeNotifier extends StateNotifier<CamillThemeMode> {
     final saved = prefs.getString('camill_theme');
     if (saved != null) {
       try {
-        final mode = CamillThemeMode.values.byName(saved);
-        if (!mode.hasCat) state = mode;
+        state = CamillThemeMode.values.byName(saved);
       } catch (_) {}
     }
   }

@@ -112,13 +112,10 @@ class CamillColors extends ThemeExtension<CamillColors> {
   static CamillColors fromMode(CamillThemeMode mode) {
     switch (mode) {
       case CamillThemeMode.midnight:
-      case CamillThemeMode.midnightCat:
         return CamillColors.midnight;
       case CamillThemeMode.natural:
-      case CamillThemeMode.naturalCat:
         return CamillColors.natural;
       case CamillThemeMode.classic:
-      case CamillThemeMode.classicCat:
         return CamillColors.classic;
     }
   }

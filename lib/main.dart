@@ -39,8 +39,7 @@ void main() async {
   CamillThemeMode initialTheme = CamillThemeMode.midnight;
   if (saved != null) {
     try {
-      final mode = CamillThemeMode.values.byName(saved);
-      if (!mode.hasCat) initialTheme = mode;
+      initialTheme = CamillThemeMode.values.byName(saved);
     } catch (_) {}
   }
 

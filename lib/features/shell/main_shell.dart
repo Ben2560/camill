@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/camill_colors.dart';
 import '../home/screens/home_screen.dart';
-import '../data/screens/data_screen.dart';
+import '../community/screens/community_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
 import '../profile/screens/profile_screen.dart';
 
@@ -122,7 +122,7 @@ class _MainShellState extends State<MainShell>
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 HomeScreen(),
-                DataScreen(),
+                CommunityScreen(),
                 CalendarScreen(returnToTodayNotifier: _calendarReturnNotifier),
                 ProfileScreen(),
               ],

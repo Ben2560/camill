@@ -1,3 +1,10 @@
+import java.util.Properties
+
+val secretsFile = rootProject.file("../secrets.properties")
+val secrets = Properties().apply {
+    if (secretsFile.exists()) load(secretsFile.inputStream())
+}
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -31,6 +38,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] =
+            secrets.getProperty("GOOGLE_MAPS_API_KEY", "")
     }
 
     buildTypes {

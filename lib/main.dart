@@ -23,6 +23,7 @@ import 'features/profile/screens/notification_settings_screen.dart';
 import 'features/profile/screens/settings_screen.dart';
 import 'features/reports/screens/report_screen.dart';
 import 'features/subscriptions/screens/subscription_screen.dart';
+import 'features/community/screens/community_settings_screen.dart';
 import 'features/data/screens/data_screen.dart';
 import 'firebase_options.dart';
 import 'shared/models/receipt_model.dart';
@@ -137,6 +138,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/chart',
       builder: (context, state) => const BalanceChartScreen(),
+    ),
+    GoRoute(
+      path: '/community-settings',
+      builder: (context, state) => const CommunitySettingsScreen(),
     ),
   ],
 );

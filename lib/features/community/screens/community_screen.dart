@@ -46,6 +46,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   String? _highlightedStoreId;
   bool _locationPermissionGranted = false;
   Timer? _debounceTimer;
+  Timer? _snapBackTimer;
   double _sheetSize = 0.32;
   late String _mapStyle;
 
@@ -53,7 +54,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   bool _filterFree = false;
   int? _minDiscountAmount; // null = フィルターなし
   bool _searchPanelOpen = false;
-  double _sliderValue = 10; // スライダーの仮値（確定前）
+  double _sliderValue = 0; // 円モード=インデックス(0-10), %モード=実値
   bool _usePercent = false; // false=円, true=%
 
   List<CommunityStore> get _filteredStores {
@@ -96,6 +97,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _snapBackTimer?.cancel();
     _mapController?.dispose();
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
@@ -106,8 +108,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   Future<void> _initLocation() async {
     try {
       final permission = await Geolocator.checkPermission();
+      if (!mounted) return;
       if (permission == LocationPermission.denied) {
         final requested = await Geolocator.requestPermission();
+        if (!mounted) return;
         if (requested == LocationPermission.denied ||
             requested == LocationPermission.deniedForever) {
           // GPS不許可 → デフォルト位置で表示
@@ -127,6 +131,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
           timeLimit: Duration(seconds: 5),
         ),
       );
+      if (!mounted) return;
       setState(() {
         _currentCenter = LatLng(pos.latitude, pos.longitude);
       });
@@ -135,11 +140,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
       );
       _fetchStores();
     } catch (_) {
+      if (!mounted) return;
       _fetchStores();
     }
   }
 
   Future<void> _fetchStores() async {
+    if (!mounted) return;
     if (_currentZoom < _minFetchZoom) {
       setState(() => _loading = false);
       return;
@@ -253,13 +260,14 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   void _cycleSheetSize() {
     final current = _sheetController.size;
+    final middle = _searchPanelOpen ? 0.55 : 0.32;
     double next;
     if (current < 0.2) {
-      next = 0.32; // しまう → マニュアル
-    } else if (current < 0.6) {
+      next = middle; // しまう → マニュアル
+    } else if (current < 0.7) {
       next = 0.93; // マニュアル → フル画面
     } else {
-      next = 0.08; // フル画面 → しまう
+      next = middle; // フル画面 → マニュアル
     }
     _sheetController.animateTo(
       next,
@@ -643,6 +651,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     );
   }
 
+  static const _yenSteps = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+
+  double _yenIndex(int yen) {
+    final i = _yenSteps.indexOf(yen);
+    return (i >= 0 ? i : 0).toDouble();
+  }
+
   bool get _hasActiveFilter => _filterFree || _minDiscountAmount != null;
 
   bool get _isSheetCollapsed => _sheetSize < 0.15;
@@ -664,7 +679,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             if (_searchPanelOpen) {
               _sliderValue = _usePercent
                   ? (_minDiscountAmount ?? 5).toDouble()
-                  : (_minDiscountAmount ?? 10).toDouble();
+                  : _yenIndex(_minDiscountAmount ?? 10);
             }
           });
           // パネル開閉に合わせてシートを上下させる
@@ -706,7 +721,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                           : _usePercent
                               ? '$_minDiscountAmount%OFF以上で絞り込み中'
                               : '$_minDiscountAmount円以上で絞り込み中'
-                      : 'クーポンを検索…',
+                      : 'クーポンを検索',
                   style: camillBodyStyle(
                     13,
                     _hasActiveFilter ? colors.primary : colors.textMuted,
@@ -817,7 +832,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                     GestureDetector(
                       onTap: () => setState(() {
                         _usePercent = false;
-                        _sliderValue = 10;
+                        _sliderValue = 0;
                       }),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
@@ -907,7 +922,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       child: Text(
                         _usePercent
                             ? '${_sliderValue.round()}%OFF以上'
-                            : '${_sliderValue.round()}円以上',
+                            : '${_yenSteps[_sliderValue.round()]}円以上',
                         style: camillBodyStyle(
                           15,
                           sliderDisabled ? colors.textMuted : colors.primary,
@@ -933,17 +948,19 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                     thumbShape: const RoundSliderThumbShape(
                       enabledThumbRadius: 9,
                     ),
+                    tickMarkShape: SliderTickMarkShape.noTickMark,
                   ),
                   child: Slider(
                     value: _sliderValue,
-                    min: _usePercent ? 5 : 10,
-                    max: _usePercent ? 50 : 500,
+                    min: _usePercent ? 5 : 0,
+                    max: _usePercent ? 50 : 10,
+                    divisions: _usePercent ? 9 : 10,
                     onChanged: sliderDisabled
                         ? null
                         : (v) => setState(() {
                               _sliderValue = _usePercent
-                                  ? (v / 5).roundToDouble() * 5  // 5%刻み
-                                  : (v / 10).roundToDouble() * 10; // 10円刻み
+                                  ? (v / 5).roundToDouble() * 5
+                                  : v;
                             }),
                   ),
                 ),
@@ -971,7 +988,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       ? null
                       : () {
                           setState(() {
-                            _minDiscountAmount = _sliderValue.round();
+                            _minDiscountAmount = _usePercent
+                                ? _sliderValue.round()
+                                : _yenSteps[_sliderValue.round()];
                             _filterFree = false;
                             _searchPanelOpen = false;
                           });

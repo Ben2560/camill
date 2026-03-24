@@ -1487,7 +1487,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   Widget _buildCategorySummary(CamillColors colors) {
     final cats = _summary!.byCategory;
-    final total = cats.fold(0, (sum, c) => sum + c.amount);
+    // 予算カードと一致するよう totalExpense を使う
+    final total = _summary!.totalExpense;
     final periodLabel = ['週', '月', '年'][_periodIndex];
 
     final anyBudgetSet = widget.categoryBudgets.values.any((v) => v > 0);
@@ -1510,18 +1511,9 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             .toList()
           ..sort((a, b) => b.amount.compareTo(a.amount));
 
-    // 予算未設定カテゴリの合計を「その他」として集計
-    final otherAmount = anyBudgetSet
-        ? _categoryMeta.keys
-            .where((k) => (widget.categoryBudgets[k] ?? 0) == 0)
-            .fold(
-            0,
-            (sum, k) {
-              final found = cats.where((c) => c.category == k);
-              return sum + (found.isEmpty ? 0 : found.first.amount);
-            },
-          )
-        : 0;
+    // 表示行の合計を計算し、差分を「その他」に含める
+    final rowsTotal = rows.fold(0, (sum, r) => sum + r.amount);
+    final otherAmount = anyBudgetSet ? total - rowsTotal : 0;
     final otherMeta = _categoryMeta['other']!;
 
     return GestureDetector(

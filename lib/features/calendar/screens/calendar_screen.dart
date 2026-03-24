@@ -42,7 +42,11 @@ class _CalendarScreenState extends State<CalendarScreen>
   // 日送りPageView
   static const int _kMiddlePage = 10000;
   late final PageController _dayPageController = PageController(initialPage: _kMiddlePage);
-  final DateTime _baseDate = DateTime.now();
+  final DateTime _baseDate = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
 
   // 年ビュー
   static const int _kBaseYear = 2000;
@@ -92,18 +96,20 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   void _goToDay(DateTime day) {
-    if (_selectedDay != null && isSameDay(day, _selectedDay!)) return;
+    // table_calendar は UTC で日付を返すのでローカルに正規化
+    final d = DateTime(day.year, day.month, day.day);
+    if (_selectedDay != null && isSameDay(d, _selectedDay!)) return;
     final needsReload =
         _summaryMonth == null ||
-        day.month != _summaryMonth!.month ||
-        day.year != _summaryMonth!.year;
+        d.month != _summaryMonth!.month ||
+        d.year != _summaryMonth!.year;
     setState(() {
-      _selectedDay = day;
-      _focusedDay = day;
+      _selectedDay = d;
+      _focusedDay = d;
     });
-    final diff = day.difference(_baseDate).inDays;
+    final diff = d.difference(_baseDate).inDays;
     _dayPageController.jumpToPage(_kMiddlePage + diff);
-    if (needsReload) _loadSummary(day);
+    if (needsReload) _loadSummary(d);
   }
 
   Future<void> _loadCoupons() async {
@@ -214,7 +220,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   List<Coupon> _couponsForDay(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
     return _coupons.where((c) {
-      if (c.isUsed) return false;
+      if (c.isUsed || c.isExpired) return false;
       // 有効期間が全く不明なクーポンは表示しない
       if (c.validFrom == null && c.validUntil == null) return false;
       // validFrom が null の場合は createdAt を開始日として使う
@@ -694,6 +700,8 @@ class _CalendarScreenState extends State<CalendarScreen>
               onPageChanged: (index) {
                 final newDay =
                     _baseDate.add(Duration(days: index - _kMiddlePage));
+                // _goToDay から jumpToPage された場合は既に更新済み
+                if (isSameDay(_selectedDay, newDay)) return;
                 final needsReload = _summaryMonth == null ||
                     newDay.month != _summaryMonth!.month ||
                     newDay.year != _summaryMonth!.year;

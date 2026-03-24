@@ -47,6 +47,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   bool _locationPermissionGranted = false;
   Timer? _debounceTimer;
   double _sheetSize = 0.32;
+  late String _mapStyle;
 
   // 検索フィルター状態
   bool _filterFree = false;
@@ -81,6 +82,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   void initState() {
     super.initState();
+    _mapStyle = communityMapStyle(ref.read(themeProvider));
     _sheetController.addListener(_onSheetSizeChanged);
     _initLocation();
   }
@@ -311,7 +313,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeProvider);
+    ref.listen(themeProvider, (_, next) {
+      setState(() => _mapStyle = communityMapStyle(next));
+    });
     final colors = context.colors;
     final statusBarH = MediaQuery.of(context).padding.top;
 
@@ -326,7 +330,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 target: _currentCenter,
                 zoom: _currentZoom,
               ),
-              style: communityMapStyle(themeMode),
+              style: _mapStyle,
               markers: _markers,
               myLocationEnabled: _locationPermissionGranted,
               myLocationButtonEnabled: false,
@@ -540,77 +544,89 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                               ),
                             ),
                           ),
-                          // 検索ボタン
-                          _buildSearchButton(colors),
-                          // 検索パネル（ぬるっとスライドイン）
+                          // 検索ボタン・パネル・ヘッダー（しまった時は一括で縮んで隠れる）
                           AnimatedSize(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeInOutCubic,
                             alignment: Alignment.topCenter,
                             clipBehavior: Clip.hardEdge,
-                            child: _searchPanelOpen
-                                ? TweenAnimationBuilder<double>(
-                                    key: const ValueKey('search_panel'),
-                                    tween: Tween(begin: 0.0, end: 1.0),
-                                    duration: const Duration(milliseconds: 340),
-                                    curve: Curves.easeOutCubic,
-                                    builder: (context, value, child) {
-                                      return Transform.translate(
-                                        offset: Offset(0, -8 * (1 - value)),
-                                        child: Opacity(
-                                          opacity: value,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    child: _buildSearchPanel(colors),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                          // 近くの店舗ヘッダー
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
-                            child: Row(
-                              children: [
-                                Text(
-                                  '近くの店舗',
-                                  style: camillBodyStyle(
-                                    15,
-                                    colors.textPrimary,
-                                    weight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                if (!_loading)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colors.primaryLight,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      '${_filteredStores.length}件',
-                                      style: camillBodyStyle(
-                                        12,
-                                        colors.primary,
-                                        weight: FontWeight.w600,
+                            child: _isSheetCollapsed
+                                ? const SizedBox(width: double.infinity)
+                                : Column(
+                                    children: [
+                                      _buildSearchButton(colors),
+                                      // 検索パネル（ぬるっとスライドイン）
+                                      AnimatedSize(
+                                        duration: const Duration(milliseconds: 300),
+                                        curve: Curves.easeOutCubic,
+                                        alignment: Alignment.topCenter,
+                                        clipBehavior: Clip.hardEdge,
+                                        child: _searchPanelOpen
+                                            ? TweenAnimationBuilder<double>(
+                                                key: const ValueKey('search_panel'),
+                                                tween: Tween(begin: 0.0, end: 1.0),
+                                                duration: const Duration(milliseconds: 340),
+                                                curve: Curves.easeOutCubic,
+                                                builder: (context, value, child) {
+                                                  return Transform.translate(
+                                                    offset: Offset(0, -8 * (1 - value)),
+                                                    child: Opacity(
+                                                      opacity: value,
+                                                      child: child,
+                                                    ),
+                                                  );
+                                                },
+                                                child: _buildSearchPanel(colors),
+                                              )
+                                            : const SizedBox.shrink(),
                                       ),
-                                    ),
+                                      // 近くの店舗ヘッダー
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              '近くの店舗',
+                                              style: camillBodyStyle(
+                                                15,
+                                                colors.textPrimary,
+                                                weight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            if (!_loading)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 7,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: colors.primaryLight,
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: Text(
+                                                  '${_filteredStores.length}件',
+                                                  style: camillBodyStyle(
+                                                    12,
+                                                    colors.primary,
+                                                    weight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            const Spacer(),
+                                            GestureDetector(
+                                              onTap: () => _fetchStores(),
+                                              child: Icon(
+                                                Icons.refresh,
+                                                size: 20,
+                                                color: colors.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                const Spacer(),
-                                GestureDetector(
-                                  onTap: () => _fetchStores(),
-                                  child: Icon(
-                                    Icons.refresh,
-                                    size: 20,
-                                    color: colors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -632,18 +648,12 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   bool get _isSheetCollapsed => _sheetSize < 0.15;
 
   Widget _buildSearchButton(CamillColors colors) {
-    // シートがしまわれている時はボトムシートと同じ色に溶け込ませる
-    final collapsed = _isSheetCollapsed;
     final bgColor = _hasActiveFilter
         ? colors.primary.withAlpha(15)
-        : collapsed
-            ? Colors.transparent
-            : colors.background;
+        : colors.background;
     final borderColor = _hasActiveFilter
         ? colors.primary
-        : collapsed
-            ? Colors.transparent
-            : colors.surfaceBorder;
+        : colors.surfaceBorder;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -1001,6 +1011,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   }
 
   Widget _buildStoreSliver(CamillColors colors) {
+    if (_isSheetCollapsed) return const SliverToBoxAdapter(child: SizedBox.shrink());
     if (_loading) {
       return SliverFillRemaining(
         hasScrollBody: false,

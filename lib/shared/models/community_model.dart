@@ -45,6 +45,7 @@ class SharedCoupon {
   final String storeName;
   final String description;
   final int discountAmount;
+  final int? discountPercent; // %割引（例: 10 = 10%OFF）
   final DateTime? validFrom;
   final DateTime? validUntil;
   final DateTime? sharedAt;
@@ -55,6 +56,7 @@ class SharedCoupon {
     required this.storeName,
     required this.description,
     required this.discountAmount,
+    this.discountPercent,
     this.validFrom,
     this.validUntil,
     this.sharedAt,
@@ -66,6 +68,7 @@ class SharedCoupon {
         storeName: json['store_name'] as String,
         description: json['description'] as String,
         discountAmount: (json['discount_amount'] as num).toInt(),
+        discountPercent: (json['discount_percent'] as num?)?.toInt(),
         validFrom: json['valid_from'] != null
             ? DateTime.parse(json['valid_from'] as String)
             : null,

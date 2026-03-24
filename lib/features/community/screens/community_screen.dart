@@ -48,6 +48,36 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   Timer? _debounceTimer;
   double _sheetSize = 0.32;
 
+  // 検索フィルター状態
+  bool _filterFree = false;
+  int? _minDiscountAmount; // null = フィルターなし
+  bool _searchPanelOpen = false;
+  double _sliderValue = 10; // スライダーの仮値（確定前）
+  bool _usePercent = false; // false=円, true=%
+
+  List<CommunityStore> get _filteredStores {
+    if (!_filterFree && _minDiscountAmount == null) return _stores;
+    return _stores.where((store) {
+      if (store.coupons.isEmpty) return false;
+      if (_filterFree) {
+        return store.coupons.any((c) => c.isFree && !c.isExpired);
+      }
+      if (_minDiscountAmount != null) {
+        if (_usePercent) {
+          return store.coupons.any(
+            (c) => !c.isExpired &&
+                c.discountPercent != null &&
+                c.discountPercent! >= _minDiscountAmount!,
+          );
+        }
+        return store.coupons.any(
+          (c) => !c.isFree && !c.isExpired && c.discountAmount >= _minDiscountAmount!,
+        );
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -510,6 +540,34 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                               ),
                             ),
                           ),
+                          // 検索ボタン
+                          _buildSearchButton(colors),
+                          // 検索パネル（ぬるっとスライドイン）
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            alignment: Alignment.topCenter,
+                            clipBehavior: Clip.hardEdge,
+                            child: _searchPanelOpen
+                                ? TweenAnimationBuilder<double>(
+                                    key: const ValueKey('search_panel'),
+                                    tween: Tween(begin: 0.0, end: 1.0),
+                                    duration: const Duration(milliseconds: 340),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (context, value, child) {
+                                      return Transform.translate(
+                                        offset: Offset(0, -8 * (1 - value)),
+                                        child: Opacity(
+                                          opacity: value,
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                    child: _buildSearchPanel(colors),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          // 近くの店舗ヘッダー
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
                             child: Row(
@@ -534,7 +592,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
-                                      '${_stores.length}件',
+                                      '${_filteredStores.length}件',
                                       style: camillBodyStyle(
                                         12,
                                         colors.primary,
@@ -563,6 +621,379 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 ),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _hasActiveFilter => _filterFree || _minDiscountAmount != null;
+
+  bool get _isSheetCollapsed => _sheetSize < 0.15;
+
+  Widget _buildSearchButton(CamillColors colors) {
+    // シートがしまわれている時はボトムシートと同じ色に溶け込ませる
+    final collapsed = _isSheetCollapsed;
+    final bgColor = _hasActiveFilter
+        ? colors.primary.withAlpha(15)
+        : collapsed
+            ? Colors.transparent
+            : colors.background;
+    final borderColor = _hasActiveFilter
+        ? colors.primary
+        : collapsed
+            ? Colors.transparent
+            : colors.surfaceBorder;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _searchPanelOpen = !_searchPanelOpen;
+            if (_searchPanelOpen) {
+              _sliderValue = _usePercent
+                  ? (_minDiscountAmount ?? 5).toDouble()
+                  : (_minDiscountAmount ?? 10).toDouble();
+            }
+          });
+          // パネル開閉に合わせてシートを上下させる
+          if (_searchPanelOpen) {
+            _sheetController.animateTo(
+              0.55,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+            );
+          } else if (_sheetController.size > 0.45) {
+            _sheetController.animateTo(
+              0.32,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search,
+                size: 18,
+                color: _hasActiveFilter ? colors.primary : colors.textMuted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _hasActiveFilter
+                      ? _filterFree
+                          ? '無料券で絞り込み中'
+                          : _usePercent
+                              ? '$_minDiscountAmount%OFF以上で絞り込み中'
+                              : '$_minDiscountAmount円以上で絞り込み中'
+                      : 'クーポンを検索…',
+                  style: camillBodyStyle(
+                    13,
+                    _hasActiveFilter ? colors.primary : colors.textMuted,
+                    weight: _hasActiveFilter ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (_hasActiveFilter)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _filterFree = false;
+                      _minDiscountAmount = null;
+                      _searchPanelOpen = false;
+                    });
+                    _sheetController.animateTo(
+                      0.32,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                    );
+                  },
+                  child: Icon(Icons.close, size: 18, color: colors.textMuted),
+                )
+              else
+                Icon(
+                  _searchPanelOpen
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  size: 18,
+                  color: colors.textMuted,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchPanel(CamillColors colors) {
+    final sliderDisabled = _filterFree;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        children: [
+          // ── 無料券 + 円/%スイッチ ──
+          Row(
+            children: [
+              // 無料券ボタン
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _filterFree = !_filterFree;
+                      if (_filterFree) _minDiscountAmount = null;
+                      _searchPanelOpen = false;
+                    });
+                    _sheetController.animateTo(
+                      0.32,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _filterFree ? colors.primary : colors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _filterFree ? colors.primary : colors.surfaceBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.card_giftcard,
+                          size: 18,
+                          color: _filterFree ? Colors.white : colors.textSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '無料券',
+                          style: camillBodyStyle(
+                            13,
+                            _filterFree ? Colors.white : colors.textPrimary,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_filterFree)
+                          Icon(Icons.check, size: 16, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 円 / % スイッチ
+              Container(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.surfaceBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _usePercent = false;
+                        _sliderValue = 10;
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          color: !_usePercent ? colors.primary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: Text(
+                          '円',
+                          style: camillBodyStyle(
+                            13,
+                            !_usePercent ? Colors.white : colors.textSecondary,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _usePercent = true;
+                        _sliderValue = 5;
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _usePercent ? colors.primary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: Text(
+                          '%',
+                          style: camillBodyStyle(
+                            13,
+                            _usePercent ? Colors.white : colors.textSecondary,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // ── 割引額スライダー ──
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.surfaceBorder),
+            ),
+            child: Column(
+              children: [
+                // 金額表示（上部 — 指で隠れない）
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '割引額',
+                      style: camillBodyStyle(
+                        12,
+                        sliderDisabled ? colors.textMuted : colors.textSecondary,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: sliderDisabled
+                            ? colors.surfaceBorder.withAlpha(80)
+                            : colors.primaryLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _usePercent
+                            ? '${_sliderValue.round()}%OFF以上'
+                            : '${_sliderValue.round()}円以上',
+                        style: camillBodyStyle(
+                          15,
+                          sliderDisabled ? colors.textMuted : colors.primary,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // スライダー
+                SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: sliderDisabled
+                        ? colors.textMuted.withAlpha(60)
+                        : colors.primary,
+                    inactiveTrackColor: colors.surfaceBorder,
+                    thumbColor: sliderDisabled
+                        ? colors.textMuted.withAlpha(80)
+                        : colors.primary,
+                    overlayColor: colors.primary.withAlpha(30),
+                    trackHeight: 4,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 9,
+                    ),
+                  ),
+                  child: Slider(
+                    value: _sliderValue,
+                    min: _usePercent ? 5 : 10,
+                    max: _usePercent ? 50 : 500,
+                    onChanged: sliderDisabled
+                        ? null
+                        : (v) => setState(() {
+                              _sliderValue = _usePercent
+                                  ? (v / 5).roundToDouble() * 5  // 5%刻み
+                                  : (v / 10).roundToDouble() * 10; // 10円刻み
+                            }),
+                  ),
+                ),
+                // 最小・最大ラベル
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _usePercent ? '5%' : '10円',
+                        style: camillBodyStyle(10, colors.textMuted),
+                      ),
+                      Text(
+                        _usePercent ? '50%' : '500円',
+                        style: camillBodyStyle(10, colors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // 確定ボタン
+                GestureDetector(
+                  onTap: sliderDisabled
+                      ? null
+                      : () {
+                          setState(() {
+                            _minDiscountAmount = _sliderValue.round();
+                            _filterFree = false;
+                            _searchPanelOpen = false;
+                          });
+                          _sheetController.animateTo(
+                            0.32,
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                          );
+                        },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: sliderDisabled
+                          ? colors.textMuted.withAlpha(40)
+                          : colors.primary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'この金額で検索',
+                        style: camillBodyStyle(
+                          14,
+                          sliderDisabled ? colors.textMuted : Colors.white,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -630,10 +1061,42 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
       );
     }
 
+    final filtered = _filteredStores;
+
+    if (filtered.isEmpty && (_filterFree || _minDiscountAmount != null)) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off, color: colors.textMuted, size: 36),
+              const SizedBox(height: 8),
+              Text(
+                '条件に合うクーポンが見つかりません',
+                style: camillBodyStyle(13, colors.textMuted),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _filterFree = false;
+                  _minDiscountAmount = null;
+                }),
+                child: Text(
+                  'フィルターを解除',
+                  style: camillBodyStyle(13, colors.primary, weight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          final store = _stores[index];
+          final store = filtered[index];
           return StoreCard(
             store: store,
             isHighlighted: store.storeId == _highlightedStoreId,
@@ -641,7 +1104,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             onLockTap: () => _showUpgradeDialog(colors),
           );
         },
-        childCount: _stores.length,
+        childCount: filtered.length,
       ),
     );
   }

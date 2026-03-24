@@ -929,6 +929,19 @@ class _CalendarScreenState extends State<CalendarScreen>
                 onScaleStart: (d) {
                   if (d.pointerCount < 2 || _isYearView) return;
                   _pinchActive = true;
+                  final screenW = MediaQuery.sizeOf(context).width;
+                  final cellW = (screenW - 20 - 16) / 3;
+                  final cellH = cellW / 0.85;
+                  final gridH = 4 * cellH + 3 * 8.0;
+                  _yearItemExtent = 28.0 + gridH + 16.0;
+                  final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+                  _yearScrollController.removeListener(_onYearScroll);
+                  _yearScrollController.dispose();
+                  _yearScrollController = ScrollController(
+                    initialScrollOffset: targetOffset,
+                  );
+                  _yearScrollController.addListener(_onYearScroll);
+                  _yearViewYear = _focusedDay.year;
                 },
                 onScaleUpdate: (d) {
                   if (!_pinchActive || d.pointerCount < 2) return;

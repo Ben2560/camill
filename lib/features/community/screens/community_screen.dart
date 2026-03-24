@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,8 +23,9 @@ const _defaultLatLng = LatLng(35.6812, 139.7671);
 
 class CommunityScreen extends ConsumerStatefulWidget {
   final String? focusStoreId;
+  final bool blurred;
 
-  const CommunityScreen({super.key, this.focusStoreId});
+  const CommunityScreen({super.key, this.focusStoreId, this.blurred = false});
 
   @override
   ConsumerState<CommunityScreen> createState() => _CommunityScreenState();
@@ -316,30 +318,34 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             top: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 20, 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colors.background,
-                    colors.background.withAlpha(0),
-                  ],
-                  stops: const [0.6, 1.0],
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'コミュニティ',
-                    style: camillBodyStyle(
-                      26,
-                      colors.textPrimary,
-                      weight: FontWeight.w800,
-                    ),
+            child: ImageFiltered(
+              imageFilter: widget.blurred
+                  ? ImageFilter.blur(sigmaX: 6, sigmaY: 6)
+                  : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+              child: Container(
+                padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 20, 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      colors.background,
+                      colors.background.withAlpha(0),
+                    ],
+                    stops: const [0.6, 1.0],
                   ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'コミュニティ',
+                      style: camillBodyStyle(
+                        26,
+                        colors.textPrimary,
+                        weight: FontWeight.w800,
+                      ),
+                    ),
                   if (!_locationPermissionGranted) ...[
                     const SizedBox(height: 6),
                     GestureDetector(
@@ -377,6 +383,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   ],
                 ],
               ),
+            ),
             ),
           ),
 

@@ -122,7 +122,7 @@ class _MainShellState extends State<MainShell>
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 HomeScreen(),
-                CommunityScreen(),
+                CommunityScreen(blurred: _speedDialOpen),
                 CalendarScreen(returnToTodayNotifier: _calendarReturnNotifier),
                 ProfileScreen(),
               ],

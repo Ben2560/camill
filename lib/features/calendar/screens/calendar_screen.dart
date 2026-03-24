@@ -407,7 +407,6 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   String _formatShort(int amount) {
     if (amount >= 10000) return '${(amount / 10000).toStringAsFixed(1)}万';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}k';
     return amount.toString();
   }
 

@@ -44,17 +44,26 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   String? _highlightedStoreId;
   bool _locationPermissionGranted = false;
   Timer? _debounceTimer;
+  double _sheetSize = 0.32;
 
   @override
   void initState() {
     super.initState();
+    _sheetController.addListener(_onSheetSizeChanged);
     _initLocation();
+  }
+
+  void _onSheetSizeChanged() {
+    if (_sheetController.isAttached) {
+      setState(() => _sheetSize = _sheetController.size);
+    }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
     _mapController?.dispose();
+    _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _listScrollController.dispose();
     super.dispose();
@@ -208,6 +217,23 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     _currentZoom = position.zoom;
   }
 
+  void _cycleSheetSize() {
+    final current = _sheetController.size;
+    double next;
+    if (current < 0.2) {
+      next = 0.32; // しまう → マニュアル
+    } else if (current < 0.6) {
+      next = 0.93; // マニュアル → フル画面
+    } else {
+      next = 0.08; // フル画面 → しまう
+    }
+    _sheetController.animateTo(
+      next,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
   void _onCameraIdle() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
@@ -358,7 +384,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
           if (_locationPermissionGranted)
             Positioned(
               right: 16,
-              bottom: MediaQuery.of(context).size.height * 0.35 + 16,
+              bottom: MediaQuery.of(context).size.height * _sheetSize + 16,
               child: GestureDetector(
                 onTap: () async {
                   try {
@@ -404,7 +430,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             Positioned(
               left: 0,
               right: 0,
-              bottom: MediaQuery.of(context).size.height * 0.35 + 16,
+              bottom: MediaQuery.of(context).size.height * _sheetSize + 16,
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -433,11 +459,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
           // ボトムシート
           DraggableScrollableSheet(
             controller: _sheetController,
-            initialChildSize: 0.3,
-            minChildSize: 0.12,
-            maxChildSize: 0.75,
+            initialChildSize: 0.32,
+            minChildSize: 0.08,
+            maxChildSize: 0.93,
             snap: true,
-            snapSizes: const [0.12, 0.3, 0.75],
+            snapSizes: const [0.08, 0.32, 0.93],
             builder: (context, scrollController) {
               return Container(
                 decoration: BoxDecoration(
@@ -453,71 +479,79 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    // ドラッグハンドル
-                    Container(
-                      margin: const EdgeInsets.only(top: 10, bottom: 6),
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: colors.textMuted.withAlpha(80),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    // 件数ヘッダー
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 6,
-                      ),
-                      child: Row(
+                child: CustomScrollView(
+                  controller: scrollController,
+                  slivers: [
+                    // ドラッグハンドル + ヘッダー
+                    SliverToBoxAdapter(
+                      child: Column(
                         children: [
-                          Text(
-                            '近くの店舗',
-                            style: camillBodyStyle(
-                              15,
-                              colors.textPrimary,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (!_loading)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.primaryLight,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${_stores.length}件',
-                                style: camillBodyStyle(
-                                  12,
-                                  colors.primary,
-                                  weight: FontWeight.w600,
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _cycleSheetSize,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: Center(
+                                child: Container(
+                                  width: 36,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: colors.textMuted.withAlpha(100),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
                               ),
                             ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () => _fetchStores(),
-                            child: Icon(
-                              Icons.refresh,
-                              size: 20,
-                              color: colors.textMuted,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  '近くの店舗',
+                                  style: camillBodyStyle(
+                                    15,
+                                    colors.textPrimary,
+                                    weight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (!_loading)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colors.primaryLight,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '${_stores.length}件',
+                                      style: camillBodyStyle(
+                                        12,
+                                        colors.primary,
+                                        weight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                const Spacer(),
+                                GestureDetector(
+                                  onTap: () => _fetchStores(),
+                                  child: Icon(
+                                    Icons.refresh,
+                                    size: 20,
+                                    color: colors.textMuted,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    // リスト
-                    Expanded(
-                      child: _buildStoreList(colors, scrollController),
-                    ),
+                    // 店舗リスト or ローディング or 空状態
+                    _buildStoreSliver(colors),
                   ],
                 ),
               );
@@ -528,81 +562,80 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     );
   }
 
-  Widget _buildStoreList(CamillColors colors, ScrollController scrollController) {
+  Widget _buildStoreSliver(CamillColors colors) {
     if (_loading) {
-      return Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: colors.primary,
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colors.primary,
+            ),
           ),
         ),
       );
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, color: colors.textMuted, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: camillBodyStyle(13, colors.textMuted),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: _fetchStores,
-              child: Text(
-                '再試行',
-                style: camillBodyStyle(
-                  13,
-                  colors.primary,
-                  weight: FontWeight.w600,
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: colors.textMuted, size: 32),
+              const SizedBox(height: 8),
+              Text(_error!, style: camillBodyStyle(13, colors.textMuted)),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: _fetchStores,
+                child: Text(
+                  '再試行',
+                  style: camillBodyStyle(13, colors.primary,
+                      weight: FontWeight.w600),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
     if (_stores.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.explore_outlined,
-              color: colors.textMuted,
-              size: 40,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'このエリアにクーポンはまだありません',
-              style: camillBodyStyle(13, colors.textMuted),
-            ),
-          ],
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.explore_outlined, color: colors.textMuted, size: 40),
+              const SizedBox(height: 8),
+              Text(
+                'このエリアにクーポンはまだありません',
+                style: camillBodyStyle(13, colors.textMuted),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      controller: scrollController,
-      padding: const EdgeInsets.only(bottom: 16),
-      itemCount: _stores.length,
-      itemBuilder: (context, index) {
-        final store = _stores[index];
-        return StoreCard(
-          store: store,
-          isHighlighted: store.storeId == _highlightedStoreId,
-          onTap: () => _onCardTap(store),
-          onLockTap: () => _showUpgradeDialog(colors),
-        );
-      },
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final store = _stores[index];
+          return StoreCard(
+            store: store,
+            isHighlighted: store.storeId == _highlightedStoreId,
+            onTap: () => _onCardTap(store),
+            onLockTap: () => _showUpgradeDialog(colors),
+          );
+        },
+        childCount: _stores.length,
+      ),
     );
   }
 }

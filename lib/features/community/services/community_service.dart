@@ -11,15 +11,20 @@ class CommunityService {
     required double longitude,
     int radiusM = 1250,
   }) async {
-    final data = await _api.getAny('/community/stores', query: {
-      'latitude': latitude.toString(),
-      'longitude': longitude.toString(),
-      'radius_m': radiusM.toString(),
-    });
-    final list = data as List? ?? [];
-    return list
-        .map((e) => CommunityStore.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final data = await _api.getAny('/community/stores', query: {
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        'radius_m': radiusM.toString(),
+      });
+      final list = data as List? ?? [];
+      return list
+          .map((e) => CommunityStore.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return [];
+      rethrow;
+    }
   }
 
   /// コミュニティ設定を取得

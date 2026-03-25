@@ -692,6 +692,26 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   bool _yearLoading = false;
   int _periodIndex = 1; // 0=週, 1=月, 2=年
 
+  // 医療費非課税
+  int? _monthMedicalExpense;
+  int? _weekMedicalExpense;
+
+  static bool _isTaxExemptStore(String name) {
+    const keywords = [
+      // 医療
+      '医院', '病院', '診療所', 'クリニック', '歯科', '内科', '外科',
+      '眼科', '耳鼻科', '皮膚科', '整形外科', '産婦人科', '小児科',
+      '精神科', '心療内科', '泌尿器科', '医療法人', '歯医者', '助産院',
+      // 介護・福祉
+      'デイサービス', '介護センター', '介護施設', '訪問介護', '訪問看護',
+      'ヘルパー', '老人ホーム', '特別養護', 'グループホーム',
+      // 学校教育（授業料）
+      '小学校', '中学校', '高等学校', '高校', '大学', '専門学校',
+      '保育園', '幼稚園', '認定こども園',
+    ];
+    return keywords.any((k) => name.contains(k));
+  }
+
   String? _selectedCategory;
 
   late final ScrollController _scrollController;
@@ -769,6 +789,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         _prevExpense = (results[1]['total_expense'] as num?)?.toInt() ?? 0;
         if (!silent) _loading = false;
       });
+      _loadMonthMedicalExpense();
     } catch (_) {
       if (!mounted) return;
       if (!silent) {
@@ -800,6 +821,24 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     });
   }
 
+  Future<void> _loadMonthMedicalExpense() async {
+    try {
+      final yearMonth = DateFormat('yyyy-MM').format(widget.month);
+      final data = await _api.get('/receipts', query: {'year_month': yearMonth});
+      final list = (data['receipts'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final medical = list.fold<int>(0, (sum, r) {
+        final name = r['store_name'] as String? ?? '';
+        if (_isTaxExemptStore(name)) {
+          return sum + ((r['total_amount'] as num?)?.toInt() ?? 0);
+        }
+        return sum;
+      });
+      if (mounted) setState(() => _monthMedicalExpense = medical);
+    } catch (_) {
+      if (mounted) setState(() => _monthMedicalExpense = null);
+    }
+  }
+
   Future<void> _loadWeekExpense() async {
     if (!mounted) return;
     setState(() => _weekLoading = true);
@@ -819,21 +858,35 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           DateTime(now.year, now.month, now.day - offsetDays);
       final weekEnd = weekStart.add(const Duration(days: 7));
 
-      final total = list.fold<int>(0, (sum, r) {
+      int total = 0;
+      int medical = 0;
+      for (final r in list) {
         final raw = r['purchased_at'] as String?;
-        if (raw == null) return sum;
+        if (raw == null) continue;
         final date = DateTime.tryParse(raw);
-        if (date == null) return sum;
+        if (date == null) continue;
         final d = date.toLocal();
         if (!d.isBefore(weekStart) && d.isBefore(weekEnd)) {
-          return sum + ((r['total_amount'] as num?)?.toInt() ?? 0);
+          final amount = (r['total_amount'] as num?)?.toInt() ?? 0;
+          total += amount;
+          final name = r['store_name'] as String? ?? '';
+          if (_isTaxExemptStore(name)) medical += amount;
         }
-        return sum;
-      });
+      }
 
-      if (mounted) setState(() => _weekExpense = total);
+      if (mounted) {
+        setState(() {
+          _weekExpense = total;
+          _weekMedicalExpense = medical;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _weekExpense = null);
+      if (mounted) {
+        setState(() {
+          _weekExpense = null;
+          _weekMedicalExpense = null;
+        });
+      }
     } finally {
       if (mounted) setState(() => _weekLoading = false);
     }
@@ -2046,8 +2099,18 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       isLoading = _loading;
     }
 
+    // 医療費（非課税）を除外してから消費税推定
+    final int medicalExpense;
+    if (_periodIndex == 0) {
+      medicalExpense = _weekMedicalExpense ?? 0;
+    } else if (_periodIndex == 1) {
+      medicalExpense = _monthMedicalExpense ?? 0;
+    } else {
+      medicalExpense = 0; // 年間は個別レシート未取得のため除外なし
+    }
+    final taxableExpense = (expense - medicalExpense).clamp(0, expense);
     // 消費税推定（税込み金額から逆算: 税額 = 税込 × 10/110）
-    final estimatedTax = (expense * 10 / 110).round();
+    final estimatedTax = (taxableExpense * 10 / 110).round();
 
     return CamillCard(
       child: Column(
@@ -2129,6 +2192,15 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             ),
             const SizedBox(height: 8),
             // 内訳
+            if (medicalExpense > 0) ...[
+              _TaxBreakdownRow(
+                label: '非課税（医療・介護・教育）',
+                amount: medicalExpense,
+                colors: colors,
+                fmt: _currencyFmt,
+              ),
+              const SizedBox(height: 4),
+            ],
             _TaxBreakdownRow(
               label: '消費税（10%）',
               amount: estimatedTax,

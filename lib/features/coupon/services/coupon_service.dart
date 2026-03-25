@@ -21,6 +21,7 @@ class CouponService {
     String? validUntil,
     List<int>? availableDays,
     bool isFromOcr = false,
+    bool isUsed = false,
     String? receiptId,
   }) async {
     final data = await _api.postAny('/coupons', body: {
@@ -31,6 +32,7 @@ class CouponService {
       'valid_until': ?validUntil,
       'available_days': ?availableDays,
       'is_from_ocr': isFromOcr,
+      'is_used': isUsed,
       'receipt_id': ?receiptId,
     });
     return Coupon.fromJson(data as Map<String, dynamic>);

@@ -37,6 +37,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   late bool _taxFromReceipt;
   late List<CouponDetected> _coupons;
   late List<bool> _couponIncluded;
+  late bool _isMedical;
+  late int _totalPoints;
+  late double _burdenRate;
 
   // 品目の支出額が最大のカテゴリを自動判定
   String? get _autoCategory {
@@ -65,6 +68,17 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     // 消費税はレシートから。なければ 0（未検出）
     _taxAmount = widget.analysis.taxAmount ?? 0;
     _taxFromReceipt = widget.analysis.taxAmount != null;
+    _isMedical = widget.analysis.isMedical;
+    _totalPoints = widget.analysis.totalPoints ?? 0;
+    _burdenRate = widget.analysis.burdenRate ?? 0.0;
+    // 医療レシートのデフォルト補正
+    if (_isMedical) {
+      if (_receiptCategory == null) {
+        _receiptCategory = 'medical';
+        _categoryIsAuto = false;
+      }
+      if (_paymentMethod == 'other') _paymentMethod = 'cash';
+    }
     // validFrom が null で validUntil だけあるクーポンは購入日を開始日として補完
     final receiptDateStr = widget.analysis.purchasedAt.split('T').first;
     _coupons = widget.analysis.couponsDetected.map((c) {
@@ -102,9 +116,12 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         items: _items,
         couponsDetected: includedCoupons,
         duplicateCheckHash: widget.analysis.duplicateCheckHash,
+        isMedical: _isMedical,
+        totalPoints: _totalPoints != 0 ? _totalPoints : null,
+        burdenRate: _burdenRate != 0 ? _burdenRate : null,
       );
       final receiptId = await _receiptService.saveReceipt(updated);
-      // クーポンを /coupons に個別登録
+      // クーポンを /coupons に個別登録（レシートから検出されたので使用済みとして保存）
       for (final c in includedCoupons) {
         await _couponService.createCoupon(
           storeName: _storeName,
@@ -113,6 +130,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           validFrom: c.validFrom,
           validUntil: c.validUntil,
           isFromOcr: true,
+          isUsed: true,
           receiptId: receiptId,
         );
       }
@@ -174,6 +192,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           items: _items,
           couponsDetected: includedCoupons,
           duplicateCheckHash: '',
+          isMedical: _isMedical,
+          totalPoints: _totalPoints != 0 ? _totalPoints : null,
+          burdenRate: _burdenRate != 0 ? _burdenRate : null,
         ),
       );
       for (final c in includedCoupons) {
@@ -184,6 +205,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           validFrom: c.validFrom,
           validUntil: c.validUntil,
           isFromOcr: true,
+          isUsed: true,
           receiptId: receiptId,
         );
       }
@@ -243,6 +265,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         items: _items,
         couponsDetected: includedCoupons,
         duplicateCheckHash: widget.analysis.duplicateCheckHash,
+        isMedical: _isMedical,
+        totalPoints: _totalPoints != 0 ? _totalPoints : null,
+        burdenRate: _burdenRate != 0 ? _burdenRate : null,
       );
       // 1. 古いレシートを削除して新しいレシートを作成
       final newReceiptId =
@@ -260,7 +285,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           }
         }
       }
-      // 3. 新しいクーポンを登録
+      // 3. 新しいクーポンを登録（レシートから検出されたので使用済みとして保存）
       for (final c in includedCoupons) {
         await _couponService.createCoupon(
           storeName: _storeName,
@@ -269,6 +294,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           validFrom: c.validFrom,
           validUntil: c.validUntil,
           isFromOcr: true,
+          isUsed: true,
           receiptId: newReceiptId,
         );
       }
@@ -1090,9 +1116,11 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                       ),
                       Divider(height: 20, color: colors.surfaceBorder),
                       _EditableInfoRow(
-                        label: '購入日時',
+                        label: _isMedical ? '来院日時' : '購入日時',
                         value: purchasedAt != null
-                            ? DateFormat('yyyy年M月d日 HH:mm').format(purchasedAt)
+                            ? (_isMedical && purchasedAt.hour == 0 && purchasedAt.minute == 0)
+                                ? DateFormat('yyyy年M月d日').format(purchasedAt)
+                                : DateFormat('yyyy年M月d日 HH:mm').format(purchasedAt)
                             : widget.analysis.purchasedAt,
                         icon: Icons.calendar_today_outlined,
                         colors: colors,
@@ -1134,7 +1162,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '品目',
+                        _isMedical ? '診療内容' : '品目',
                         style: camillBodyStyle(
                           15,
                           colors.textPrimary,
@@ -1147,6 +1175,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                           item: e.value,
                           fmt: _fmt,
                           colors: colors,
+                          isMedical: _isMedical,
                           onTap: () => _editItem(e.key),
                         ),
                       ),
@@ -1200,27 +1229,82 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                         ),
                       ],
                       Divider(color: colors.surfaceBorder),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '合計（税込）',
-                            style: camillBodyStyle(
-                              14,
-                              colors.textPrimary,
-                              weight: FontWeight.bold,
+                      if (_isMedical) ...[
+                        // 合計点数 + 10割金額
+                        Row(
+                          children: [
+                            Text(
+                              '合計',
+                              style: camillBodyStyle(13, colors.textMuted),
                             ),
-                          ),
-                          Text(
-                            _fmt.format(_totalAmount),
-                            style: camillAmountStyle(18, colors.textPrimary),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$_totalPoints点',
+                              style: camillBodyStyle(15, colors.textPrimary,
+                                  weight: FontWeight.w600),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '10割: ${_fmt.format(_totalPoints * 10)}',
+                              style: camillBodyStyle(12, colors.textMuted),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // 負担率
+                        Row(
+                          children: [
+                            Text(
+                              '負担率',
+                              style: camillBodyStyle(13, colors.textMuted),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${(_burdenRate * 10).round()}割負担',
+                              style: camillBodyStyle(13, colors.textSecondary,
+                                  weight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // 実負担額
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '実負担額',
+                              style: camillBodyStyle(14, colors.textPrimary,
+                                  weight: FontWeight.bold),
+                            ),
+                            Text(
+                              _fmt.format(_totalAmount),
+                              style: camillAmountStyle(18, colors.textPrimary),
+                            ),
+                          ],
+                        ),
+                      ] else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '合計（税込）',
+                              style: camillBodyStyle(
+                                14,
+                                colors.textPrimary,
+                                weight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              _fmt.format(_totalAmount),
+                              style: camillAmountStyle(18, colors.textPrimary),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
-                // ── クーポン ──
+                // ── クーポン（医療時は非表示）──
+                if (!_isMedical) ...[
                 const SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
@@ -1391,6 +1475,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                     ],
                   ),
                 ),
+                ], // end if (!_isMedical)
                 const SizedBox(height: 80),
               ],
             ),
@@ -1489,12 +1574,14 @@ class _EditableItemRow extends StatelessWidget {
   final ReceiptItem item;
   final NumberFormat fmt;
   final CamillColors colors;
+  final bool isMedical;
   final VoidCallback onTap;
 
   const _EditableItemRow({
     required this.item,
     required this.fmt,
     required this.colors,
+    required this.isMedical,
     required this.onTap,
   });
 
@@ -1502,6 +1589,9 @@ class _EditableItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final catLabel =
         AppConstants.categoryLabels[item.category] ?? item.category;
+    final amountText = isMedical
+        ? '${item.points}点'
+        : '${item.quantity > 1 ? '×${item.quantity}  ' : ''}${fmt.format(item.amount)}';
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -1540,7 +1630,7 @@ class _EditableItemRow extends StatelessWidget {
               ),
             ),
             Text(
-              '${item.quantity > 1 ? '×${item.quantity}  ' : ''}${fmt.format(item.amount)}',
+              amountText,
               style: camillBodyStyle(
                 14,
                 colors.textPrimary,

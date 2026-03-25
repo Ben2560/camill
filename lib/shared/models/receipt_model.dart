@@ -5,6 +5,7 @@ class ReceiptItem {
   final int unitPrice;
   final int quantity;
   final int amount;
+  final int points; // 医療レシートの場合の点数（通常は0）
 
   ReceiptItem({
     required this.itemName,
@@ -13,6 +14,7 @@ class ReceiptItem {
     required this.unitPrice,
     required this.quantity,
     required this.amount,
+    this.points = 0,
   });
 
   factory ReceiptItem.fromJson(Map<String, dynamic> json) => ReceiptItem(
@@ -22,6 +24,7 @@ class ReceiptItem {
         unitPrice: (json['unit_price'] as num).toInt(),
         quantity: (json['quantity'] as num).toInt(),
         amount: (json['amount'] as num).toInt(),
+        points: (json['points'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +34,7 @@ class ReceiptItem {
         'unit_price': unitPrice,
         'quantity': quantity,
         'amount': amount,
+        'points': points,
       };
 
   ReceiptItem copyWith({
@@ -47,6 +51,7 @@ class ReceiptItem {
         unitPrice: unitPrice ?? this.unitPrice,
         quantity: quantity ?? this.quantity,
         amount: amount ?? this.amount,
+        points: points,
       );
 }
 
@@ -92,6 +97,9 @@ class ReceiptAnalysis {
   final List<ReceiptItem> items;
   final List<CouponDetected> couponsDetected;
   final String duplicateCheckHash;
+  final bool isMedical;
+  final int? totalPoints; // 医療レシートの場合の合計点数
+  final double? burdenRate; // 負担率（例: 0.3）
 
   ReceiptAnalysis({
     required this.storeName,
@@ -103,6 +111,9 @@ class ReceiptAnalysis {
     required this.items,
     required this.couponsDetected,
     required this.duplicateCheckHash,
+    this.isMedical = false,
+    this.totalPoints,
+    this.burdenRate,
   });
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
@@ -121,6 +132,9 @@ class ReceiptAnalysis {
             .map((e) => CouponDetected.fromJson(e as Map<String, dynamic>))
             .toList(),
         duplicateCheckHash: json['duplicate_check_hash'] as String? ?? '',
+        isMedical: json['is_medical'] as bool? ?? false,
+        totalPoints: (json['total_points'] as num?)?.toInt(),
+        burdenRate: (json['burden_rate'] as num?)?.toDouble(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -133,7 +147,22 @@ class ReceiptAnalysis {
         'items': items.map((e) => e.toJson()).toList(),
         'coupons_detected': couponsDetected.map((e) => e.toJson()).toList(),
         'duplicate_check_hash': duplicateCheckHash,
+        'is_medical': isMedical,
+        if (totalPoints != null) 'total_points': totalPoints,
+        if (burdenRate != null) 'burden_rate': burdenRate,
       };
+}
+
+class ReceiptDiscount {
+  final String description;
+  final int discountAmount;
+
+  ReceiptDiscount({required this.description, required this.discountAmount});
+
+  factory ReceiptDiscount.fromJson(Map<String, dynamic> json) => ReceiptDiscount(
+        description: json['description'] as String,
+        discountAmount: (json['discount_amount'] as num).toInt(),
+      );
 }
 
 class Receipt {
@@ -143,6 +172,7 @@ class Receipt {
   final String purchasedAt;
   final String paymentMethod;
   final List<ReceiptItem> items;
+  final List<ReceiptDiscount> discounts;
 
   Receipt({
     required this.receiptId,
@@ -151,6 +181,7 @@ class Receipt {
     required this.purchasedAt,
     required this.paymentMethod,
     required this.items,
+    this.discounts = const [],
   });
 
   factory Receipt.fromJson(Map<String, dynamic> json) => Receipt(
@@ -161,6 +192,9 @@ class Receipt {
         paymentMethod: json['payment_method'] as String? ?? 'cash',
         items: (json['items'] as List<dynamic>? ?? [])
             .map((e) => ReceiptItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        discounts: (json['discounts'] as List<dynamic>? ?? [])
+            .map((e) => ReceiptDiscount.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }

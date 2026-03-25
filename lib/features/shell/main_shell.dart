@@ -19,6 +19,7 @@ class _MainShellState extends State<MainShell>
   int _currentIndex = 0;
   bool _speedDialOpen = false;
   final _calendarReturnNotifier = ValueNotifier<int>(0);
+  final _calendarRefreshNotifier = ValueNotifier<int>(0);
   late AnimationController _animController;
   late CurvedAnimation _slideAnim;
   late CurvedAnimation _fadeAnim;
@@ -65,6 +66,7 @@ class _MainShellState extends State<MainShell>
     _animController.dispose();
     _pageController.dispose();
     _calendarReturnNotifier.dispose();
+    _calendarRefreshNotifier.dispose();
     super.dispose();
   }
 
@@ -93,6 +95,9 @@ class _MainShellState extends State<MainShell>
     if (index == 3 && _currentIndex == 3) {
       _calendarReturnNotifier.value++;
       return;
+    }
+    if (index == 3 && _currentIndex != 3) {
+      _calendarRefreshNotifier.value++;
     }
     final pageIndex = index > 2 ? index - 1 : index;
     _pageController.animateToPage(
@@ -123,7 +128,10 @@ class _MainShellState extends State<MainShell>
               children: [
                 HomeScreen(),
                 CommunityScreen(blurred: _speedDialOpen),
-                CalendarScreen(returnToTodayNotifier: _calendarReturnNotifier),
+                CalendarScreen(
+                  returnToTodayNotifier: _calendarReturnNotifier,
+                  refreshNotifier: _calendarRefreshNotifier,
+                ),
                 ProfileScreen(),
               ],
             ),

@@ -8,6 +8,7 @@ import '../../../core/constants.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
+import '../../receipt/services/receipt_service.dart';
 
 class DataScreen extends StatelessWidget {
   const DataScreen({super.key});
@@ -128,14 +129,18 @@ class _MonthView extends StatefulWidget {
 }
 
 class _MonthViewState extends State<_MonthView> {
-  late final PageController _pageController;
-  static const _centerPage = 500;
+  final _receiptService = ReceiptService();
   final _now = DateTime(DateTime.now().year, DateTime.now().month);
+  List<DateTime> _availableMonths = [];
+  int _monthsVersion = 0;
+  PageController _pageController = PageController();
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _centerPage);
+    _availableMonths = [_now];
+    _pageController = PageController(initialPage: 0);
+    _loadAvailableMonths();
   }
 
   @override
@@ -144,28 +149,50 @@ class _MonthViewState extends State<_MonthView> {
     super.dispose();
   }
 
-  DateTime _monthForPage(int page) =>
-      DateTime(_now.year, _now.month - (_centerPage - page));
+  Future<void> _loadAvailableMonths() async {
+    try {
+      final rawMonths = await _receiptService.getActiveMonths();
+      final months = rawMonths.map((s) {
+        final parts = s.split('-');
+        return DateTime(int.parse(parts[0]), int.parse(parts[1]));
+      }).toList();
+      if (!months.any((m) => m.year == _now.year && m.month == _now.month)) {
+        months.add(_now);
+      }
+      months.sort((a, b) => a.compareTo(b));
+      if (!mounted) return;
+      _pageController.dispose();
+      setState(() {
+        _availableMonths = months;
+        _pageController = PageController(initialPage: months.length - 1);
+        _monthsVersion++;
+      });
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
     return PageView.builder(
+      key: ValueKey(_monthsVersion),
       controller: _pageController,
-      // centerPage+1 まで itemCount を設定し翌月以降を自然にブロック
-      itemCount: _centerPage + 1,
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      itemCount: _availableMonths.length,
       itemBuilder: (context, page) {
-          final month = _monthForPage(page);
-          final isCurrentMonth = page == _centerPage;
+          final month = _availableMonths[page];
+          final isLast = page == _availableMonths.length - 1;
           return _MonthPageContent(
             key: ValueKey(month),
             month: month,
             currencyFmt: widget.currencyFmt,
-
-            onPrev: () => _pageController.previousPage(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOut,
-            ),
-            onNext: isCurrentMonth
+            onPrev: page == 0
+                ? null
+                : () => _pageController.previousPage(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                    ),
+            onNext: isLast
                 ? null
                 : () => _pageController.nextPage(
                       duration: const Duration(milliseconds: 350),
@@ -182,7 +209,7 @@ class _MonthViewState extends State<_MonthView> {
 class _MonthPageContent extends StatefulWidget {
   final DateTime month;
   final NumberFormat currencyFmt;
-  final VoidCallback onPrev;
+  final VoidCallback? onPrev;
   final VoidCallback? onNext;
 
   const _MonthPageContent({
@@ -869,7 +896,7 @@ class _YearViewState extends State<_YearView>
 class _DateNavRow extends StatelessWidget {
   final String label;
   final double fontSize;
-  final VoidCallback onPrev;
+  final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final CamillColors colors;
 
@@ -887,7 +914,10 @@ class _DateNavRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          icon: Icon(Icons.chevron_left, color: colors.textSecondary),
+          icon: Icon(
+            Icons.chevron_left,
+            color: onPrev == null ? colors.surfaceBorder : colors.textSecondary,
+          ),
           onPressed: onPrev,
         ),
         Text(label, style: camillHeadingStyle(fontSize, colors.textPrimary)),

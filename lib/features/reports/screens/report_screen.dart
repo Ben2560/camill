@@ -7,6 +7,9 @@ import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/top_notification.dart';
 import '../../../shared/widgets/camill_card.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
+import '../../receipt/services/receipt_service.dart';
+
+// ── 外側：available months ベースの PageView ────────────────────────────────
 
 class ReportScreen extends StatefulWidget {
   final int year;
@@ -17,7 +20,105 @@ class ReportScreen extends StatefulWidget {
   State<ReportScreen> createState() => _ReportScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen>
+class _ReportScreenState extends State<ReportScreen> {
+  final _receiptService = ReceiptService();
+  List<DateTime> _availableMonths = [];
+  int _monthsVersion = 0;
+  PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = DateTime(widget.year, widget.month);
+    _availableMonths = [initial];
+    _pageController = PageController(initialPage: 0);
+    _loadAvailableMonths(initial);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAvailableMonths(DateTime openedMonth) async {
+    try {
+      final rawMonths = await _receiptService.getActiveMonths();
+      final months = rawMonths.map((s) {
+        final parts = s.split('-');
+        return DateTime(int.parse(parts[0]), int.parse(parts[1]));
+      }).toList();
+
+      // 開いた月は常に含める
+      if (!months.any((m) => m.year == openedMonth.year && m.month == openedMonth.month)) {
+        months.add(openedMonth);
+      }
+      months.sort((a, b) => a.compareTo(b));
+
+      // 開いた月のインデックスを探す
+      final idx = months.indexWhere(
+        (m) => m.year == openedMonth.year && m.month == openedMonth.month,
+      );
+
+      if (!mounted) return;
+      _pageController.dispose();
+      setState(() {
+        _availableMonths = months;
+        _currentPage = idx;
+        _pageController = PageController(initialPage: idx);
+        _monthsVersion++;
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final current = _availableMonths[_currentPage];
+    final title = '${current.year}年${current.month}月 やりくり詳細';
+
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        backgroundColor: colors.background,
+        scrolledUnderElevation: 0,
+        title: Text(title, style: camillHeadingStyle(16, colors.textPrimary)),
+        iconTheme: IconThemeData(color: colors.textSecondary),
+      ),
+      body: PageView.builder(
+        key: ValueKey(_monthsVersion),
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        itemCount: _availableMonths.length,
+        onPageChanged: (page) => setState(() => _currentPage = page),
+        itemBuilder: (context, page) {
+          final month = _availableMonths[page];
+          return _ReportPage(
+            key: ValueKey(month),
+            year: month.year,
+            month: month.month,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── 各月のレポートコンテンツ ─────────────────────────────────────────────────
+
+class _ReportPage extends StatefulWidget {
+  final int year;
+  final int month;
+  const _ReportPage({super.key, required this.year, required this.month});
+
+  @override
+  State<_ReportPage> createState() => _ReportPageState();
+}
+
+class _ReportPageState extends State<_ReportPage>
     with SingleTickerProviderStateMixin {
   final _api = ApiService();
   final _currencyFmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
@@ -70,94 +171,82 @@ class _ReportScreenState extends State<ReportScreen>
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final title =
-        '${widget.year}年${widget.month}月 やりくり詳細';
 
     return LoadingOverlay(
       isLoading: _loading,
-      child: Scaffold(
-        backgroundColor: colors.background,
-        appBar: AppBar(
-          backgroundColor: colors.background,
-          scrolledUnderElevation: 0,
-          title: Text(title,
-              style: camillHeadingStyle(16, colors.textPrimary)),
-          iconTheme: IconThemeData(color: colors.textSecondary),
-        ),
-        body: Stack(
-          children: [
-            if (_report != null)
-              NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  if (_isRefreshing) return false;
-                  if (notification is ScrollUpdateNotification) {
-                    final pixels = notification.metrics.pixels;
-                    if (pixels >= 0) _ignoreUntilTop = false;
-                    if (_ignoreUntilTop) return false;
-                    if (pixels < 0) {
-                      final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
-                      if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
+      child: Stack(
+        children: [
+          if (_report != null)
+            NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (_isRefreshing) return false;
+                if (notification is ScrollUpdateNotification) {
+                  final pixels = notification.metrics.pixels;
+                  if (pixels >= 0) _ignoreUntilTop = false;
+                  if (_ignoreUntilTop) return false;
+                  if (pixels < 0) {
+                    final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
+                    if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
+                  } else if (_dotsVisible > 0) {
+                    _ignoreUntilTop = true;
+                    setState(() => _dotsVisible = 0);
+                  }
+                } else if (notification is ScrollEndNotification) {
+                  if (!_isRefreshing) {
+                    if (_dotsVisible == 3) {
+                      _startSilentRefresh();
                     } else if (_dotsVisible > 0) {
                       _ignoreUntilTop = true;
                       setState(() => _dotsVisible = 0);
                     }
-                  } else if (notification is ScrollEndNotification) {
-                    if (!_isRefreshing) {
-                      if (_dotsVisible == 3) {
-                        _startSilentRefresh();
-                      } else if (_dotsVisible > 0) {
-                        _ignoreUntilTop = true;
-                        setState(() => _dotsVisible = 0);
-                      }
-                    }
                   }
-                  return false;
-                },
-                child: ListView(
-                  physics: const RefreshScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _buildSummaryCard(colors),
-                    const SizedBox(height: 12),
-                    _buildCouponCard(colors),
-                    const SizedBox(height: 12),
-                    _buildCategoryRanking(colors),
-                    const SizedBox(height: 80),
-                  ],
-                ),
+                }
+                return false;
+              },
+              child: ListView(
+                physics: const RefreshScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildSummaryCard(colors),
+                  const SizedBox(height: 12),
+                  _buildCouponCard(colors),
+                  const SizedBox(height: 12),
+                  _buildCategoryRanking(colors),
+                  const SizedBox(height: 80),
+                ],
               ),
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: IgnorePointer(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [colors.background, colors.background.withAlpha(0)],
-                    ),
+            ),
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    colors: [colors.background, colors.background.withAlpha(0)],
                   ),
                 ),
               ),
             ),
-            Positioned(
-              top: 4, left: 0, right: 0,
-              child: IgnorePointer(
-                child: SizedBox(
-                  height: 28,
-                  child: Center(
-                    child: PullRefreshDots(
-                      controller: _bounceController,
-                      color: colors.primary,
-                      dotsVisible: _dotsVisible,
-                      isRefreshing: _isRefreshing,
-                    ),
+          ),
+          Positioned(
+            top: 4, left: 0, right: 0,
+            child: IgnorePointer(
+              child: SizedBox(
+                height: 28,
+                child: Center(
+                  child: PullRefreshDots(
+                    controller: _bounceController,
+                    color: colors.primary,
+                    dotsVisible: _dotsVisible,
+                    isRefreshing: _isRefreshing,
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

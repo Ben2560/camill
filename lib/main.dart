@@ -21,6 +21,7 @@ import 'features/receipt/screens/receipt_list_screen.dart';
 import 'features/receipt/screens/receipt_edit_screen.dart';
 import 'features/profile/screens/notification_settings_screen.dart';
 import 'features/profile/screens/settings_screen.dart';
+import 'features/profile/screens/theme_settings_screen.dart';
 import 'features/reports/screens/report_screen.dart';
 import 'features/subscriptions/screens/subscription_screen.dart';
 import 'features/community/screens/community_settings_screen.dart';
@@ -36,19 +37,31 @@ void main() async {
 
   // テーマを起動前に読み込んでフラッシュを防ぐ
   final prefs = await SharedPreferences.getInstance();
-  final saved = prefs.getString('camill_theme');
-  CamillThemeMode initialTheme = CamillThemeMode.midnight;
-  if (saved != null) {
+  final baseName     = prefs.getString('camill_theme_base')
+                    ?? prefs.getString('camill_theme'); // 旧キー後方互換
+  final nightStart   = prefs.getInt('camill_night_start')   ?? 22;
+  final morningStart = prefs.getInt('camill_morning_start') ?? 6;
+
+  CamillThemeMode initialBase = CamillThemeMode.midnight;
+  if (baseName != null) {
     try {
-      initialTheme = CamillThemeMode.values.byName(saved);
+      initialBase = CamillThemeMode.values.byName(baseName);
     } catch (_) {}
   }
+
+  final isDark = ThemeState.computeIsDark(nightStart, morningStart);
+  final initialThemeState = ThemeState(
+    selectedBase:    initialBase,
+    isDarkNow:       isDark,
+    nightStartHour:  nightStart,
+    morningStartHour: morningStart,
+  );
 
   runApp(
     ProviderScope(
       overrides: [
         themeProvider.overrideWith(
-          (ref) => ThemeNotifier.withInitial(initialTheme),
+          (ref) => ThemeNotifier.withInitial(initialThemeState),
         ),
       ],
       child: const SmartReceiptApp(),
@@ -80,7 +93,7 @@ final _router = GoRouter(
       builder: (_, state) {
         final extra = state.extra as Map<String, dynamic>;
         return PhoneVerifyScreen(
-          email: extra['email'] as String,
+          email:       extra['email']       as String,
           displayName: extra['displayName'] as String,
         );
       },
@@ -122,11 +135,15 @@ final _router = GoRouter(
       builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
+      path: '/theme-settings',
+      builder: (context, state) => const ThemeSettingsScreen(),
+    ),
+    GoRoute(
       path: '/report',
       builder: (_, state) {
         final extra = state.extra as Map<String, dynamic>;
         return ReportScreen(
-          year: extra['year'] as int,
+          year:  extra['year']  as int,
           month: extra['month'] as int,
         );
       },
@@ -157,11 +174,11 @@ class SmartReceiptApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeProvider);
+    final themeState = ref.watch(themeProvider);
     return MaterialApp.router(
-      title: 'camill',
-      theme: CamillThemeData.build(themeMode),
-      routerConfig: _router,
+      title:                  'camill',
+      theme:                  CamillThemeData.build(themeState.colors),
+      routerConfig:           _router,
       debugShowCheckedModeBanner: false,
     );
   }

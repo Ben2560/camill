@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
-import '../../../core/theme/camill_theme_mode.dart';
 import '../services/auth_service.dart';
 
 class PhoneVerifyScreen extends StatefulWidget {
@@ -91,7 +90,7 @@ class _PhoneVerifyScreenState extends State<PhoneVerifyScreen> {
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: CamillThemeData.build(CamillThemeMode.natural),
+      data: CamillThemeData.build(CamillColors.naturalLight),
       child: Builder(builder: (ctx) {
         final colors = ctx.colors;
         return Scaffold(

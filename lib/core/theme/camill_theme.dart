@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'camill_colors.dart';
-import 'camill_theme_mode.dart';
 
-/// テーマモードからFlutter ThemeDataを生成する
+/// CamillColors から Flutter ThemeData を生成する
 class CamillThemeData {
-  static ThemeData build(CamillThemeMode mode) {
-    final colors = CamillColors.fromMode(mode);
-
+  static ThemeData build(CamillColors colors) {
     final base = colors.isDark
         ? ThemeData.dark(useMaterial3: true)
         : ThemeData.light(useMaterial3: true);
@@ -33,47 +30,46 @@ class CamillThemeData {
       ).copyWith(
         surface: colors.surface,
         primary: colors.primary,
-        error: colors.danger,
+        error:   colors.danger,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: colors.background,
-        foregroundColor: colors.textPrimary,
-        elevation: 0,
+        backgroundColor:  colors.background,
+        foregroundColor:  colors.textPrimary,
+        elevation:        0,
         titleTextStyle: GoogleFonts.zenMaruGothic(
-          fontSize: 17,
+          fontSize:   17,
           fontWeight: FontWeight.w700,
-          color: colors.textPrimary,
+          color:      colors.textPrimary,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colors.primary,
           foregroundColor: colors.fabIcon,
-          minimumSize: const Size.fromHeight(48),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          minimumSize:     const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
           textStyle: GoogleFonts.zenMaruGothic(
               fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: true,
+        filled:    true,
         fillColor: colors.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: colors.surfaceBorder),
+          borderSide:   BorderSide(color: colors.surfaceBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: colors.surfaceBorder),
+          borderSide:   BorderSide(color: colors.surfaceBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: colors.primary, width: 1.5),
+          borderSide:   BorderSide(color: colors.primary, width: 1.5),
         ),
-        labelStyle: TextStyle(color: colors.textSecondary),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        labelStyle:     TextStyle(color: colors.textSecondary),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
@@ -81,9 +77,9 @@ class CamillThemeData {
       ),
       dividerColor: colors.surfaceBorder,
       tabBarTheme: TabBarThemeData(
-        labelColor: colors.primary,
+        labelColor:         colors.primary,
         unselectedLabelColor: colors.textMuted,
-        indicatorColor: colors.primary,
+        indicatorColor:     colors.primary,
       ),
     );
   }

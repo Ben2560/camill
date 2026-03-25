@@ -1,14 +1,6 @@
-import '../../../core/theme/camill_theme_mode.dart';
-
-String communityMapStyle(CamillThemeMode mode) {
-  switch (mode) {
-    case CamillThemeMode.midnight:
-      return _midnightStyle;
-    case CamillThemeMode.natural:
-      return _naturalStyle;
-    case CamillThemeMode.classic:
-      return _classicStyle;
-  }
+/// isDark に応じてマップスタイルを返す
+String communityMapStyle(bool isDark) {
+  return isDark ? _midnightStyle : _classicStyle;
 }
 
 /// Midnight ダークモード地図
@@ -32,26 +24,7 @@ const _midnightStyle = '''
 ]
 ''';
 
-/// Natural Soft ライトモード地図（温かみ系）
-const _naturalStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#f5f0e8"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#5a4e42"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#fcfaf8"}]},
-  {"featureType":"administrative","elementType":"geometry.stroke","stylers":[{"color":"#d6cfc5"}]},
-  {"featureType":"landscape","elementType":"geometry","stylers":[{"color":"#f5f0e8"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#ede7db"}]},
-  {"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#dce8d4"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#fcfaf8"}]},
-  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#e2dbd0"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#f0e8dc"}]},
-  {"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#d6cfc5"}]},
-  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#ede7db"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#c9dde8"}]}
-]
-''';
-
-/// Classic White ライトモード地図（クリーン系）
+/// Classic White ライトモード地図
 const _classicStyle = '''
 [
   {"elementType":"geometry","stylers":[{"color":"#ffffff"}]},

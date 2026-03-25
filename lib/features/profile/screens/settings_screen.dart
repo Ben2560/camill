@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
-import '../../../core/theme/camill_theme_mode.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../shared/widgets/top_notification.dart';
@@ -69,7 +68,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       await _authService.sendPasswordResetEmail();
       if (mounted) {
-        showTopNotification(context, 'パスワード再設定メールを送信しました', backgroundColor: colors.primary);
+        showTopNotification(context, 'パスワード再設定メールを送信しました',
+            backgroundColor: colors.primary);
       }
     } catch (_) {
       if (mounted) {
@@ -151,15 +151,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final themeMode = ref.watch(themeProvider);
+    final colors     = context.colors;
+    final themeState = ref.watch(themeProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.background,
-        title:
-            Text('アプリ設定', style: camillHeadingStyle(17, colors.textPrimary)),
+        title: Text('アプリ設定',
+            style: camillHeadingStyle(17, colors.textPrimary)),
         iconTheme: IconThemeData(color: colors.textSecondary),
       ),
       body: ListView(
@@ -176,14 +176,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsItem(
             icon: Icons.palette_outlined,
             title: 'テーマ',
-            subtitle: themeMode.displayName,
+            subtitle: '${themeState.selectedBase.displayName}'
+                '  ${themeState.isDarkNow ? '🌙' : '☀️'}',
             colors: colors,
-            onTap: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => _ThemePickerSheet(colors: colors, ref: ref),
-            ),
+            onTap: () => context.push('/theme-settings'),
           ),
           _SectionHeader(title: 'カレンダー・週', colors: colors),
           _SettingsItem(
@@ -206,155 +202,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-// ── テーマ選択モーダル ────────────────────────────────────────────────────────
-class _ThemePickerSheet extends StatelessWidget {
-  final CamillColors colors;
-  final WidgetRef ref;
-
-  const _ThemePickerSheet({required this.colors, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).padding.bottom + 16,
-      ),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.textMuted.withAlpha(80),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text('テーマ選択',
-                style: camillHeadingStyle(16, colors.textPrimary)),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _ThemeGrid(colors: colors, ref: ref),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThemeGrid extends StatelessWidget {
-  final CamillColors colors;
-  final WidgetRef ref;
-
-  const _ThemeGrid({required this.colors, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final currentMode = ref.watch(themeProvider);
-    final themes = CamillThemeMode.values;
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1.1,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemCount: themes.length,
-      itemBuilder: (context, i) {
-        final mode = themes[i];
-        final modeColors = CamillColors.fromMode(mode);
-        final isSelected = mode == currentMode;
-
-        return GestureDetector(
-          onTap: () => ref.read(themeProvider.notifier).setTheme(mode),
-          child: Container(
-            decoration: BoxDecoration(
-              color: modeColors.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelected ? colors.primary : colors.surfaceBorder,
-                width: isSelected ? 2 : 1,
-              ),
-            ),
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: modeColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: modeColors.background,
-                              shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: modeColors.surfaceBorder),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        mode.displayName,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: modeColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.check, size: 10, color: colors.fabIcon),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
+// ── 共通パーツ ────────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -396,7 +244,8 @@ class _SettingsItem extends StatelessWidget {
       subtitle: subtitle != null
           ? Text(subtitle!, style: camillBodyStyle(12, colors.textMuted))
           : null,
-      trailing: Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
+      trailing:
+          Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
       onTap: onTap,
     );
   }

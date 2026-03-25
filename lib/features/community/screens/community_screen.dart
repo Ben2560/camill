@@ -7,7 +7,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
-import '../../../core/theme/camill_theme_mode.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/models/community_model.dart';
 import '../../../shared/services/api_service.dart';
@@ -83,7 +82,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   void initState() {
     super.initState();
-    _mapStyle = communityMapStyle(ref.read(themeProvider));
+    _mapStyle = communityMapStyle(ref.read(themeProvider).isDarkNow);
     _sheetController.addListener(_onSheetSizeChanged);
     _initLocation();
   }
@@ -189,7 +188,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   }
 
   void _buildMarkers() {
-    final themeMode = ref.read(themeProvider);
+    final colors = ref.read(themeProvider).colors;
 
     _markers = _stores.map((store) {
       return Marker(
@@ -198,22 +197,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         icon: BitmapDescriptor.defaultMarkerWithHue(
           store.isFeatured
               ? BitmapDescriptor.hueOrange
-              : _hueForTheme(themeMode),
+              : (colors.isDark
+                  ? BitmapDescriptor.hueGreen
+                  : BitmapDescriptor.hueAzure),
         ),
         onTap: () => _onPinTap(store),
       );
     }).toSet();
-  }
-
-  double _hueForTheme(CamillThemeMode mode) {
-    switch (mode) {
-      case CamillThemeMode.midnight:
-        return BitmapDescriptor.hueGreen;
-      case CamillThemeMode.natural:
-        return BitmapDescriptor.hueGreen;
-      case CamillThemeMode.classic:
-        return BitmapDescriptor.hueAzure;
-    }
   }
 
   void _onPinTap(CommunityStore store) {
@@ -322,7 +312,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(themeProvider, (_, next) {
-      setState(() => _mapStyle = communityMapStyle(next));
+      setState(() => _mapStyle = communityMapStyle(next.isDarkNow));
     });
     final colors = context.colors;
     final statusBarH = MediaQuery.of(context).padding.top;

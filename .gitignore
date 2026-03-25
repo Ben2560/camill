@@ -48,6 +48,3 @@ ios/Flutter/Secrets.xcconfig
 /android/app/profile
 /android/app/release
 build.nosync/
-smartreceipt-api/venv/
-build.nosync/
-smartreceipt-api/venv/

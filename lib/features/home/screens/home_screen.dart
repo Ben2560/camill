@@ -712,21 +712,6 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   int? _monthMedicalExpense;
   int? _weekMedicalExpense;
 
-  static bool _isTaxExemptStore(String name) {
-    const keywords = [
-      // 医療
-      '医院', '病院', '診療所', 'クリニック', '歯科', '内科', '外科',
-      '眼科', '耳鼻科', '皮膚科', '整形外科', '産婦人科', '小児科',
-      '精神科', '心療内科', '泌尿器科', '医療法人', '歯医者', '助産院',
-      // 介護・福祉
-      'デイサービス', '介護センター', '介護施設', '訪問介護', '訪問看護',
-      'ヘルパー', '老人ホーム', '特別養護', 'グループホーム',
-      // 学校教育（授業料）
-      '小学校', '中学校', '高等学校', '高校', '大学', '専門学校',
-      '保育園', '幼稚園', '認定こども園',
-    ];
-    return keywords.any((k) => name.contains(k));
-  }
 
   String? _selectedCategory;
 
@@ -831,6 +816,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             score: 0,
             byCategory: [],
             recentReceipts: [],
+            allReceipts: [],
           );
           _prevExpense = null;
           _loading = false;
@@ -857,8 +843,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       final data = await _api.get('/receipts', query: {'year_month': yearMonth});
       final list = (data['receipts'] as List<dynamic>).cast<Map<String, dynamic>>();
       final medical = list.fold<int>(0, (sum, r) {
-        final name = r['store_name'] as String? ?? '';
-        if (_isTaxExemptStore(name)) {
+        if (r['is_tax_exempt'] as bool? ?? false) {
           return sum + ((r['total_amount'] as num?)?.toInt() ?? 0);
         }
         return sum;
@@ -899,8 +884,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         if (!d.isBefore(weekStart) && d.isBefore(weekEnd)) {
           final amount = (r['total_amount'] as num?)?.toInt() ?? 0;
           total += amount;
-          final name = r['store_name'] as String? ?? '';
-          if (_isTaxExemptStore(name)) medical += amount;
+          if (r['is_tax_exempt'] as bool? ?? false) medical += amount;
         }
       }
 
@@ -2231,12 +2215,6 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               ),
               const SizedBox(height: 4),
             ],
-            _TaxBreakdownRow(
-              label: '消費税（10%）',
-              amount: estimatedTax,
-              colors: colors,
-              fmt: _currencyFmt,
-            ),
           ],
         ],
       ),

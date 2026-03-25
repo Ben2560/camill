@@ -182,7 +182,7 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   Map<DateTime, int> _buildDailyTotals(MonthlySummary summary) {
     final Map<DateTime, int> totals = {};
-    for (final r in summary.recentReceipts) {
+    for (final r in summary.allReceipts) {
       final dt = DateTime.parse(r.purchasedAt).toLocal();
       final day = DateTime(dt.year, dt.month, dt.day);
       totals[day] = (totals[day] ?? 0) + r.totalAmount;
@@ -251,7 +251,7 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   List<RecentReceipt> _receiptsForDay(DateTime day) {
     if (_summary == null) return [];
-    return _summary!.recentReceipts.where((r) {
+    return _summary!.allReceipts.where((r) {
       final dt = DateTime.parse(r.purchasedAt).toLocal();
       return dt.year == day.year && dt.month == day.month && dt.day == day.day;
     }).toList();
@@ -1165,86 +1165,84 @@ class _DetailPanel extends StatelessWidget {
     final weekdays = ['日', '月', '火', '水', '木', '金', '土'];
     final weekdayLabel = weekdays[day.weekday % 7];
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Row(
-              children: [
-                // 日付バッジ
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: colors.primaryLight,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${day.day}',
-                        style: camillBodyStyle(
-                          20,
-                          colors.primary,
-                          weight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        weekdayLabel,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: colors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              // 日付バッジ
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: colors.primaryLight,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '${day.month}月${day.day}日',
+                      '${day.day}',
                       style: camillBodyStyle(
-                        15,
-                        colors.textPrimary,
-                        weight: FontWeight.w700,
+                        20,
+                        colors.primary,
+                        weight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      '$weekdayLabel曜日',
-                      style: camillBodyStyle(12, colors.textMuted),
+                      weekdayLabel,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: colors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
-                const Spacer(),
-                if (receipts.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('合計', style: camillBodyStyle(10, colors.textMuted)),
-                      Text(
-                        fmt.format(total),
-                        style: camillAmountStyle(15, colors.primary),
-                      ),
-                    ],
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${day.month}月${day.day}日',
+                    style: camillBodyStyle(
+                      15,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
                   ),
-              ],
-            ),
+                  Text(
+                    '$weekdayLabel曜日',
+                    style: camillBodyStyle(12, colors.textMuted),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              if (receipts.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('合計', style: camillBodyStyle(10, colors.textMuted)),
+                    Text(
+                      fmt.format(total),
+                      style: camillAmountStyle(15, colors.primary),
+                    ),
+                  ],
+                ),
+            ],
           ),
-          Divider(height: 1, color: colors.surfaceBorder),
-          if (loading)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: CircularProgressIndicator(color: colors.primary),
-            )
-          else
-            ListView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+        ),
+        Divider(height: 1, color: colors.surfaceBorder),
+        if (loading)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: CircularProgressIndicator(color: colors.primary),
+          )
+        else
+          Expanded(
+            child: ListView(
               padding: EdgeInsets.zero,
               children: [
                 // ── 使えるクーポン ──
@@ -1418,10 +1416,11 @@ class _DetailPanel extends StatelessWidget {
                       }).toList(),
                     ),
                   ),
+                SizedBox(height: MediaQuery.of(context).padding.bottom),
               ],
             ),
+          ),
       ],
-    ),
     );
   }
 }

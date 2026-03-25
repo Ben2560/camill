@@ -96,6 +96,7 @@ class ReceiptListItem {
   final String paymentMethod;
   final String category;
   final List<ReceiptItem> items;
+  final bool isTaxExempt;
 
   ReceiptListItem({
     required this.receiptId,
@@ -105,6 +106,7 @@ class ReceiptListItem {
     required this.paymentMethod,
     required this.category,
     required this.items,
+    this.isTaxExempt = false,
   });
 
   factory ReceiptListItem.fromJson(Map<String, dynamic> json) =>
@@ -119,6 +121,7 @@ class ReceiptListItem {
                 ?.map((e) => ReceiptItem.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
+        isTaxExempt: json['is_tax_exempt'] as bool? ?? false,
       );
 }
 
@@ -163,6 +166,7 @@ class MonthlySummary {
   final int score;
   final List<CategorySummary> byCategory;
   final List<RecentReceipt> recentReceipts;
+  final List<RecentReceipt> allReceipts;
 
   MonthlySummary({
     required this.yearMonth,
@@ -171,6 +175,7 @@ class MonthlySummary {
     required this.score,
     required this.byCategory,
     required this.recentReceipts,
+    required this.allReceipts,
   });
 
   factory MonthlySummary.fromJson(Map<String, dynamic> json) => MonthlySummary(
@@ -182,6 +187,9 @@ class MonthlySummary {
             .map((e) => CategorySummary.fromJson(e as Map<String, dynamic>))
             .toList(),
         recentReceipts: (json['recent_receipts'] as List<dynamic>)
+            .map((e) => RecentReceipt.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        allReceipts: (json['all_receipts'] as List<dynamic>)
             .map((e) => RecentReceipt.fromJson(e as Map<String, dynamic>))
             .toList(),
       );

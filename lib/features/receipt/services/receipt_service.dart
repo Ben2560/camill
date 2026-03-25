@@ -68,4 +68,11 @@ class ReceiptService {
   Future<void> deleteReceipt(String receiptId) async {
     await _api.delete('/receipts/$receiptId');
   }
+
+  /// データが存在する月の一覧を取得（"yyyy-MM" 形式、昇順）
+  Future<List<String>> getActiveMonths() async {
+    final data = await _api.getAny('/receipts/active-months');
+    final list = (data as Map<String, dynamic>)['months'] as List<dynamic>;
+    return list.cast<String>();
+  }
 }

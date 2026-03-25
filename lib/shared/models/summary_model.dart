@@ -177,7 +177,7 @@ class MonthlySummary {
         yearMonth: json['year_month'] as String,
         totalExpense: (json['total_expense'] as num).toInt(),
         totalIncome: (json['total_income'] as num? ?? 0).toInt(),
-        score: (json['score'] as num? ?? 100).toInt(),
+        score: (json['score'] as num? ?? 0).toInt(),
         byCategory: (json['by_category'] as List<dynamic>)
             .map((e) => CategorySummary.fromJson(e as Map<String, dynamic>))
             .toList(),

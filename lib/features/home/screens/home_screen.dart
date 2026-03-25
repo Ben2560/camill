@@ -14,6 +14,7 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/camill_card.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 import '../../coupon/services/coupon_service.dart';
+import '../../receipt/services/receipt_service.dart';
 import 'category_budget_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,10 +25,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _centerPage = 500;
-
-  late final PageController _pageController;
   final _now = DateTime(DateTime.now().year, DateTime.now().month);
+
+  // データがある月だけナビゲーション可能にする
+  final _receiptService = ReceiptService();
+  List<DateTime> _availableMonths = [];
+  int _monthsVersion = 0; // PageView 再構築用キー
+  PageController _pageController = PageController();
 
   // プラン情報（アップグレードモーダル用）
   int _analysisLimit = 10;
@@ -65,7 +69,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _centerPage);
+    // 初期状態は今月のみ表示（APIレスポンス後に更新）
+    _availableMonths = [_now];
+    _pageController = PageController(initialPage: 0);
+    _loadAvailableMonths();
     _loadBudget();
     _loadCategoryBudgets();
     _loadHomeLayout();
@@ -81,10 +88,34 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  DateTime _monthForPage(int page) {
-    final diff = page - _centerPage;
-    return DateTime(_now.year, _now.month + diff);
+  /// データがある月の一覧を取得して PageView を再構築
+  Future<void> _loadAvailableMonths() async {
+    try {
+      final rawMonths = await _receiptService.getActiveMonths();
+      final months = rawMonths.map((s) {
+        final parts = s.split('-');
+        return DateTime(int.parse(parts[0]), int.parse(parts[1]));
+      }).toList();
+
+      // 今月は常に含める
+      if (!months.any((m) => m.year == _now.year && m.month == _now.month)) {
+        months.add(_now);
+      }
+      months.sort((a, b) => a.compareTo(b));
+
+      if (!mounted) return;
+      _pageController.dispose();
+      setState(() {
+        _availableMonths = months;
+        _pageController = PageController(initialPage: months.length - 1);
+        _monthsVersion++;
+      });
+    } catch (_) {
+      // API未実装・エラー時は今月のみ（初期状態のまま）
+    }
   }
+
+  DateTime _monthForPage(int page) => _availableMonths[page];
 
   Future<void> _loadTodayCoupons() async {
     try {
@@ -535,11 +566,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Stack(
                   children: [
                     PageView.builder(
+                        key: ValueKey(_monthsVersion),
                         controller: _pageController,
-                        itemCount: _centerPage + 1,
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        itemCount: _availableMonths.length,
                         onPageChanged: (_) => _navProgress.value = 0.0,
                         itemBuilder: (context, page) => _HomeMonthPage(
-                          key: ValueKey(page),
+                          key: ValueKey(_availableMonths[page]),
                           month: _monthForPage(page),
                           budget: _budget,
                           categoryBudgets: _categoryBudgets,
@@ -742,7 +777,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             yearMonth: DateFormat('yyyy-MM').format(widget.month),
             totalExpense: 0,
             totalIncome: 0,
-            score: 100,
+            score: 0,
             byCategory: [],
             recentReceipts: [],
           );
@@ -1712,13 +1747,16 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   }
 
   Widget _buildScoreCard(CamillColors colors) {
-    final score = _summary?.score ?? 100;
+    final score = _summary?.score ?? 0;
+    final hasBudget = widget.categoryBudgets.values.any((v) => v > 0);
     final scoreColor = score >= 80
         ? colors.success
         : score >= 60
         ? colors.primary
         : colors.danger;
-    final message = score >= 90
+    final message = !hasBudget
+        ? '使いみちをタップして予算設定を行なってください！'
+        : score >= 90
         ? 'すばらしいやりくりです！'
         : score >= 80
         ? '予算内に収まっています'

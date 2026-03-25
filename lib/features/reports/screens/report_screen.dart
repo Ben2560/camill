@@ -264,6 +264,21 @@ class _ReportScreenState extends State<ReportScreen>
     );
   }
 
+  static const _categoryLabels = <String, String>{
+    'food': '食費',
+    'dining_out': '外食費',
+    'daily': '日用品',
+    'transport': '交通費',
+    'clothing': '衣服',
+    'social': '交際費',
+    'hobby': '趣味',
+    'medical': '医療・健康',
+    'education': '教育・書籍',
+    'subscription': 'サブスク',
+    'utility': '光熱費',
+    'other': 'その他',
+  };
+
   Widget _buildCategoryRanking(CamillColors colors) {
     final r = _report!;
     final cats = (r['top_categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -286,6 +301,8 @@ class _ReportScreenState extends State<ReportScreen>
             final i = e.key;
             final cat = e.value;
             final amount = (cat['amount'] as num?)?.toInt() ?? 0;
+            final key = cat['category'] as String? ?? '';
+            final label = _categoryLabels[key] ?? key;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
@@ -294,7 +311,7 @@ class _ReportScreenState extends State<ReportScreen>
                       style: const TextStyle(fontSize: 22)),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(cat['category'] as String? ?? '',
+                    child: Text(label,
                         style: camillBodyStyle(14, colors.textPrimary)),
                   ),
                   Text(_currencyFmt.format(amount),

@@ -675,7 +675,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'score': (title: 'やりくりスコア', icon: Icons.emoji_events_outlined),
     'compare': (title: '先月との比較', icon: Icons.compare_arrows),
     'recent': (title: '最近のレシート', icon: Icons.receipt_outlined),
-    'tax': (title: '税金', icon: Icons.account_balance_outlined),
+    'tax': (title: '消費税', icon: Icons.account_balance_outlined),
   };
 
   static const _categoryMeta = <String, ({IconData icon, String label})>{
@@ -742,6 +742,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             yearMonth: DateFormat('yyyy-MM').format(widget.month),
             totalExpense: 0,
             totalIncome: 0,
+            score: 100,
             byCategory: [],
             recentReceipts: [],
           );
@@ -1491,9 +1492,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     final total = _summary!.totalExpense;
     final periodLabel = ['週', '月', '年'][_periodIndex];
 
-    final anyBudgetSet = widget.categoryBudgets.values.any((v) => v > 0);
-
-    // 予算設定済みカテゴリの行
+    // 支出があるカテゴリの行（予算未設定でも表示）
     final rows =
         _categoryMeta.entries
             .map((e) {
@@ -1501,26 +1500,24 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               final amount = found.isEmpty ? 0 : found.first.amount;
               return (key: e.key, meta: e.value, amount: amount);
             })
-            .where((r) {
-              if (r.amount == 0) return false;
-              if (anyBudgetSet && (widget.categoryBudgets[r.key] ?? 0) == 0) {
-                return false;
-              }
-              return true;
-            })
+            .where((r) => r.amount > 0)
             .toList()
           ..sort((a, b) => b.amount.compareTo(a.amount));
 
     // 表示行の合計を計算し、差分を「その他」に含める
     final rowsTotal = rows.fold(0, (sum, r) => sum + r.amount);
-    final otherAmount = anyBudgetSet ? total - rowsTotal : 0;
+    final otherAmount = total - rowsTotal;
     final otherMeta = _categoryMeta['other']!;
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const CategoryBudgetScreen()),
-      ),
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CategoryBudgetScreen()),
+        );
+        _loadCategoryBudgets();
+        _load(silent: true);
+      },
       child: CamillCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1552,6 +1549,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                     ),
                   );
                   _loadCategoryBudgets();
+                  _load(silent: true);
                 },
                 child: Icon(Icons.tune, size: 18, color: colors.textMuted),
               ),
@@ -1653,7 +1651,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             );
           }),
           // 予算未設定カテゴリの合計「その他」行（常に一番下）
-          if (anyBudgetSet && otherAmount > 0)
+          if (otherAmount > 0)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(
@@ -1714,14 +1712,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   }
 
   Widget _buildScoreCard(CamillColors colors) {
-    final expense = _summary?.totalExpense ?? 0;
-    final ratio =
-        widget.budget > 0 ? (expense / widget.budget).clamp(0.0, 2.0) : 0.0;
-    final score = widget.budget > 0
-        ? (ratio <= 1.0
-              ? (100 - ratio * 50).round()
-              : (50 * (2.0 - ratio)).round().clamp(0, 100))
-        : 100;
+    final score = _summary?.score ?? 100;
     final scoreColor = score >= 80
         ? colors.success
         : score >= 60
@@ -2033,7 +2024,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               ),
               const SizedBox(width: 6),
               Text(
-                '税金',
+                '消費税',
                 style: camillBodyStyle(
                   14,
                   colors.textPrimary,
@@ -2089,22 +2080,14 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               ),
             )
           else ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _currencyFmt.format(estimatedTax),
-                  style: camillAmountStyle(28, colors.textPrimary),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '（推定）',
-                    style: camillBodyStyle(12, colors.textMuted),
-                  ),
-                ),
-              ],
+            Text(
+              _currencyFmt.format(estimatedTax),
+              style: camillAmountStyle(28, colors.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '※ 推定値のため確定ではありません',
+              style: camillBodyStyle(11, colors.textMuted),
             ),
             const SizedBox(height: 8),
             // 内訳

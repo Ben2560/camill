@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
+import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/camill_card.dart';
 
 class CategoryBudgetScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
 
   static const _budgetKey = 'budget_monthly';
 
+  final _api = ApiService();
   final _fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
   final Map<String, int> _budgets = {};
   int _totalBudget = 0;
@@ -44,8 +46,35 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     _totalBudget = prefs.getInt(_budgetKey) ?? 0;
+    // まずSharedPrefsから読み込む
     for (final key in _categories.keys) {
       _budgets[key] = prefs.getInt('category_budget_$key') ?? 0;
+    }
+    // APIから取得してSharedPrefsを上書き（マイグレーション兼同期）
+    try {
+      final ym = DateTime.now();
+      final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
+      final data = await _api.get('/budgets/$yearMonth');
+      final apiBudgets = data.map((k, v) => MapEntry(k, (v as num).toInt()));
+      if (apiBudgets.isNotEmpty) {
+        for (final key in _categories.keys) {
+          _budgets[key] = apiBudgets[key] ?? 0;
+        }
+        // SharedPrefsにも反映
+        for (final e in _budgets.entries) {
+          await prefs.setInt('category_budget_${e.key}', e.value);
+        }
+      } else {
+        // DBが空 → ローカルデータをAPIへ初回アップロード
+        final nonZero = {
+          for (final e in _budgets.entries) if (e.value > 0) e.key: e.value
+        };
+        if (nonZero.isNotEmpty) {
+          await _api.patch('/budgets/$yearMonth', body: nonZero);
+        }
+      }
+    } catch (_) {
+      // API失敗時はSharedPrefsのままで続行
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -54,6 +83,14 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
     final prefs = await SharedPreferences.getInstance();
     for (final e in _budgets.entries) {
       await prefs.setInt('category_budget_${e.key}', e.value);
+    }
+    // APIにも保存
+    try {
+      final ym = DateTime.now();
+      final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
+      await _api.patch('/budgets/$yearMonth', body: Map.from(_budgets));
+    } catch (_) {
+      // API失敗時はローカル保存のみで続行
     }
   }
 
@@ -183,6 +220,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setInt(_budgetKey, val);
                       if (mounted) setState(() => _totalBudget = val);
+                      await _persist();
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: FilledButton.styleFrom(
@@ -349,11 +387,11 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () {
+                    onPressed: () async {
                       final val = int.tryParse(ctrl.text) ?? 0;
                       setState(() => _budgets[key] = val);
-                      _persist();
-                      Navigator.pop(ctx);
+                      await _persist();
+                      if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: colors.primary,

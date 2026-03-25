@@ -37,10 +37,9 @@ void main() async {
 
   // テーマを起動前に読み込んでフラッシュを防ぐ
   final prefs = await SharedPreferences.getInstance();
-  final baseName     = prefs.getString('camill_theme_base')
-                    ?? prefs.getString('camill_theme'); // 旧キー後方互換
-  final nightStart   = prefs.getInt('camill_night_start')   ?? 22;
-  final morningStart = prefs.getInt('camill_morning_start') ?? 6;
+  final baseName = prefs.getString('camill_theme_base')
+                ?? prefs.getString('camill_theme'); // 旧キー後方互換
+  final autoSwitch = prefs.getBool('camill_auto_switch') ?? true;
 
   CamillThemeMode initialBase = CamillThemeMode.midnight;
   if (baseName != null) {
@@ -49,12 +48,13 @@ void main() async {
     } catch (_) {}
   }
 
-  final isDark = ThemeState.computeIsDark(nightStart, morningStart);
+  // 起動直後の暫定判定 (sun times は ThemeNotifier が非同期で取得)
+  final hour    = DateTime.now().hour;
+  final isDark  = hour >= 22 || hour < 6;
   final initialThemeState = ThemeState(
-    selectedBase:    initialBase,
-    isDarkNow:       isDark,
-    nightStartHour:  nightStart,
-    morningStartHour: morningStart,
+    selectedBase: initialBase,
+    isDarkNow:    isDark,
+    autoSwitch:   autoSwitch,
   );
 
   runApp(

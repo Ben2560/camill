@@ -1,46 +1,42 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'camill_colors.dart';
 import 'camill_theme_mode.dart';
+import 'sun_times.dart';
+
+// ── フォールバック座標 (東京) ──────────────────────────────────────────────────
+const _defaultLat = 35.6812;
+const _defaultLng = 139.7671;
 
 // ── 状態 ──────────────────────────────────────────────────────────────────────
 
 class ThemeState {
   final CamillThemeMode selectedBase;
   final bool isDarkNow;
-  final int nightStartHour;   // 夜間開始時刻 (default 22)
-  final int morningStartHour; // 朝の開始時刻 (default 6)
+  final bool autoSwitch;
 
   const ThemeState({
     required this.selectedBase,
     required this.isDarkNow,
-    this.nightStartHour   = 22,
-    this.morningStartHour = 6,
+    this.autoSwitch = true,
   });
 
   ThemeState copyWith({
     CamillThemeMode? selectedBase,
     bool? isDarkNow,
-    int? nightStartHour,
-    int? morningStartHour,
+    bool? autoSwitch,
   }) =>
       ThemeState(
-        selectedBase:    selectedBase    ?? this.selectedBase,
-        isDarkNow:       isDarkNow       ?? this.isDarkNow,
-        nightStartHour:  nightStartHour  ?? this.nightStartHour,
-        morningStartHour: morningStartHour ?? this.morningStartHour,
+        selectedBase: selectedBase ?? this.selectedBase,
+        isDarkNow:    isDarkNow    ?? this.isDarkNow,
+        autoSwitch:   autoSwitch   ?? this.autoSwitch,
       );
 
   /// 現在の状態から実効カラーセットを返す
   CamillColors get colors =>
       CamillColors.fromBase(selectedBase, isDark: isDarkNow);
-
-  /// 時刻から夜間かどうかを計算する
-  static bool computeIsDark(int nightStart, int morningStart) {
-    final hour = DateTime.now().hour;
-    return hour >= nightStart || hour < morningStart;
-  }
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
@@ -58,13 +54,13 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   ThemeNotifier()
       : super(ThemeState(
           selectedBase: CamillThemeMode.midnight,
-          isDarkNow:    ThemeState.computeIsDark(22, 6),
+          isDarkNow:    _guessIsDarkByHour(),
         )) {
-    _loadTheme();
+    _init();
   }
 
-  ThemeNotifier.withInitial(super.initial) {
-    _scheduleNextSwitch();
+  ThemeNotifier.withInitial(ThemeState initial) : super(initial) {
+    if (initial.autoSwitch) _scheduleFromSunTimes();
   }
 
   @override
@@ -81,79 +77,147 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
     await prefs.setString('camill_theme_base', base.name);
   }
 
-  Future<void> setNightStartHour(int hour) async {
-    final isDark = ThemeState.computeIsDark(hour, state.morningStartHour);
-    state = state.copyWith(nightStartHour: hour, isDarkNow: isDark);
+  Future<void> setAutoSwitch(bool value) async {
+    state = state.copyWith(autoSwitch: value);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('camill_night_start', hour);
-    _scheduleNextSwitch();
+    await prefs.setBool('camill_auto_switch', value);
+    if (value) {
+      await _scheduleFromSunTimes();
+    } else {
+      _timer?.cancel();
+    }
   }
 
-  Future<void> setMorningStartHour(int hour) async {
-    final isDark = ThemeState.computeIsDark(state.nightStartHour, hour);
-    state = state.copyWith(morningStartHour: hour, isDarkNow: isDark);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('camill_morning_start', hour);
-    _scheduleNextSwitch();
+  Future<void> setDarkNow(bool value) async {
+    if (state.autoSwitch) return; // 自動モード中は手動変更不可
+    state = state.copyWith(isDarkNow: value);
   }
 
-  // ── 内部処理 ──────────────────────────────────────────────────────────────
+  // ── 初期化 ────────────────────────────────────────────────────────────────
 
-  Future<void> _loadTheme() async {
+  Future<void> _init() async {
+    await _loadPrefs();
+    if (state.autoSwitch) {
+      await _scheduleFromSunTimes();
+    }
+  }
+
+  Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('camill_theme_base')
+               ?? prefs.getString('camill_theme');
+    final auto = prefs.getBool('camill_auto_switch') ?? true;
+    CamillThemeMode? base;
+    if (name != null) {
+      try { base = CamillThemeMode.values.byName(name); } catch (_) {}
+    }
+    state = state.copyWith(
+      selectedBase: base,
+      autoSwitch:   auto,
+    );
+  }
 
-    // 旧キー (camill_theme) との後方互換
-    final baseName = prefs.getString('camill_theme_base')
-        ?? prefs.getString('camill_theme');
-    final nightStart   = prefs.getInt('camill_night_start')   ?? 22;
-    final morningStart = prefs.getInt('camill_morning_start') ?? 6;
+  // ── 日の出・日の入りベースのスケジューリング ──────────────────────────────
 
-    CamillThemeMode base = CamillThemeMode.midnight;
-    if (baseName != null) {
-      try {
-        base = CamillThemeMode.values.byName(baseName);
-      } catch (_) {}
+  Future<void> _scheduleFromSunTimes() async {
+    _timer?.cancel();
+
+    final pos     = await _getPosition();
+    final lat     = pos?.latitude  ?? _defaultLat;
+    final lng     = pos?.longitude ?? _defaultLng;
+    final now     = DateTime.now();
+    final times   = SunTimes.calculate(latitude: lat, longitude: lng, date: now);
+
+    final sunrise = times.sunrise;
+    final sunset  = times.sunset;
+
+    // 日の出・日の入りが取れない場合は時刻ベースフォールバック
+    if (sunrise == null || sunset == null) {
+      _fallbackSchedule();
+      return;
     }
 
-    final isDark = ThemeState.computeIsDark(nightStart, morningStart);
-    state = ThemeState(
-      selectedBase:    base,
-      isDarkNow:       isDark,
-      nightStartHour:  nightStart,
-      morningStartHour: morningStart,
-    );
-    _scheduleNextSwitch();
-  }
+    // 現在が日中か夜間かを判定
+    final isDark = now.isBefore(sunrise) || now.isAfter(sunset);
+    if (isDark != state.isDarkNow) {
+      state = state.copyWith(isDarkNow: isDark);
+    }
 
-  /// 次の日中/夜間切り替え時刻まで Timer をセット
-  void _scheduleNextSwitch() {
-    _timer?.cancel();
-    final now         = DateTime.now();
-    final hour        = now.hour;
-    final nightStart  = state.nightStartHour;
-    final mornStart   = state.morningStartHour;
-
+    // 次の切り替え時刻を計算
     DateTime nextSwitch;
-    if (hour >= nightStart || hour < mornStart) {
-      // 現在: 夜間 → 次の切り替えは朝
-      nextSwitch = DateTime(now.year, now.month, now.day, mornStart);
-      if (!nextSwitch.isAfter(now)) {
-        nextSwitch = nextSwitch.add(const Duration(days: 1));
-      }
+    if (isDark) {
+      // 夜間中 → 次は日の出
+      nextSwitch = now.isBefore(sunrise)
+          ? sunrise
+          : SunTimes.calculate(
+                  latitude: lat,
+                  longitude: lng,
+                  date: now.add(const Duration(days: 1)))
+              .sunrise ?? now.add(const Duration(hours: 12));
     } else {
-      // 現在: 日中 → 次の切り替えは夜
-      nextSwitch = DateTime(now.year, now.month, now.day, nightStart);
-      if (!nextSwitch.isAfter(now)) {
-        nextSwitch = nextSwitch.add(const Duration(days: 1));
-      }
+      // 日中 → 次は日の入り
+      nextSwitch = sunset;
     }
 
     final delay = nextSwitch.difference(DateTime.now());
-    _timer = Timer(delay, () {
-      final isDark =
-          ThemeState.computeIsDark(state.nightStartHour, state.morningStartHour);
-      state = state.copyWith(isDarkNow: isDark);
-      _scheduleNextSwitch();
+    _timer = Timer(delay.isNegative ? Duration.zero : delay, () {
+      state = state.copyWith(isDarkNow: !state.isDarkNow);
+      // 翌日の sun times で再スケジュール
+      _scheduleFromSunTimes();
     });
+  }
+
+  // 位置情報が取れない時用: 6時/22時の固定フォールバック
+  void _fallbackSchedule() {
+    final isDark = _guessIsDarkByHour();
+    if (isDark != state.isDarkNow) {
+      state = state.copyWith(isDarkNow: isDark);
+    }
+    final now  = DateTime.now();
+    final hour = now.hour;
+    DateTime next;
+    if (hour >= 22 || hour < 6) {
+      next = DateTime(now.year, now.month, now.day, 6);
+      if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
+    } else {
+      next = DateTime(now.year, now.month, now.day, 22);
+    }
+    _timer = Timer(next.difference(DateTime.now()), () {
+      state = state.copyWith(isDarkNow: !state.isDarkNow);
+      _fallbackSchedule();
+    });
+  }
+
+  // ── 位置情報取得 ──────────────────────────────────────────────────────────
+
+  static Future<Position?> _getPosition() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      // まず最終既知位置を使う（高速）
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) return last;
+      // なければ現在地を取得
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 起動直後の暫定判定 (sun times 取得前)
+  static bool _guessIsDarkByHour() {
+    final h = DateTime.now().hour;
+    return h >= 22 || h < 6;
   }
 }

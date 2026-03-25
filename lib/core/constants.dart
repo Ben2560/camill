@@ -6,26 +6,34 @@ class AppConstants {
 
   // Category labels (Japanese)
   static const Map<String, String> categoryLabels = {
-    'food': '食費',
-    'daily': '日用品',
-    'hobby': '趣味',
-    'transport': '交通費',
-    'medical': '医療',
-    'utility': '光熱費',
+    'food':         '食費',
+    'dining_out':   '食費',
+    'daily':        '日用品',
+    'transport':    '交通費',
+    'clothing':     '衣服',
+    'social':       '交際費',
+    'hobby':        '趣味',
+    'medical':      '医療',
+    'education':    '教育・書籍',
+    'utility':      '光熱費',
     'subscription': 'サブスク',
-    'other': 'その他',
+    'other':        'その他',
   };
 
   // Category colors (badge background: withAlpha(30), text/border: full color)
   static const Map<String, Color> categoryColors = {
-    'food':         Color(0xFFFF8A65), // 食費   - オレンジ
-    'daily':        Color(0xFF4DB6AC), // 日用品  - ティール
-    'hobby':        Color(0xFF9575CD), // 趣味   - パープル
-    'transport':    Color(0xFF4FC3F7), // 交通費  - ライトブルー
-    'medical':      Color(0xFFE57373), // 医療   - レッド
-    'utility':      Color(0xFFFFD54F), // 光熱費  - イエロー
-    'subscription': Color(0xFF7986CB), // サブスク - インディゴ
-    'other':        Color(0xFF90A4AE), // その他  - グレー
+    'food':         Color(0xFFFF8A65), // 食費        - オレンジ
+    'dining_out':   Color(0xFFFF7043), // 外食費      - ディープオレンジ
+    'daily':        Color(0xFF4DB6AC), // 日用品      - ティール
+    'transport':    Color(0xFF4FC3F7), // 交通費      - ライトブルー
+    'clothing':     Color(0xFFF06292), // 衣服        - ピンク
+    'social':       Color(0xFFFFB74D), // 交際費      - アンバー
+    'hobby':        Color(0xFF9575CD), // 趣味        - パープル
+    'medical':      Color(0xFFE57373), // 医療        - レッド
+    'education':    Color(0xFF4CAF50), // 教育・書籍  - グリーン
+    'utility':      Color(0xFFFFD54F), // 光熱費      - イエロー
+    'subscription': Color(0xFF7986CB), // サブスク    - インディゴ
+    'other':        Color(0xFF90A4AE), // その他      - グレー
   };
 
   // Legal page URLs (update when pages are published)

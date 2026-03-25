@@ -22,6 +22,7 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _loading = false;
   int _analysisCount = 0;
   int _analysisLimit = 10;
+  File? _pendingImage; // 確認待ちの画像（非nullのとき確認画面を表示）
 
   @override
   void initState() {
@@ -48,11 +49,23 @@ class _CameraScreenState extends State<CameraScreen> {
       maxWidth: 1000,
     );
     if (picked == null) return;
-    await _analyzeImage(File(picked.path));
+    if (!mounted) return;
+    final file = File(picked.path);
+
+    if (source == ImageSource.gallery) {
+      setState(() => _pendingImage = file);
+      return;
+    }
+
+    await _analyzeImage(file);
   }
 
   Future<void> _analyzeImage(File imageFile) async {
-    setState(() => _loading = true);
+    if (!mounted) return;
+    setState(() {
+      _pendingImage = null;
+      _loading = true;
+    });
     try {
       final analysis = await _receiptService.analyzeReceipt(imageFile);
       if (mounted) {
@@ -81,66 +94,118 @@ class _CameraScreenState extends State<CameraScreen> {
       body: LoadingOverlay(
         isLoading: _loading,
         message: 'レシートを解析しています...',
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: _pendingImage != null
+            ? _buildConfirmView(colors)
+            : _buildCameraView(colors),
+      ),
+    );
+  }
+
+  Widget _buildConfirmView(CamillColors colors) {
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'この画像でよろしいですか？',
+                  style: camillHeadingStyle(16, colors.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(_pendingImage!, fit: BoxFit.contain),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+          child: Row(
             children: [
-              Icon(Icons.receipt_long, size: 80, color: colors.primary),
-              const SizedBox(height: 24),
-              Text(
-                'レシートを撮影してください',
-                textAlign: TextAlign.center,
-                style: camillHeadingStyle(18, colors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '品目・金額・クーポンを自動で読み取ります',
-                textAlign: TextAlign.center,
-                style: camillBodyStyle(13, colors.textMuted),
-              ),
-              const SizedBox(height: 16),
-              _AnalysisBadge(
-                count: _analysisCount,
-                limit: _analysisLimit,
-                colors: colors,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.fabIcon,
-                ),
-                onPressed: _loading
-                    ? null
-                    : () => _pickImage(ImageSource.camera),
-                icon: Icon(Icons.camera_alt, color: colors.fabIcon),
-                label: Text(
-                  'カメラで撮影',
-                  style: camillBodyStyle(16, colors.fabIcon),
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colors.textMuted,
+                    side: BorderSide(color: colors.textMuted),
+                  ),
+                  onPressed: () => setState(() => _pendingImage = null),
+                  child: Text('選び直す', style: camillBodyStyle(15, colors.textMuted)),
                 ),
               ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.primary,
-                  side: BorderSide(color: colors.primary),
-                ),
-                onPressed: _loading
-                    ? null
-                    : () => _pickImage(ImageSource.gallery),
-                icon: Icon(Icons.photo_library_outlined, color: colors.primary),
-                label: Text(
-                  'ギャラリーから選択',
-                  style: camillBodyStyle(16, colors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: colors.fabIcon,
+                  ),
+                  onPressed: () => _analyzeImage(_pendingImage!),
+                  child: Text('解析する', style: camillBodyStyle(15, colors.fabIcon)),
                 ),
               ),
-              const SizedBox(height: 32),
-              _Tips(colors: colors),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildCameraView(CamillColors colors) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(Icons.receipt_long, size: 80, color: colors.primary),
+          const SizedBox(height: 24),
+          Text(
+            'レシートを撮影してください',
+            textAlign: TextAlign.center,
+            style: camillHeadingStyle(18, colors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '品目・金額・クーポンを自動で読み取ります',
+            textAlign: TextAlign.center,
+            style: camillBodyStyle(13, colors.textMuted),
+          ),
+          const SizedBox(height: 16),
+          _AnalysisBadge(
+            count: _analysisCount,
+            limit: _analysisLimit,
+            colors: colors,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.primary,
+              foregroundColor: colors.fabIcon,
+            ),
+            onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
+            icon: Icon(Icons.camera_alt, color: colors.fabIcon),
+            label: Text('カメラで撮影', style: camillBodyStyle(16, colors.fabIcon)),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.primary,
+              side: BorderSide(color: colors.primary),
+            ),
+            onPressed: _loading ? null : () => _pickImage(ImageSource.gallery),
+            icon: Icon(Icons.photo_library_outlined, color: colors.primary),
+            label: Text('ギャラリーから選択', style: camillBodyStyle(16, colors.primary)),
+          ),
+          const SizedBox(height: 32),
+          _Tips(colors: colors),
+        ],
       ),
     );
   }

@@ -66,6 +66,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // ナビゲーションオーバーレイ用
   final _navProgress = ValueNotifier<double>(0.0);
 
+  // レシート保存後の自動リフレッシュ用
+  late final GoRouterDelegate _routerDelegate;
+
   @override
   void initState() {
     super.initState();
@@ -79,13 +82,26 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadWeekStartPref();
     _loadBillingStatus();
     _loadTodayCoupons();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routerDelegate = GoRouter.of(context).routerDelegate;
+      _routerDelegate.addListener(_onRouteChanged);
+    });
   }
 
   @override
   void dispose() {
+    _routerDelegate.removeListener(_onRouteChanged);
     _pageController.dispose();
     _navProgress.dispose();
     super.dispose();
+  }
+
+  void _onRouteChanged() {
+    if (!mounted) return;
+    final path = _routerDelegate.currentConfiguration.uri.path;
+    if (path == '/') {
+      _loadAvailableMonths();
+    }
   }
 
   /// データがある月の一覧を取得して PageView を再構築
@@ -715,6 +731,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   String? _selectedCategory;
 
   late final ScrollController _scrollController;
+  late final GoRouterDelegate _routerDelegate;
 
   static const _allWidgetIds = [
     'budget',
@@ -761,13 +778,26 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         widget.navProgress.value = p;
       });
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routerDelegate = GoRouter.of(context).routerDelegate;
+      _routerDelegate.addListener(_onRouteChanged);
+    });
   }
 
   @override
   void dispose() {
+    _routerDelegate.removeListener(_onRouteChanged);
     _bounceController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onRouteChanged() {
+    if (!mounted) return;
+    final path = _routerDelegate.currentConfiguration.uri.path;
+    if (path == '/') {
+      _load(silent: true);
+    }
   }
 
   Future<void> _load({bool silent = false}) async {

@@ -23,14 +23,8 @@ class ThemeSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 40),
         children: [
-          // ── テーマ選択グリッド ────────────────────────────────────
-          _SectionHeader(title: 'テーマ', colors: colors),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _ThemeGrid(themeState: themeState, ref: ref, colors: colors),
-          ),
-          // ── 切り替え時間 ──────────────────────────────────────────
-          _SectionHeader(title: '日中 / 夜間の切り替え時刻', colors: colors),
+          // ── 日中 / 夜間 ───────────────────────────────────────────
+          _SectionHeader(title: '日中 / 夜間', colors: colors),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -41,95 +35,90 @@ class ThemeSettingsScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  _TimeRow(
-                    icon: Icons.wb_sunny_outlined,
-                    label: '朝の開始',
-                    hour: themeState.morningStartHour,
-                    colors: colors,
-                    onTap: () => _pickHour(
-                      context,
-                      colors,
-                      initial: themeState.morningStartHour,
-                      onPicked: (h) =>
-                          ref.read(themeProvider.notifier).setMorningStartHour(h),
+                  // 自動切替トグル
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.location_on_outlined,
+                            size: 18, color: colors.textSecondary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('日の出 / 日の入りで自動切替',
+                              style: camillBodyStyle(
+                                  14, colors.textPrimary,
+                                  weight: FontWeight.w500)),
+                        ),
+                        Switch(
+                          value: themeState.autoSwitch,
+                          activeThumbColor: colors.primary,
+                          onChanged: (v) =>
+                              ref.read(themeProvider.notifier).setAutoSwitch(v),
+                        ),
+                      ],
                     ),
                   ),
                   Divider(height: 1, color: colors.surfaceBorder),
-                  _TimeRow(
-                    icon: Icons.nightlight_outlined,
-                    label: '夜間の開始',
-                    hour: themeState.nightStartHour,
-                    colors: colors,
-                    onTap: () => _pickHour(
-                      context,
-                      colors,
-                      initial: themeState.nightStartHour,
-                      onPicked: (h) =>
-                          ref.read(themeProvider.notifier).setNightStartHour(h),
+                  // 手動トグル (自動OFF時のみ有効)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    child: Row(
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            themeState.isDarkNow
+                                ? Icons.nightlight_round
+                                : Icons.wb_sunny_rounded,
+                            key: ValueKey(themeState.isDarkNow),
+                            size: 18,
+                            color: themeState.autoSwitch
+                                ? colors.textMuted
+                                : colors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            themeState.isDarkNow ? '夜間モード' : '日中モード',
+                            style: camillBodyStyle(
+                              14,
+                              themeState.autoSwitch
+                                  ? colors.textMuted
+                                  : colors.textPrimary,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Switch(
+                          value: themeState.isDarkNow,
+                          activeThumbColor: colors.primary,
+                          onChanged: themeState.autoSwitch
+                              ? null
+                              : (v) => ref
+                                  .read(themeProvider.notifier)
+                                  .setDarkNow(v),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          // ── 現在の状態表示 ────────────────────────────────────────
+          // ── テーマ選択グリッド ────────────────────────────────────
+          _SectionHeader(title: 'テーマ', colors: colors),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: colors.primaryLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    themeState.isDarkNow
-                        ? Icons.nightlight_round
-                        : Icons.wb_sunny_rounded,
-                    color: colors.primary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    themeState.isDarkNow
-                        ? '現在: 夜間モード (ダークバリアント)'
-                        : '現在: 日中モード (ライトバリアント)',
-                    style: camillBodyStyle(13, colors.primary,
-                        weight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
+            child: _ThemeGrid(themeState: themeState, ref: ref, colors: colors),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _pickHour(
-    BuildContext context,
-    CamillColors colors, {
-    required int initial,
-    required void Function(int) onPicked,
-  }) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: initial, minute: 0),
-      initialEntryMode: TimePickerEntryMode.input,
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: Theme.of(ctx).colorScheme.copyWith(
-                primary:   colors.primary,
-                onPrimary: colors.fabIcon,
-              ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) onPicked(picked.hour);
-  }
 }
 
 // ── テーマグリッド ────────────────────────────────────────────────────────────
@@ -311,48 +300,6 @@ class _Swatch extends StatelessWidget {
   }
 }
 
-class _TimeRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final int hour;
-  final CamillColors colors;
-  final VoidCallback onTap;
-
-  const _TimeRow({
-    required this.icon,
-    required this.label,
-    required this.hour,
-    required this.colors,
-    required this.onTap,
-  });
-
-  String _fmt(int h) => '${h.toString().padLeft(2, '0')}:00';
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: colors.textSecondary, size: 20),
-      title: Text(label,
-          style: camillBodyStyle(15, colors.textPrimary)),
-      trailing: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color:        colors.primaryLight,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            _fmt(hour),
-            style: camillBodyStyle(14, colors.primary,
-                weight: FontWeight.w700),
-          ),
-        ),
-      ),
-      onTap: onTap,
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   final String title;

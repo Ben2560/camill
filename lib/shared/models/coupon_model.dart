@@ -10,6 +10,9 @@ class Coupon {
   final DateTime createdAt;
   // 0=月, 1=火, 2=水, 3=木, 4=金, 5=土, 6=日 (null = 毎日)
   final List<int>? availableDays;
+  final bool requiresSurvey;
+  final String? surveyUrl;
+  final bool surveyAnswered;
 
   Coupon({
     required this.couponId,
@@ -22,6 +25,9 @@ class Coupon {
     required this.isFromOcr,
     required this.createdAt,
     this.availableDays,
+    this.requiresSurvey = false,
+    this.surveyUrl,
+    this.surveyAnswered = false,
   });
 
   factory Coupon.fromJson(Map<String, dynamic> json) => Coupon(
@@ -41,6 +47,9 @@ class Coupon {
         availableDays: (json['available_days'] as List?)
             ?.map((e) => (e as num).toInt())
             .toList(),
+        requiresSurvey: json['requires_survey'] as bool? ?? false,
+        surveyUrl: json['survey_url'] as String?,
+        surveyAnswered: json['survey_answered'] as bool? ?? false,
       );
 
   bool get isFree => discountAmount == 0;

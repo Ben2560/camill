@@ -255,6 +255,12 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                 Navigator.pop(context);
                 _markUsed(coupon);
               },
+        onSurveyAnswered: coupon.requiresSurvey && !coupon.surveyAnswered
+            ? () {
+                Navigator.pop(context);
+                _markSurveyAnswered(coupon);
+              }
+            : null,
         onDelete: () {
           Navigator.pop(context);
           _deleteCoupon(coupon);
@@ -270,6 +276,15 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
   Future<void> _markUsed(Coupon coupon) async {
     try {
       await _service.useCoupon(coupon.couponId);
+      await _loadCoupons();
+    } catch (e) {
+      // silently swallow
+    }
+  }
+
+  Future<void> _markSurveyAnswered(Coupon coupon) async {
+    try {
+      await _service.markSurveyAnswered(coupon.couponId);
       await _loadCoupons();
     } catch (e) {
       // silently swallow
@@ -612,6 +627,7 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
 class _CouponDetailSheet extends StatelessWidget {
   final Coupon coupon;
   final VoidCallback? onUsed;
+  final VoidCallback? onSurveyAnswered;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
 
@@ -620,6 +636,7 @@ class _CouponDetailSheet extends StatelessWidget {
     required this.onUsed,
     required this.onDelete,
     required this.onEdit,
+    this.onSurveyAnswered,
   });
 
   @override
@@ -676,6 +693,48 @@ class _CouponDetailSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
+                if (coupon.requiresSurvey && !coupon.surveyAnswered) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF43A047),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: onSurveyAnswered,
+                      icon: const Icon(Icons.assignment_turned_in_outlined,
+                          color: Colors.white),
+                      label: Text('アンケート回答済みにする',
+                          style: camillBodyStyle(16, Colors.white,
+                              weight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                if (coupon.requiresSurvey && coupon.surveyAnswered) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF43A047).withAlpha(20),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF43A047).withAlpha(80)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle, size: 16, color: Color(0xFF43A047)),
+                        const SizedBox(width: 6),
+                        Text('アンケート回答済み',
+                            style: camillBodyStyle(14, const Color(0xFF43A047),
+                                weight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 if (onUsed != null)
                   SizedBox(
                     width: double.infinity,

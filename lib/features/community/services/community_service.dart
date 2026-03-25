@@ -45,6 +45,11 @@ class CommunityService {
     return CommunitySettings.fromJson(data);
   }
 
+  /// クーポンをコミュニティに公開
+  Future<void> shareCoupon(String couponId) async {
+    await _api.patch('/coupons/$couponId/share-to-community', body: {});
+  }
+
   /// 無料ユーザーの店舗選択を更新
   Future<CommunitySettings> selectStores(List<String> storeIds) async {
     final data = await _api.post('/community/select-stores', body: {

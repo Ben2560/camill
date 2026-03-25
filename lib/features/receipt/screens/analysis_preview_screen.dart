@@ -8,6 +8,7 @@ import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
+import '../../community/services/community_service.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../services/receipt_service.dart';
 
@@ -23,6 +24,7 @@ class AnalysisPreviewScreen extends StatefulWidget {
 class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   final _receiptService = ReceiptService();
   final _couponService = CouponService();
+  final _communityService = CommunityService();
   final _fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
   bool _saving = false;
 
@@ -37,6 +39,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   late bool _taxFromReceipt;
   late List<CouponDetected> _coupons;
   late List<bool> _couponIncluded;
+  late List<bool> _shareToComm;
   late bool _isMedical;
   late int _totalPoints;
   late double _burdenRate;
@@ -94,6 +97,20 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       return c;
     }).toList();
     _couponIncluded = List.filled(_coupons.length, true);
+    _shareToComm = List.filled(_coupons.length, false);
+  }
+
+  static bool _isConvenienceStore(String name) {
+    const keywords = [
+      'セブンイレブン', 'セブン-イレブン', '7-eleven', '7eleven',
+      'ファミリーマート', 'ファミマ',
+      'ローソン',
+      'ミニストップ',
+      'デイリーヤマザキ', 'ヤマザキデイリー',
+      'セイコーマート',
+    ];
+    final lower = name.toLowerCase();
+    return keywords.any((k) => lower.contains(k.toLowerCase()));
   }
 
   Future<void> _saveReceipt() async {
@@ -122,17 +139,26 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       );
       final receiptId = await _receiptService.saveReceipt(updated);
       // クーポンを /coupons に個別登録（レシートから検出されたので使用済みとして保存）
-      for (final c in includedCoupons) {
-        await _couponService.createCoupon(
+      for (int i = 0; i < _coupons.length; i++) {
+        if (!_couponIncluded[i]) continue;
+        final c = _coupons[i];
+        final coupon = await _couponService.createCoupon(
           storeName: _storeName,
           description: c.description,
           discountAmount: c.discountAmount,
           validFrom: c.validFrom,
           validUntil: c.validUntil,
           isFromOcr: true,
-          isUsed: true,
+          isUsed: !c.requiresSurvey,
           receiptId: receiptId,
+          requiresSurvey: c.requiresSurvey,
+          surveyUrl: c.surveyUrl,
         );
+        if (_shareToComm[i]) {
+          try {
+            await _communityService.shareCoupon(coupon.couponId);
+          } catch (_) {}
+        }
       }
       if (mounted) {
         context.go('/');
@@ -197,17 +223,26 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           burdenRate: _burdenRate != 0 ? _burdenRate : null,
         ),
       );
-      for (final c in includedCoupons) {
-        await _couponService.createCoupon(
+      for (int i = 0; i < _coupons.length; i++) {
+        if (!_couponIncluded[i]) continue;
+        final c = _coupons[i];
+        final coupon = await _couponService.createCoupon(
           storeName: _storeName,
           description: c.description,
           discountAmount: c.discountAmount,
           validFrom: c.validFrom,
           validUntil: c.validUntil,
           isFromOcr: true,
-          isUsed: true,
+          isUsed: !c.requiresSurvey,
           receiptId: receiptId,
+          requiresSurvey: c.requiresSurvey,
+          surveyUrl: c.surveyUrl,
         );
+        if (_shareToComm[i]) {
+          try {
+            await _communityService.shareCoupon(coupon.couponId);
+          } catch (_) {}
+        }
       }
       if (mounted) {
         context.go('/');
@@ -286,17 +321,26 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         }
       }
       // 3. 新しいクーポンを登録（レシートから検出されたので使用済みとして保存）
-      for (final c in includedCoupons) {
-        await _couponService.createCoupon(
+      for (int i = 0; i < _coupons.length; i++) {
+        if (!_couponIncluded[i]) continue;
+        final c = _coupons[i];
+        final coupon = await _couponService.createCoupon(
           storeName: _storeName,
           description: c.description,
           discountAmount: c.discountAmount,
           validFrom: c.validFrom,
           validUntil: c.validUntil,
           isFromOcr: true,
-          isUsed: true,
+          isUsed: !c.requiresSurvey,
           receiptId: newReceiptId,
+          requiresSurvey: c.requiresSurvey,
+          surveyUrl: c.surveyUrl,
         );
+        if (_shareToComm[i]) {
+          try {
+            await _communityService.shareCoupon(coupon.couponId);
+          } catch (_) {}
+        }
       }
       if (mounted) {
         showTopNotification(context, 'レシートを上書き登録しました',
@@ -502,6 +546,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     onDelete: () => setState(() {
       _coupons.removeAt(index);
       _couponIncluded.removeAt(index);
+      _shareToComm.removeAt(index);
     }),
   );
 
@@ -510,6 +555,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     onSave: (c) => setState(() {
       _coupons.add(c);
       _couponIncluded.add(true);
+      _shareToComm.add(false);
     }),
     onDelete: null,
   );
@@ -532,6 +578,8 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         validFrom: c.validFrom,
         validUntil: c.validUntil,
         storageLocation: location,
+        requiresSurvey: c.requiresSurvey,
+        surveyUrl: c.surveyUrl,
       );
     });
   }
@@ -1413,43 +1461,96 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                                       ],
                                     ),
                                   ),
-                                // 3行目: 保管場所チップ（インライン選択）
+                                // 3行目: 保管場所ドロップダウン ＋ コミュニティ公開
                                 Padding(
                                   padding: const EdgeInsets.only(left: 30, top: 6),
-                                  child: Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
-                                    children: _storageOptions.map((opt) {
-                                      final selected = c.storageLocation == opt;
-                                      return GestureDetector(
-                                        onTap: () => _updateCouponStorage(
-                                            i, selected ? null : opt),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
+                                  child: Row(
+                                    children: [
+                                      // 保管場所ドロップダウン
+                                      IntrinsicWidth(
+                                        child: DecoratedBox(
                                           decoration: BoxDecoration(
-                                            color: selected
-                                                ? accentColor
-                                                : colors.surface,
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(
-                                              color: selected
-                                                  ? accentColor
-                                                  : colors.surfaceBorder,
-                                            ),
+                                            color: colors.surface,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: colors.surfaceBorder),
                                           ),
-                                          child: Text(
-                                            opt,
-                                            style: camillBodyStyle(
-                                              10,
-                                              selected
-                                                  ? colors.fabIcon
-                                                  : colors.textMuted,
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String?>(
+                                              value: c.storageLocation,
+                                              isDense: true,
+                                              borderRadius: BorderRadius.circular(8),
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 4),
+                                              style: camillBodyStyle(11, colors.textSecondary),
+                                              hint: Text('保管場所',
+                                                  style: camillBodyStyle(11, colors.textMuted)),
+                                              icon: Icon(Icons.expand_more,
+                                                  size: 14, color: colors.textMuted),
+                                              items: [
+                                                DropdownMenuItem(
+                                                  value: null,
+                                                  child: Text('未選択',
+                                                      style: camillBodyStyle(
+                                                          11, colors.textMuted)),
+                                                ),
+                                                ..._storageOptions.map((opt) =>
+                                                    DropdownMenuItem(
+                                                      value: opt,
+                                                      child: Text(opt,
+                                                          style: camillBodyStyle(
+                                                              11, colors.textSecondary)),
+                                                    )),
+                                              ],
+                                              onChanged: (v) =>
+                                                  _updateCouponStorage(i, v),
                                             ),
                                           ),
                                         ),
-                                      );
-                                    }).toList(),
+                                      ),
+                                      // コミュニティ公開トグル（コンビニ以外）
+                                      if (!_isConvenienceStore(_storeName)) ...[
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () => setState(
+                                              () => _shareToComm[i] = !_shareToComm[i]),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _shareToComm[i]
+                                                    ? Icons.people
+                                                    : Icons.people_outline,
+                                                size: 14,
+                                                color: _shareToComm[i]
+                                                    ? colors.primary
+                                                    : colors.textMuted,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'コミュニティに公開',
+                                                style: camillBodyStyle(
+                                                  11,
+                                                  _shareToComm[i]
+                                                      ? colors.primary
+                                                      : colors.textMuted,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                _shareToComm[i]
+                                                    ? Icons.check_circle
+                                                    : Icons.radio_button_unchecked,
+                                                size: 14,
+                                                color: _shareToComm[i]
+                                                    ? colors.primary
+                                                    : colors.textMuted,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],

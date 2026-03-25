@@ -61,6 +61,8 @@ class CouponDetected {
   final String? validFrom;
   final String? validUntil;
   final String? storageLocation;
+  final bool requiresSurvey;
+  final String? surveyUrl;
 
   CouponDetected({
     required this.description,
@@ -68,6 +70,8 @@ class CouponDetected {
     this.validFrom,
     this.validUntil,
     this.storageLocation,
+    this.requiresSurvey = false,
+    this.surveyUrl,
   });
 
   factory CouponDetected.fromJson(Map<String, dynamic> json) => CouponDetected(
@@ -76,6 +80,8 @@ class CouponDetected {
         validFrom: json['valid_from'] as String?,
         validUntil: json['valid_until'] as String?,
         storageLocation: json['storage_location'] as String?,
+        requiresSurvey: json['requires_survey'] as bool? ?? false,
+        surveyUrl: json['survey_url'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -84,6 +90,8 @@ class CouponDetected {
         if (validFrom != null) 'valid_from': validFrom,
         if (validUntil != null) 'valid_until': validUntil,
         if (storageLocation != null) 'storage_location': storageLocation,
+        'requires_survey': requiresSurvey,
+        if (surveyUrl != null) 'survey_url': surveyUrl,
       };
 }
 

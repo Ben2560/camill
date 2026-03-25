@@ -23,6 +23,9 @@ class CouponService {
     bool isFromOcr = false,
     bool isUsed = false,
     String? receiptId,
+    bool requiresSurvey = false,
+    String? surveyUrl,
+    bool surveyAnswered = false,
   }) async {
     final data = await _api.postAny('/coupons', body: {
       'store_name': storeName,
@@ -34,8 +37,15 @@ class CouponService {
       'is_from_ocr': isFromOcr,
       'is_used': isUsed,
       'receipt_id': ?receiptId,
+      'requires_survey': requiresSurvey,
+      'survey_url': ?surveyUrl,
+      'survey_answered': surveyAnswered,
     });
     return Coupon.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<void> markSurveyAnswered(String couponId) async {
+    await _api.patch('/coupons/$couponId/survey-answered', body: {});
   }
 
   Future<void> useCoupon(String couponId) async {

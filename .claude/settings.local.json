@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(flutter pub get)",
-      "Bash(find /Users/tsutomuwatanabe/camill -name sonar*.properties -o -name sonar*.json -o -name .sonarcloud*)"
-    ]
-  }
-}

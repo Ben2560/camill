@@ -42,6 +42,15 @@ app.*.map.json
 # Secrets (API keys)
 secrets.properties
 ios/Flutter/Secrets.xcconfig
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# iOS generated duplicates (contains local paths)
+ios/Flutter/Generated 2.xcconfig
+ios/Flutter/flutter_export_environment 2.sh
 
 # Android Studio will place build artifacts here
 /android/app/debug

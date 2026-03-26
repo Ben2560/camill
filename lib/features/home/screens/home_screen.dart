@@ -704,6 +704,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   int _dotsVisible = 0;
   bool _isRefreshing = false;
   bool _ignoreUntilTop = false;
+  bool _reachedFullPull = false;
   late final AnimationController _bounceController;
 
   int? _weekExpense;
@@ -833,16 +834,18 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     }
   }
 
-  void _startSilentRefresh() {
+  void _startSilentRefresh() async {
     if (_isRefreshing) return;
     setState(() { _isRefreshing = true; _dotsVisible = 3; _ignoreUntilTop = true; });
     if (!_bounceController.isAnimating) _bounceController.repeat();
-    _load(silent: true).then((_) {
-      if (!mounted) return;
-      _bounceController.stop();
-      _bounceController.reset();
-      setState(() { _isRefreshing = false; _dotsVisible = 0; });
-    });
+    await Future.wait<void>([
+      _load(silent: true),
+      Future<void>.delayed(const Duration(milliseconds: 1200)),
+    ]);
+    if (!mounted) return;
+    _bounceController.stop();
+    _bounceController.reset();
+    setState(() { _isRefreshing = false; _dotsVisible = 0; _ignoreUntilTop = false; _reachedFullPull = false; });
   }
 
   Future<void> _loadMonthMedicalExpense() async {
@@ -1005,28 +1008,29 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   Widget _buildAddWidgetButton(CamillColors colors) {
     return GestureDetector(
       onTap: () => _showAddWidgetSheet(colors),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: colors.primaryLight,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.primary.withAlpha(80)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_circle_outline, color: colors.primary, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'ウィジェットを追加',
-              style: camillBodyStyle(
-                14,
-                colors.primary,
-                weight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 13, left: 13),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.primaryLight,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.primary.withAlpha(80)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'ウィジェットを追加',
+                style: camillBodyStyle(
+                  14,
+                  colors.primary,
+                  weight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2271,21 +2275,30 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             if (_isRefreshing) return false;
             if (notification is ScrollUpdateNotification) {
               final pixels = notification.metrics.pixels;
-              if (pixels >= 0) _ignoreUntilTop = false;
+              if (pixels >= 0) {
+                _ignoreUntilTop = false;
+                _reachedFullPull = false;
+              }
               if (_ignoreUntilTop) return false;
               if (pixels < 0) {
                 final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
+                if (newDots == 3) _reachedFullPull = true;
                 if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
+                // 指を離した（dragDetails == null）かつ閾値到達済み → リフレッシュ発火
+                if (_reachedFullPull && notification.dragDetails == null) {
+                  _reachedFullPull = false;
+                  _startSilentRefresh();
+                }
               } else if (_dotsVisible > 0) {
                 _ignoreUntilTop = true;
+                _reachedFullPull = false;
                 setState(() => _dotsVisible = 0);
               }
             } else if (notification is ScrollEndNotification) {
               if (!_isRefreshing) {
-                if (_dotsVisible == 3) {
-                  _startSilentRefresh();
-                } else if (_dotsVisible > 0) {
+                if (_dotsVisible > 0) {
                   _ignoreUntilTop = true;
+                  _reachedFullPull = false;
                   setState(() => _dotsVisible = 0);
                 }
               }
@@ -2296,6 +2309,14 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             controller: _scrollController,
             physics: const RefreshScrollPhysics(),
             slivers: [
+          // リフレッシュ中に展開するスペーサー（コンテンツを 60px 押し下げる）
+          SliverToBoxAdapter(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              child: SizedBox(height: (_isRefreshing || _loading) ? 60.0 : 0.0),
+            ),
+          ),
           if (_summary != null) ...[
             if (widget.couponBanner != null) ...[
               SliverToBoxAdapter(
@@ -2480,7 +2501,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                 child: PullRefreshDots(
                   controller: _bounceController,
                   color: colors.primary,
-                  dotsVisible: _dotsVisible,
+                  dotsVisible: _isRefreshing || _loading ? 3 : _dotsVisible,
                   isRefreshing: _isRefreshing || _loading,
                 ),
               ),

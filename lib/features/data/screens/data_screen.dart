@@ -8,6 +8,7 @@ import '../../../core/constants.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../receipt/services/receipt_service.dart';
+import '../../../shared/widgets/pull_to_refresh.dart';
 
 class DataScreen extends StatelessWidget {
   const DataScreen({super.key});
@@ -439,7 +440,7 @@ class _MonthPageContentState extends State<_MonthPageContent> {
           },
           child: ListView(
             controller: _scrollController,
-            physics: const ClampingScrollPhysics(),
+            physics: const DismissScrollPhysicsWithTopBounce(),
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
             children: [
               _DateNavRow(
@@ -635,7 +636,7 @@ class _WeekViewState extends State<_WeekView> {
                       },
                       child: ListView(
                         controller: _scrollController,
-                        physics: const ClampingScrollPhysics(),
+                        physics: const DismissScrollPhysicsWithTopBounce(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                         children: [
                           if (_summary == null) ...[
@@ -803,7 +804,7 @@ class _YearViewState extends State<_YearView> {
                       },
                       child: ListView(
                         controller: _scrollController,
-                        physics: const ClampingScrollPhysics(),
+                        physics: const DismissScrollPhysicsWithTopBounce(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                         children: [
                           if (_summary == null) ...[

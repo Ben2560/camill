@@ -7,6 +7,7 @@ import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/widgets/pull_to_refresh.dart';
 
 class ReceiptListScreen extends StatefulWidget {
   const ReceiptListScreen({super.key});
@@ -376,7 +377,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
                     },
                     child: CustomScrollView(
                       controller: _scrollController,
-                      physics: const ClampingScrollPhysics(),
+                      physics: const DismissScrollPhysicsWithTopBounce(),
                       slivers: [
                         // フィルタバー
                         SliverToBoxAdapter(

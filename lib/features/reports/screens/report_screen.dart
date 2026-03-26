@@ -7,6 +7,7 @@ import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/top_notification.dart';
 import '../../../shared/widgets/camill_card.dart';
 import '../../receipt/services/receipt_service.dart';
+import '../../../shared/widgets/pull_to_refresh.dart';
 
 // ── 外側：available months ベースの PageView ────────────────────────────────
 
@@ -266,7 +267,7 @@ class _ReportPageState extends State<_ReportPage> {
               },
               child: ListView(
                 controller: _scrollController,
-                physics: const ClampingScrollPhysics(),
+                physics: const DismissScrollPhysicsWithTopBounce(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildSummaryCard(colors),

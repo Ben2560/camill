@@ -6,6 +6,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/camill_card.dart';
+import '../../../shared/widgets/pull_to_refresh.dart';
 
 class CategoryBudgetScreen extends StatefulWidget {
   const CategoryBudgetScreen({super.key});
@@ -14,7 +15,8 @@ class CategoryBudgetScreen extends StatefulWidget {
   State<CategoryBudgetScreen> createState() => _CategoryBudgetScreenState();
 }
 
-class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
+class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
+    with SingleTickerProviderStateMixin {
   static const _categories = <String, ({IconData icon, String label})>{
     'food':         (icon: Icons.rice_bowl_outlined,       label: '食費'),
     'dining_out':   (icon: Icons.restaurant_outlined,      label: '外食費'),
@@ -37,10 +39,64 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
   int _totalBudget = 0;
   bool _loading = true;
 
+  final _dismissOffset = ValueNotifier<double>(0);
+  late final AnimationController _snapController;
+  bool _isDismissing = false;
+  final _scrollController = ScrollController();
+  double _pullDistance = 0;
+
   @override
   void initState() {
     super.initState();
+    _snapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _dismissOffset.addListener(_onOffsetChanged);
     _load();
+  }
+
+  void _onOffsetChanged() {
+    if (!mounted || _isDismissing) return;
+    final limit = MediaQuery.of(context).size.height * 0.20;
+    if (_dismissOffset.value >= limit) {
+      _isDismissing = true;
+      _dismissOffset.removeListener(_onOffsetChanged);
+      _dismissOffset.value = limit;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context, rootNavigator: false).pop();
+      });
+    }
+  }
+
+  void _endDismiss() {
+    if (_isDismissing) return;
+    final sh = MediaQuery.of(context).size.height;
+    if (_dismissOffset.value > sh * 0.20) {
+      _isDismissing = true;
+      Navigator.of(context, rootNavigator: false).pop();
+    } else {
+      _snapBack();
+    }
+  }
+
+  void _snapBack() {
+    final start = _dismissOffset.value;
+    _snapController.reset();
+    final anim = Tween<double>(begin: start, end: 0).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+    anim.addListener(() => _dismissOffset.value = anim.value);
+    _snapController.forward();
+  }
+
+  @override
+  void dispose() {
+    _dismissOffset.removeListener(_onOffsetChanged);
+    _dismissOffset.dispose();
+    _snapController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -418,6 +474,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final sh = MediaQuery.of(context).size.height;
 
     if (_loading) {
       return Scaffold(
@@ -447,7 +504,31 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
                 ? colors.success
                 : colors.primary;
 
-    return Scaffold(
+    return AnimatedBuilder(
+      animation: _dismissOffset,
+      builder: (ctx, child) {
+        final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        return Stack(
+          children: [
+            Container(color: colors.background),
+            Container(color: Colors.black.withValues(alpha: 0.28 * progress)),
+            Transform.translate(
+              offset: Offset(0, _dismissOffset.value),
+              child: Transform.scale(
+                scale: 1.0 - progress * 0.07,
+                alignment: Alignment.topCenter,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(progress * 22.0),
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.background,
@@ -459,10 +540,32 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
                 weight: FontWeight.w600)),
         leading: IconButton(
           icon: Icon(Icons.close, color: colors.textSecondary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(context, rootNavigator: false).pop(),
         ),
       ),
-      body: ListView(
+      body: Listener(
+        onPointerMove: (e) {
+          if (_scrollController.hasClients &&
+              _scrollController.position.pixels <= 0 &&
+              e.delta.dy > 0) {
+            _pullDistance += e.delta.dy;
+            _dismissOffset.value = _pullDistance;
+          } else if (e.delta.dy < 0 && _pullDistance > 0) {
+            _pullDistance = 0;
+            _dismissOffset.value = 0;
+          }
+        },
+        onPointerUp: (_) {
+          _endDismiss();
+          _pullDistance = 0;
+        },
+        onPointerCancel: (_) {
+          _pullDistance = 0;
+          _dismissOffset.value = 0;
+        },
+        child: ListView(
+        controller: _scrollController,
+        physics: const DismissScrollPhysicsWithTopBounce(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
         children: [
           // ── Zero-sum budget header ───────────────────────────
@@ -574,8 +677,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen> {
           else
             ...unsetItems.map((e) => _buildRow(e.key, e.value, colors)),
         ],
-      ),
-    );
+      ),      // ListView
+    ),        // Listener
+  ),          // Scaffold
+);            // AnimatedBuilder
   }
 
   Widget _sectionLabel(String text, CamillColors colors) {

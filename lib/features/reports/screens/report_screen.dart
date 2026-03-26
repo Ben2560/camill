@@ -6,7 +6,6 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/top_notification.dart';
 import '../../../shared/widgets/camill_card.dart';
-import '../../../shared/widgets/pull_to_refresh.dart';
 import '../../receipt/services/receipt_service.dart';
 
 // ── 外側：available months ベースの PageView ────────────────────────────────
@@ -20,24 +19,71 @@ class ReportScreen extends StatefulWidget {
   State<ReportScreen> createState() => _ReportScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen> {
+class _ReportScreenState extends State<ReportScreen>
+    with SingleTickerProviderStateMixin {
   final _receiptService = ReceiptService();
   List<DateTime> _availableMonths = [];
   int _monthsVersion = 0;
   PageController _pageController = PageController();
   int _currentPage = 0;
 
+  final _dismissOffset = ValueNotifier<double>(0);
+  late final AnimationController _snapController;
+  bool _isDismissing = false;
+
   @override
   void initState() {
     super.initState();
+    _snapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _dismissOffset.addListener(_onOffsetChanged);
     final initial = DateTime(widget.year, widget.month);
     _availableMonths = [initial];
     _pageController = PageController(initialPage: 0);
     _loadAvailableMonths(initial);
   }
 
+  void _onOffsetChanged() {
+    if (!mounted || _isDismissing) return;
+    final limit = MediaQuery.of(context).size.height * 0.19;
+    if (_dismissOffset.value >= limit) {
+      _isDismissing = true;
+      _dismissOffset.removeListener(_onOffsetChanged);
+      _dismissOffset.value = limit;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context, rootNavigator: false).pop();
+      });
+    }
+  }
+
+  void endDismiss() {
+    if (_isDismissing) return;
+    final sh = MediaQuery.of(context).size.height;
+    if (_dismissOffset.value > sh * 0.20) {
+      _isDismissing = true;
+      Navigator.of(context, rootNavigator: false).pop();
+    } else {
+      _snapBack();
+    }
+  }
+
+  void _snapBack() {
+    final start = _dismissOffset.value;
+    _snapController.reset();
+    final anim = Tween<double>(begin: start, end: 0).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+    anim.addListener(() => _dismissOffset.value = anim.value);
+    _snapController.forward();
+  }
+
   @override
   void dispose() {
+    _dismissOffset.removeListener(_onOffsetChanged);
+    _dismissOffset.dispose();
+    _snapController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -77,31 +123,59 @@ class _ReportScreenState extends State<ReportScreen> {
     final colors = context.colors;
     final current = _availableMonths[_currentPage];
     final title = '${current.year}年${current.month}月 やりくり詳細';
+    final sh = MediaQuery.of(context).size.height;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
+    return AnimatedBuilder(
+      animation: _dismissOffset,
+      builder: (ctx, child) {
+        final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        return Stack(
+          children: [
+            Container(color: colors.background),
+            Container(color: Colors.black.withValues(alpha: 0.28 * progress)),
+            Transform.translate(
+              offset: Offset(0, _dismissOffset.value),
+              child: Transform.scale(
+                scale: 1.0 - progress * 0.07,
+                alignment: Alignment.topCenter,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(progress * 22.0),
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: Scaffold(
         backgroundColor: colors.background,
-        scrolledUnderElevation: 0,
-        title: Text(title, style: camillHeadingStyle(16, colors.textPrimary)),
-        iconTheme: IconThemeData(color: colors.textSecondary),
-      ),
-      body: PageView.builder(
-        key: ValueKey(_monthsVersion),
-        controller: _pageController,
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
+        appBar: AppBar(
+          backgroundColor: colors.background,
+          scrolledUnderElevation: 0,
+          title: Text(title, style: camillHeadingStyle(16, colors.textPrimary)),
+          iconTheme: IconThemeData(color: colors.textSecondary),
         ),
-        itemCount: _availableMonths.length,
-        onPageChanged: (page) => setState(() => _currentPage = page),
-        itemBuilder: (context, page) {
-          final month = _availableMonths[page];
-          return _ReportPage(
-            key: ValueKey(month),
-            year: month.year,
-            month: month.month,
-          );
-        },
+        body: PageView.builder(
+          key: ValueKey(_monthsVersion),
+          controller: _pageController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          itemCount: _availableMonths.length,
+          onPageChanged: (page) => setState(() => _currentPage = page),
+          itemBuilder: (context, page) {
+            final month = _availableMonths[page];
+            return _ReportPage(
+              key: ValueKey(month),
+              year: month.year,
+              month: month.month,
+              dismissOffset: _dismissOffset,
+              onDismissEnd: endDismiss,
+            );
+          },
+        ),
       ),
     );
   }
@@ -112,33 +186,37 @@ class _ReportScreenState extends State<ReportScreen> {
 class _ReportPage extends StatefulWidget {
   final int year;
   final int month;
-  const _ReportPage({super.key, required this.year, required this.month});
+  final ValueNotifier<double> dismissOffset;
+  final VoidCallback onDismissEnd;
+  const _ReportPage({
+    super.key,
+    required this.year,
+    required this.month,
+    required this.dismissOffset,
+    required this.onDismissEnd,
+  });
 
   @override
   State<_ReportPage> createState() => _ReportPageState();
 }
 
-class _ReportPageState extends State<_ReportPage>
-    with SingleTickerProviderStateMixin {
+class _ReportPageState extends State<_ReportPage> {
   final _api = ApiService();
   final _currencyFmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
   bool _loading = true;
   Map<String, dynamic>? _report;
-  int _dotsVisible = 0;
-  bool _isRefreshing = false;
-  bool _ignoreUntilTop = false;
-  late final AnimationController _bounceController;
+  final _scrollController = ScrollController();
+  double _pullDistance = 0;
 
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
     _loadReport();
   }
 
   @override
   void dispose() {
-    _bounceController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -157,17 +235,6 @@ class _ReportPageState extends State<_ReportPage>
     }
   }
 
-  void _startSilentRefresh() {
-    if (_isRefreshing) return;
-    setState(() { _isRefreshing = true; _dotsVisible = 3; _ignoreUntilTop = true; });
-    if (!_bounceController.isAnimating) _bounceController.repeat();
-    _loadReport(silent: true).then((_) {
-      if (!mounted) return;
-      _bounceController.stop(); _bounceController.reset();
-      setState(() { _isRefreshing = false; _dotsVisible = 0; });
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -177,34 +244,29 @@ class _ReportPageState extends State<_ReportPage>
       child: Stack(
         children: [
           if (_report != null)
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (_isRefreshing) return false;
-                if (notification is ScrollUpdateNotification) {
-                  final pixels = notification.metrics.pixels;
-                  if (pixels >= 0) _ignoreUntilTop = false;
-                  if (_ignoreUntilTop) return false;
-                  if (pixels < 0) {
-                    final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
-                    if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
-                  } else if (_dotsVisible > 0) {
-                    _ignoreUntilTop = true;
-                    setState(() => _dotsVisible = 0);
-                  }
-                } else if (notification is ScrollEndNotification) {
-                  if (!_isRefreshing) {
-                    if (_dotsVisible == 3) {
-                      _startSilentRefresh();
-                    } else if (_dotsVisible > 0) {
-                      _ignoreUntilTop = true;
-                      setState(() => _dotsVisible = 0);
-                    }
-                  }
+            Listener(
+              onPointerMove: (e) {
+                if (_scrollController.hasClients &&
+                    _scrollController.position.pixels <= 0 &&
+                    e.delta.dy > 0) {
+                  _pullDistance += e.delta.dy;
+                  widget.dismissOffset.value = _pullDistance;
+                } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                  _pullDistance = 0;
+                  widget.dismissOffset.value = 0;
                 }
-                return false;
+              },
+              onPointerUp: (_) {
+                widget.onDismissEnd();
+                _pullDistance = 0;
+              },
+              onPointerCancel: (_) {
+                _pullDistance = 0;
+                widget.dismissOffset.value = 0;
               },
               child: ListView(
-                physics: const RefreshScrollPhysics(),
+                controller: _scrollController,
+                physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildSummaryCard(colors),
@@ -225,22 +287,6 @@ class _ReportPageState extends State<_ReportPage>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter, end: Alignment.bottomCenter,
                     colors: [colors.background, colors.background.withAlpha(0)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 4, left: 0, right: 0,
-            child: IgnorePointer(
-              child: SizedBox(
-                height: 28,
-                child: Center(
-                  child: PullRefreshDots(
-                    controller: _bounceController,
-                    color: colors.primary,
-                    dotsVisible: _dotsVisible,
-                    isRefreshing: _isRefreshing,
                   ),
                 ),
               ),

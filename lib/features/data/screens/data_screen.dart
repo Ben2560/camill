@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../../../core/constants.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
-import '../../../shared/widgets/pull_to_refresh.dart';
 import '../../receipt/services/receipt_service.dart';
 
 class DataScreen extends StatelessWidget {
@@ -26,7 +25,11 @@ class DataScreen extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(20, statusBarH + 15, 8, 4),
             child: Text(
               'コミュニティ',
-              style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),
+              style: camillBodyStyle(
+                30,
+                colors.textPrimary,
+                weight: FontWeight.w800,
+              ),
             ),
           ),
           Expanded(
@@ -34,11 +37,19 @@ class DataScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.construction_outlined, size: 56, color: colors.textMuted),
+                  Icon(
+                    Icons.construction_outlined,
+                    size: 56,
+                    color: colors.textMuted,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'ただいま準備中…',
-                    style: camillBodyStyle(16, colors.textMuted, weight: FontWeight.w600),
+                    style: camillBodyStyle(
+                      16,
+                      colors.textMuted,
+                      weight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -52,23 +63,122 @@ class DataScreen extends StatelessWidget {
 
 // ── 収支グラフ専用スクリーン ─────────────────────────────────────────────────
 
-class BalanceChartScreen extends StatelessWidget {
+class BalanceChartScreen extends StatefulWidget {
   const BalanceChartScreen({super.key});
+
+  @override
+  State<BalanceChartScreen> createState() => _BalanceChartScreenState();
+}
+
+class _BalanceChartScreenState extends State<BalanceChartScreen>
+    with SingleTickerProviderStateMixin {
+  final _dismissOffset = ValueNotifier<double>(0);
+  late final AnimationController _snapController;
+  bool _isDismissing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _dismissOffset.addListener(_onOffsetChanged);
+  }
+
+  void _onOffsetChanged() {
+    if (!mounted || _isDismissing) return;
+    final limit = MediaQuery.of(context).size.height * 0.19;
+    if (_dismissOffset.value >= limit) {
+      _isDismissing = true;
+      _dismissOffset.removeListener(_onOffsetChanged);
+      _dismissOffset.value = limit;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context, rootNavigator: false).pop();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _dismissOffset.removeListener(_onOffsetChanged);
+    _dismissOffset.dispose();
+    _snapController.dispose();
+    super.dispose();
+  }
+
+  void endDismiss() {
+    if (_isDismissing) return;
+    final sh = MediaQuery.of(context).size.height;
+    if (_dismissOffset.value > sh * 0.20) {
+      _isDismissing = true;
+      Navigator.of(context, rootNavigator: false).pop();
+    } else {
+      _snapBack();
+    }
+  }
+
+  void _snapBack() {
+    final start = _dismissOffset.value;
+    _snapController.reset();
+    final anim = Tween<double>(begin: start, end: 0).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+    anim.addListener(() => _dismissOffset.value = anim.value);
+    _snapController.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final currencyFmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
+    final sh = MediaQuery.of(context).size.height;
+
+    return AnimatedBuilder(
+      animation: _dismissOffset,
+      builder: (ctx, child) {
+        final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        return Stack(
+          children: [
+            // ホームと同じ背景色 → 黒にならない
+            Container(color: colors.background),
+            // 引くにつれてディムがかかる（奥行き感）
+            Container(color: Colors.black.withValues(alpha: 0.28 * progress)),
+            // スケール・スライドするシート
+            Transform.translate(
+              offset: Offset(0, _dismissOffset.value),
+              child: Transform.scale(
+                scale: 1.0 - progress * 0.07,
+                alignment: Alignment.topCenter,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(progress * 22.0),
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: Scaffold(
         backgroundColor: colors.background,
-        scrolledUnderElevation: 0,
-        title: Text('収支グラフ', style: camillHeadingStyle(17, colors.textPrimary)),
-        iconTheme: IconThemeData(color: colors.textSecondary),
-        elevation: 0,
+        appBar: AppBar(
+          backgroundColor: colors.background,
+          scrolledUnderElevation: 0,
+          title: Text(
+            '収支グラフ',
+            style: camillHeadingStyle(17, colors.textPrimary),
+          ),
+          iconTheme: IconThemeData(color: colors.textSecondary),
+          elevation: 0,
+        ),
+        body: _ChartTab(
+          currencyFmt: currencyFmt,
+          dismissOffset: _dismissOffset,
+          onDismissEnd: endDismiss,
+        ),
       ),
-      body: _ChartTab(currencyFmt: currencyFmt),
     );
   }
 }
@@ -77,7 +187,13 @@ class BalanceChartScreen extends StatelessWidget {
 
 class _ChartTab extends StatefulWidget {
   final NumberFormat currencyFmt;
-  const _ChartTab({required this.currencyFmt});
+  final ValueNotifier<double> dismissOffset;
+  final VoidCallback onDismissEnd;
+  const _ChartTab({
+    required this.currencyFmt,
+    required this.dismissOffset,
+    required this.onDismissEnd,
+  });
 
   @override
   State<_ChartTab> createState() => _ChartTabState();
@@ -90,30 +206,42 @@ class _ChartTabState extends State<_ChartTab> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            color: colors.background,
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                _PeriodSelector(
-                  selected: _periodIndex,
-                  colors: colors,
-                  onChanged: (i) => setState(() => _periodIndex = i),
-                ),
-              ],
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          color: colors.background,
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _PeriodSelector(
+                selected: _periodIndex,
+                colors: colors,
+                onChanged: (i) => setState(() => _periodIndex = i),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: switch (_periodIndex) {
+            0 => _WeekView(
+              currencyFmt: widget.currencyFmt,
+              dismissOffset: widget.dismissOffset,
+              onDismissEnd: widget.onDismissEnd,
             ),
-          ),
-          Expanded(
-            child: switch (_periodIndex) {
-              0 => _WeekView(currencyFmt: widget.currencyFmt),
-              2 => _YearView(currencyFmt: widget.currencyFmt),
-              _ => _MonthView(currencyFmt: widget.currencyFmt),
-            },
-          ),
-        ],
+            2 => _YearView(
+              currencyFmt: widget.currencyFmt,
+              dismissOffset: widget.dismissOffset,
+              onDismissEnd: widget.onDismissEnd,
+            ),
+            _ => _MonthView(
+              currencyFmt: widget.currencyFmt,
+              dismissOffset: widget.dismissOffset,
+              onDismissEnd: widget.onDismissEnd,
+            ),
+          },
+        ),
+      ],
     );
   }
 }
@@ -122,7 +250,13 @@ class _ChartTabState extends State<_ChartTab> {
 
 class _MonthView extends StatefulWidget {
   final NumberFormat currencyFmt;
-  const _MonthView({required this.currencyFmt});
+  final ValueNotifier<double> dismissOffset;
+  final VoidCallback onDismissEnd;
+  const _MonthView({
+    required this.currencyFmt,
+    required this.dismissOffset,
+    required this.onDismissEnd,
+  });
 
   @override
   State<_MonthView> createState() => _MonthViewState();
@@ -180,26 +314,28 @@ class _MonthViewState extends State<_MonthView> {
       ),
       itemCount: _availableMonths.length,
       itemBuilder: (context, page) {
-          final month = _availableMonths[page];
-          final isLast = page == _availableMonths.length - 1;
-          return _MonthPageContent(
-            key: ValueKey(month),
-            month: month,
-            currencyFmt: widget.currencyFmt,
-            onPrev: page == 0
-                ? null
-                : () => _pageController.previousPage(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOut,
-                    ),
-            onNext: isLast
-                ? null
-                : () => _pageController.nextPage(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOut,
-                    ),
-          );
-        },
+        final month = _availableMonths[page];
+        final isLast = page == _availableMonths.length - 1;
+        return _MonthPageContent(
+          key: ValueKey(month),
+          month: month,
+          currencyFmt: widget.currencyFmt,
+          dismissOffset: widget.dismissOffset,
+          onDismissEnd: widget.onDismissEnd,
+          onPrev: page == 0
+              ? null
+              : () => _pageController.previousPage(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOut,
+                ),
+          onNext: isLast
+              ? null
+              : () => _pageController.nextPage(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOut,
+                ),
+        );
+      },
     );
   }
 }
@@ -209,6 +345,8 @@ class _MonthViewState extends State<_MonthView> {
 class _MonthPageContent extends StatefulWidget {
   final DateTime month;
   final NumberFormat currencyFmt;
+  final ValueNotifier<double> dismissOffset;
+  final VoidCallback onDismissEnd;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
 
@@ -216,6 +354,8 @@ class _MonthPageContent extends StatefulWidget {
     super.key,
     required this.month,
     required this.currencyFmt,
+    required this.dismissOffset,
+    required this.onDismissEnd,
     required this.onPrev,
     required this.onNext,
   });
@@ -224,67 +364,43 @@ class _MonthPageContent extends StatefulWidget {
   State<_MonthPageContent> createState() => _MonthPageContentState();
 }
 
-class _MonthPageContentState extends State<_MonthPageContent>
-    with SingleTickerProviderStateMixin {
+class _MonthPageContentState extends State<_MonthPageContent> {
   final _api = ApiService();
   MonthlySummary? _summary;
   bool _loading = true;
-  int _dotsVisible = 0;
-  bool _isRefreshing = false;
-  bool _ignoreUntilTop = false;
-  late final AnimationController _bounceController;
+  final _scrollController = ScrollController();
+  double _pullDistance = 0;
 
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
     _load();
   }
 
   @override
   void dispose() {
-    _bounceController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load() async {
     if (!mounted) return;
-    if (!silent) setState(() => _loading = true);
+    setState(() => _loading = true);
     try {
       final yearMonth = DateFormat('yyyy-MM').format(widget.month);
-      final data =
-          await _api.get('/summary/monthly', query: {'year_month': yearMonth});
+      final data = await _api.get(
+        '/summary/monthly',
+        query: {'year_month': yearMonth},
+      );
       if (!mounted) return;
       setState(() {
         _summary = MonthlySummary.fromJson(data);
-        if (!silent) _loading = false;
+        _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
-      if (!silent) setState(() => _loading = false);
+      setState(() => _loading = false);
     }
-  }
-
-  void _startSilentRefresh() {
-    if (_isRefreshing) return;
-    setState(() {
-      _isRefreshing = true;
-      _dotsVisible = 3;
-      _ignoreUntilTop = true;
-    });
-    if (!_bounceController.isAnimating) _bounceController.repeat();
-    _load(silent: true).then((_) {
-      if (!mounted) return;
-      _bounceController.stop();
-      _bounceController.reset();
-      setState(() {
-        _isRefreshing = false;
-        _dotsVisible = 0;
-      });
-    });
   }
 
   @override
@@ -301,37 +417,29 @@ class _MonthPageContentState extends State<_MonthPageContent>
 
     return Stack(
       children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            if (_isRefreshing) return false;
-            if (notification is ScrollUpdateNotification) {
-              final pixels = notification.metrics.pixels;
-              if (pixels >= 0) _ignoreUntilTop = false;
-              if (_ignoreUntilTop) return false;
-              if (pixels < 0) {
-                final newDots =
-                    pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
-                if (newDots != _dotsVisible) {
-                  setState(() => _dotsVisible = newDots);
-                }
-              } else if (_dotsVisible > 0) {
-                _ignoreUntilTop = true;
-                setState(() => _dotsVisible = 0);
-              }
-            } else if (notification is ScrollEndNotification) {
-              if (!_isRefreshing) {
-                if (_dotsVisible == 3) {
-                  _startSilentRefresh();
-                } else if (_dotsVisible > 0) {
-                  _ignoreUntilTop = true;
-                  setState(() => _dotsVisible = 0);
-                }
-              }
+        Listener(
+          onPointerMove: (e) {
+            if (_scrollController.hasClients &&
+                _scrollController.position.pixels <= 0 &&
+                e.delta.dy > 0) {
+              _pullDistance += e.delta.dy;
+              widget.dismissOffset.value = _pullDistance;
+            } else if (e.delta.dy < 0 && _pullDistance > 0) {
+              _pullDistance = 0;
+              widget.dismissOffset.value = 0;
             }
-            return false;
+          },
+          onPointerUp: (_) {
+            widget.onDismissEnd();
+            _pullDistance = 0;
+          },
+          onPointerCancel: (_) {
+            _pullDistance = 0;
+            widget.dismissOffset.value = 0;
           },
           child: ListView(
-            physics: const RefreshScrollPhysics(),
+            controller: _scrollController,
+            physics: const ClampingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
             children: [
               _DateNavRow(
@@ -383,28 +491,7 @@ class _MonthPageContentState extends State<_MonthPageContent>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    colors.background,
-                    colors.background.withAlpha(0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 4,
-          left: 0,
-          right: 0,
-          child: IgnorePointer(
-            child: SizedBox(
-              height: 28,
-              child: Center(
-                child: PullRefreshDots(
-                  controller: _bounceController,
-                  color: colors.primary,
-                  dotsVisible: _dotsVisible,
-                  isRefreshing: _isRefreshing,
+                  colors: [colors.background, colors.background.withAlpha(0)],
                 ),
               ),
             ),
@@ -419,77 +506,62 @@ class _MonthPageContentState extends State<_MonthPageContent>
 
 class _WeekView extends StatefulWidget {
   final NumberFormat currencyFmt;
-  const _WeekView({required this.currencyFmt});
+  final ValueNotifier<double> dismissOffset;
+  final VoidCallback onDismissEnd;
+  const _WeekView({
+    required this.currencyFmt,
+    required this.dismissOffset,
+    required this.onDismissEnd,
+  });
 
   @override
   State<_WeekView> createState() => _WeekViewState();
 }
 
-class _WeekViewState extends State<_WeekView>
-    with SingleTickerProviderStateMixin {
+class _WeekViewState extends State<_WeekView> {
   final _api = ApiService();
   late DateTime _weekStart;
   WeeklySummary? _summary;
   bool _loading = true;
-  int _dotsVisible = 0;
-  bool _isRefreshing = false;
-  bool _ignoreUntilTop = false;
-  late final AnimationController _bounceController;
+  final _scrollController = ScrollController();
+  double _pullDistance = 0;
 
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
     final now = DateTime.now();
-    _weekStart = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: now.weekday - 1));
+    _weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
     _load();
   }
 
   @override
   void dispose() {
-    _bounceController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load() async {
     if (!mounted) return;
-    if (!silent) setState(() => _loading = true);
+    setState(() => _loading = true);
     try {
       final startDate = DateFormat('yyyy-MM-dd').format(_weekStart);
-      final data =
-          await _api.get('/summary/weekly', query: {'start_date': startDate});
+      final data = await _api.get(
+        '/summary/weekly',
+        query: {'start_date': startDate},
+      );
       if (!mounted) return;
       setState(() {
         _summary = WeeklySummary.fromJson(data);
-        if (!silent) _loading = false;
+        _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
-      if (!silent) setState(() => _loading = false);
+      setState(() => _loading = false);
     }
-  }
-
-  void _startSilentRefresh() {
-    if (_isRefreshing) return;
-    setState(() {
-      _isRefreshing = true;
-      _dotsVisible = 3;
-      _ignoreUntilTop = true;
-    });
-    if (!_bounceController.isAnimating) _bounceController.repeat();
-    _load(silent: true).then((_) {
-      if (!mounted) return;
-      _bounceController.stop();
-      _bounceController.reset();
-      setState(() {
-        _isRefreshing = false;
-        _dotsVisible = 0;
-      });
-    });
   }
 
   String get _weekLabel {
@@ -502,8 +574,11 @@ class _WeekViewState extends State<_WeekView>
 
   bool get _isCurrentWeek {
     final now = DateTime.now();
-    final current = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: now.weekday - 1));
+    final current = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
     return _weekStart.isAtSameMomentAs(current);
   }
 
@@ -518,25 +593,17 @@ class _WeekViewState extends State<_WeekView>
           label: _weekLabel,
           fontSize: 13,
           onPrev: () {
-            _bounceController.stop();
-            setState(() {
-              _weekStart = _weekStart.subtract(const Duration(days: 7));
-              _dotsVisible = 0;
-              _isRefreshing = false;
-              _ignoreUntilTop = false;
-            });
+            setState(
+              () => _weekStart = _weekStart.subtract(const Duration(days: 7)),
+            );
             _load();
           },
           onNext: _isCurrentWeek
               ? null
               : () {
-                  _bounceController.stop();
-                  setState(() {
-                    _weekStart = _weekStart.add(const Duration(days: 7));
-                    _dotsVisible = 0;
-                    _isRefreshing = false;
-                    _ignoreUntilTop = false;
-                  });
+                  setState(
+                    () => _weekStart = _weekStart.add(const Duration(days: 7)),
+                  );
                   _load();
                 },
           colors: colors,
@@ -546,42 +613,29 @@ class _WeekViewState extends State<_WeekView>
               ? Center(child: CircularProgressIndicator(color: colors.primary))
               : Stack(
                   children: [
-                    NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        if (_isRefreshing) return false;
-                        if (notification is ScrollUpdateNotification) {
-                          final pixels = notification.metrics.pixels;
-                          if (pixels >= 0) _ignoreUntilTop = false;
-                          if (_ignoreUntilTop) return false;
-                          if (pixels < 0) {
-                            final newDots = pixels < -85
-                                ? 3
-                                : pixels < -55
-                                    ? 2
-                                    : pixels < -25
-                                        ? 1
-                                        : 0;
-                            if (newDots != _dotsVisible) {
-                              setState(() => _dotsVisible = newDots);
-                            }
-                                      } else if (_dotsVisible > 0) {
-                            _ignoreUntilTop = true;
-                            setState(() => _dotsVisible = 0);
-                          }
-                        } else if (notification is ScrollEndNotification) {
-                          if (!_isRefreshing) {
-                            if (_dotsVisible == 3) {
-                              _startSilentRefresh();
-                            } else if (_dotsVisible > 0) {
-                              _ignoreUntilTop = true;
-                              setState(() => _dotsVisible = 0);
-                            }
-                          }
+                    Listener(
+                      onPointerMove: (e) {
+                        if (_scrollController.hasClients &&
+                            _scrollController.position.pixels <= 0 &&
+                            e.delta.dy > 0) {
+                          _pullDistance += e.delta.dy;
+                          widget.dismissOffset.value = _pullDistance;
+                        } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                          _pullDistance = 0;
+                          widget.dismissOffset.value = 0;
                         }
-                        return false;
+                      },
+                      onPointerUp: (_) {
+                        widget.onDismissEnd();
+                        _pullDistance = 0;
+                      },
+                      onPointerCancel: (_) {
+                        _pullDistance = 0;
+                        widget.dismissOffset.value = 0;
                       },
                       child: ListView(
-                        physics: const RefreshScrollPhysics(),
+                        controller: _scrollController,
+                        physics: const ClampingScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                         children: [
                           if (_summary == null) ...[
@@ -637,24 +691,6 @@ class _WeekViewState extends State<_WeekView>
                         ),
                       ),
                     ),
-                    Positioned(
-                      top: 4,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: SizedBox(
-                          height: 28,
-                          child: Center(
-                            child: PullRefreshDots(
-                              controller: _bounceController,
-                              color: colors.primary,
-                              dotsVisible: _dotsVisible,
-                              isRefreshing: _isRefreshing,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
         ),
@@ -667,73 +703,55 @@ class _WeekViewState extends State<_WeekView>
 
 class _YearView extends StatefulWidget {
   final NumberFormat currencyFmt;
-  const _YearView({required this.currencyFmt});
+  final ValueNotifier<double> dismissOffset;
+  final VoidCallback onDismissEnd;
+  const _YearView({
+    required this.currencyFmt,
+    required this.dismissOffset,
+    required this.onDismissEnd,
+  });
 
   @override
   State<_YearView> createState() => _YearViewState();
 }
 
-class _YearViewState extends State<_YearView>
-    with SingleTickerProviderStateMixin {
+class _YearViewState extends State<_YearView> {
   final _api = ApiService();
   int _year = DateTime.now().year;
   YearlySummary? _summary;
   bool _loading = true;
-  int _dotsVisible = 0;
-  bool _isRefreshing = false;
-  bool _ignoreUntilTop = false;
-  late final AnimationController _bounceController;
+  final _scrollController = ScrollController();
+  double _pullDistance = 0;
 
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
     _load();
   }
 
   @override
   void dispose() {
-    _bounceController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load() async {
     if (!mounted) return;
-    if (!silent) setState(() => _loading = true);
+    setState(() => _loading = true);
     try {
-      final data =
-          await _api.get('/summary/yearly', query: {'year': _year.toString()});
+      final data = await _api.get(
+        '/summary/yearly',
+        query: {'year': _year.toString()},
+      );
       if (!mounted) return;
       setState(() {
         _summary = YearlySummary.fromJson(data);
-        if (!silent) _loading = false;
+        _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
-      if (!silent) setState(() => _loading = false);
+      setState(() => _loading = false);
     }
-  }
-
-  void _startSilentRefresh() {
-    if (_isRefreshing) return;
-    setState(() {
-      _isRefreshing = true;
-      _dotsVisible = 3;
-      _ignoreUntilTop = true;
-    });
-    if (!_bounceController.isAnimating) _bounceController.repeat();
-    _load(silent: true).then((_) {
-      if (!mounted) return;
-      _bounceController.stop();
-      _bounceController.reset();
-      setState(() {
-        _isRefreshing = false;
-        _dotsVisible = 0;
-      });
-    });
   }
 
   @override
@@ -747,25 +765,13 @@ class _YearViewState extends State<_YearView>
         _DateNavRow(
           label: '$_year年',
           onPrev: () {
-            _bounceController.stop();
-            setState(() {
-              _year--;
-              _dotsVisible = 0;
-              _isRefreshing = false;
-              _ignoreUntilTop = false;
-            });
+            setState(() => _year--);
             _load();
           },
           onNext: _year >= currentYear
               ? null
               : () {
-                  _bounceController.stop();
-                  setState(() {
-                    _year++;
-                    _dotsVisible = 0;
-                    _isRefreshing = false;
-                    _ignoreUntilTop = false;
-                  });
+                  setState(() => _year++);
                   _load();
                 },
           colors: colors,
@@ -775,42 +781,29 @@ class _YearViewState extends State<_YearView>
               ? Center(child: CircularProgressIndicator(color: colors.primary))
               : Stack(
                   children: [
-                    NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        if (_isRefreshing) return false;
-                        if (notification is ScrollUpdateNotification) {
-                          final pixels = notification.metrics.pixels;
-                          if (pixels >= 0) _ignoreUntilTop = false;
-                          if (_ignoreUntilTop) return false;
-                          if (pixels < 0) {
-                            final newDots = pixels < -85
-                                ? 3
-                                : pixels < -55
-                                    ? 2
-                                    : pixels < -25
-                                        ? 1
-                                        : 0;
-                            if (newDots != _dotsVisible) {
-                              setState(() => _dotsVisible = newDots);
-                            }
-                                      } else if (_dotsVisible > 0) {
-                            _ignoreUntilTop = true;
-                            setState(() => _dotsVisible = 0);
-                          }
-                        } else if (notification is ScrollEndNotification) {
-                          if (!_isRefreshing) {
-                            if (_dotsVisible == 3) {
-                              _startSilentRefresh();
-                            } else if (_dotsVisible > 0) {
-                              _ignoreUntilTop = true;
-                              setState(() => _dotsVisible = 0);
-                            }
-                          }
+                    Listener(
+                      onPointerMove: (e) {
+                        if (_scrollController.hasClients &&
+                            _scrollController.position.pixels <= 0 &&
+                            e.delta.dy > 0) {
+                          _pullDistance += e.delta.dy;
+                          widget.dismissOffset.value = _pullDistance;
+                        } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                          _pullDistance = 0;
+                          widget.dismissOffset.value = 0;
                         }
-                        return false;
+                      },
+                      onPointerUp: (_) {
+                        widget.onDismissEnd();
+                        _pullDistance = 0;
+                      },
+                      onPointerCancel: (_) {
+                        _pullDistance = 0;
+                        widget.dismissOffset.value = 0;
                       },
                       child: ListView(
-                        physics: const RefreshScrollPhysics(),
+                        controller: _scrollController,
+                        physics: const ClampingScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                         children: [
                           if (_summary == null) ...[
@@ -860,24 +853,6 @@ class _YearViewState extends State<_YearView>
                                 colors.background,
                                 colors.background.withAlpha(0),
                               ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: SizedBox(
-                          height: 28,
-                          child: Center(
-                            child: PullRefreshDots(
-                              controller: _bounceController,
-                              color: colors.primary,
-                              dotsVisible: _dotsVisible,
-                              isRefreshing: _isRefreshing,
                             ),
                           ),
                         ),
@@ -1056,9 +1031,14 @@ class _CategoryPieCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('カテゴリ別支出',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            'カテゴリ別支出',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
@@ -1074,8 +1054,9 @@ class _CategoryPieCard extends StatelessWidget {
                         categories.length,
                         (i) => PieChartSectionData(
                           value: categories[i].amount.toDouble(),
-                          color: AppConstants.categoryColors[
-                                  categories[i].category] ??
+                          color:
+                              AppConstants.categoryColors[categories[i]
+                                  .category] ??
                               Colors.grey,
                           radius: 45,
                           showTitle: false,
@@ -1088,38 +1069,36 @@ class _CategoryPieCard extends StatelessWidget {
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: List.generate(
-                    categories.length.clamp(0, 6),
-                    (i) {
-                      final c = categories[i];
-                      final pct =
-                          total > 0 ? (c.amount / total * 100).round() : 0;
-                      final color = AppConstants.categoryColors[c.category] ??
-                          Colors.grey;
-                      final label =
-                          AppConstants.categoryLabels[c.category] ?? c.category;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
+                  children: List.generate(categories.length.clamp(0, 6), (i) {
+                    final c = categories[i];
+                    final pct = total > 0
+                        ? (c.amount / total * 100).round()
+                        : 0;
+                    final color =
+                        AppConstants.categoryColors[c.category] ?? Colors.grey;
+                    final label =
+                        AppConstants.categoryLabels[c.category] ?? c.category;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '$label $pct%',
-                              style: camillBodyStyle(11, colors.textPrimary),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$label $pct%',
+                            style: camillBodyStyle(11, colors.textPrimary),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -1153,14 +1132,18 @@ class _RecentReceiptsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('最近の支出',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            '最近の支出',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           ...receipts.map((r) {
             final dt = DateTime.tryParse(r.purchasedAt);
-            final dateStr =
-                dt != null ? DateFormat('M/d').format(dt) : '';
+            final dateStr = dt != null ? DateFormat('M/d').format(dt) : '';
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
@@ -1169,18 +1152,24 @@ class _RecentReceiptsCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.storeName,
-                            style: camillBodyStyle(13, colors.textPrimary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          r.storeName,
+                          style: camillBodyStyle(13, colors.textPrimary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         if (dateStr.isNotEmpty)
-                          Text(dateStr,
-                              style: camillBodyStyle(11, colors.textMuted)),
+                          Text(
+                            dateStr,
+                            style: camillBodyStyle(11, colors.textMuted),
+                          ),
                       ],
                     ),
                   ),
-                  Text(currencyFmt.format(r.totalAmount),
-                      style: camillAmountStyle(13, colors.textPrimary)),
+                  Text(
+                    currencyFmt.format(r.totalAmount),
+                    style: camillAmountStyle(13, colors.textPrimary),
+                  ),
                 ],
               ),
             );
@@ -1221,9 +1210,14 @@ class _DayBarChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('曜日別支出',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            '曜日別支出',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           SizedBox(
             height: 160,
@@ -1234,8 +1228,9 @@ class _DayBarChartCard extends StatelessWidget {
                   final date = weekStart.add(Duration(days: i));
                   final isToday = date.isAtSameMomentAs(todayDate);
                   final dateStr = DateFormat('yyyy-MM-dd').format(date);
-                  final dayData =
-                      days.where((d) => d.date == dateStr).firstOrNull;
+                  final dayData = days
+                      .where((d) => d.date == dateStr)
+                      .firstOrNull;
                   final expense = dayData?.expense.toDouble() ?? 0.0;
                   return BarChartGroupData(
                     x: i,
@@ -1265,20 +1260,21 @@ class _DayBarChartCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  leftTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: colors.surfaceBorder,
-                    strokeWidth: 1,
-                  ),
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: colors.surfaceBorder, strokeWidth: 1),
                 ),
                 borderData: FlBorderData(show: false),
               ),
@@ -1294,15 +1290,23 @@ class _MonthBarChartCard extends StatelessWidget {
   final List<MonthlyPoint> months;
   final CamillColors colors;
 
-  const _MonthBarChartCard({
-    required this.months,
-    required this.colors,
-  });
+  const _MonthBarChartCard({required this.months, required this.colors});
 
   @override
   Widget build(BuildContext context) {
     const monthLabels = [
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      '11',
+      '12',
     ];
     const expenseColor = Color(0xFFE53935);
     const incomeColor = Color(0xFF43A047);
@@ -1325,15 +1329,22 @@ class _MonthBarChartCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('月別収支',
-                  style: camillBodyStyle(14, colors.textPrimary,
-                      weight: FontWeight.bold)),
+              Text(
+                '月別収支',
+                style: camillBodyStyle(
+                  14,
+                  colors.textPrimary,
+                  weight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               Container(
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                    color: expenseColor, shape: BoxShape.circle),
+                  color: expenseColor,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 4),
               Text('支出', style: camillBodyStyle(11, colors.textMuted)),
@@ -1342,7 +1353,9 @@ class _MonthBarChartCard extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                    color: incomeColor, shape: BoxShape.circle),
+                  color: incomeColor,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 4),
               Text('収入', style: camillBodyStyle(11, colors.textMuted)),
@@ -1389,20 +1402,21 @@ class _MonthBarChartCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  leftTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: colors.surfaceBorder,
-                    strokeWidth: 1,
-                  ),
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: colors.surfaceBorder, strokeWidth: 1),
                 ),
                 borderData: FlBorderData(show: false),
               ),

@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:animations/animations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,9 @@ import '../../../shared/widgets/camill_card.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../../receipt/services/receipt_service.dart';
+import '../../receipt/screens/receipt_list_screen.dart';
+import '../../data/screens/data_screen.dart';
+import '../../reports/screens/report_screen.dart';
 import 'category_budget_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -755,7 +759,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     _bounceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    );
+    )..repeat(); // 初期ロード中はドットをアニメーション
     _scrollController = ScrollController()
       ..addListener(() {
         const threshold = 100.0;
@@ -802,7 +806,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       setState(() {
         _summary = MonthlySummary.fromJson(results[0]);
         _prevExpense = (results[1]['total_expense'] as num?)?.toInt() ?? 0;
-        if (!silent) _loading = false;
+        if (!silent) {
+          _loading = false;
+          if (!_isRefreshing) { _bounceController.stop(); _bounceController.reset(); }
+        }
       });
       _loadMonthMedicalExpense();
     } catch (_) {
@@ -820,6 +827,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           );
           _prevExpense = null;
           _loading = false;
+          if (!_isRefreshing) { _bounceController.stop(); _bounceController.reset(); }
         });
       }
     }
@@ -1357,9 +1365,18 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         ? '合計'
         : (_categoryMeta[catKey]?.label ?? catKey);
 
-    return GestureDetector(
-      onTap: () => context.push('/chart'),
-      child: CamillCard(
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fade,
+      transitionDuration: const Duration(milliseconds: 400),
+      closedColor: colors.surface,
+      openColor: colors.background,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      openBuilder: (_, _) => const BalanceChartScreen(),
+      closedBuilder: (_, _) => CamillCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1611,16 +1628,22 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     final otherAmount = total - rowsTotal;
     final otherMeta = _categoryMeta['other']!;
 
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CategoryBudgetScreen()),
-        );
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fade,
+      transitionDuration: const Duration(milliseconds: 400),
+      closedColor: colors.surface,
+      openColor: colors.background,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      onClosed: (_) {
         _loadCategoryBudgets();
         _load(silent: true);
       },
-      child: CamillCard(
+      openBuilder: (_, _) => const CategoryBudgetScreen(),
+      closedBuilder: (_, _) => CamillCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1831,12 +1854,21 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         ? 'もう少し抑えましょう'
         : '予算を見直しましょう';
 
-    return GestureDetector(
-      onTap: () => context.push(
-        '/report',
-        extra: {'year': widget.month.year, 'month': widget.month.month},
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fade,
+      transitionDuration: const Duration(milliseconds: 400),
+      closedColor: colors.surface,
+      openColor: colors.background,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
-      child: CamillCard(
+      openBuilder: (_, _) => ReportScreen(
+        year: widget.month.year,
+        month: widget.month.month,
+      ),
+      closedBuilder: (_, _) => CamillCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2029,72 +2061,79 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         ),
       );
     }
-    return CamillCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.receipt_outlined, size: 16, color: colors.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    '最近のレシート',
-                    style: camillBodyStyle(
-                      14,
-                      colors.textPrimary,
-                      weight: FontWeight.w700,
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fade,
+      transitionDuration: const Duration(milliseconds: 400),
+      closedColor: colors.surface,
+      openColor: colors.background,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      onClosed: (_) => _load(silent: true),
+      openBuilder: (_, _) => const ReceiptListScreen(),
+      closedBuilder: (_, _) => CamillCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.receipt_outlined, size: 16, color: colors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      '最近のレシート',
+                      style: camillBodyStyle(
+                        14,
+                        colors.textPrimary,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+              ],
+            ),
+            ...receipts.map(
+              (r) => Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: colors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.receipt_outlined,
+                      color: colors.primary,
+                      size: 20,
                     ),
                   ),
-                ],
-              ),
-              TextButton(
-                onPressed: () => context.push('/receipts'),
-                child: Text(
-                  'すべて見る',
-                  style: camillBodyStyle(12, colors.primary),
-                ),
-              ),
-            ],
-          ),
-          ...receipts.map(
-            (r) => Material(
-              color: Colors.transparent,
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.primaryLight,
-                    borderRadius: BorderRadius.circular(8),
+                  title: Text(
+                    r.storeName,
+                    style: camillBodyStyle(14, colors.textPrimary),
                   ),
-                  child: Icon(
-                    Icons.receipt_outlined,
-                    color: colors.primary,
-                    size: 20,
+                  subtitle: Text(
+                    DateFormat(
+                      'M月d日',
+                    ).format(DateTime.parse(r.purchasedAt).toLocal()),
+                    style: camillBodyStyle(12, colors.textMuted),
                   ),
-                ),
-                title: Text(
-                  r.storeName,
-                  style: camillBodyStyle(14, colors.textPrimary),
-                ),
-                subtitle: Text(
-                  DateFormat(
-                    'M月d日',
-                  ).format(DateTime.parse(r.purchasedAt).toLocal()),
-                  style: camillBodyStyle(12, colors.textMuted),
-                ),
-                trailing: Text(
-                  _currencyFmt.format(r.totalAmount),
-                  style: camillAmountStyle(14, colors.textPrimary),
+                  trailing: Text(
+                    _currencyFmt.format(r.totalAmount),
+                    style: camillAmountStyle(14, colors.textPrimary),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2257,16 +2296,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             controller: _scrollController,
             physics: const RefreshScrollPhysics(),
             slivers: [
-          if (_loading)
-            SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: CircularProgressIndicator(color: colors.primary),
-                ),
-              ),
-            )
-          else if (_summary != null) ...[
+          if (_summary != null) ...[
             if (widget.couponBanner != null) ...[
               SliverToBoxAdapter(
                 child: Padding(
@@ -2451,7 +2481,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                   controller: _bounceController,
                   color: colors.primary,
                   dotsVisible: _dotsVisible,
-                  isRefreshing: _isRefreshing,
+                  isRefreshing: _isRefreshing || _loading,
                 ),
               ),
             ),

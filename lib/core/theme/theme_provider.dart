@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,7 +49,7 @@ final themeProvider =
 
 // ── Notifier ──────────────────────────────────────────────────────────────────
 
-class ThemeNotifier extends StateNotifier<ThemeState> {
+class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserver {
   Timer? _timer;
 
   ThemeNotifier()
@@ -56,15 +57,25 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
           selectedBase: CamillThemeMode.midnight,
           isDarkNow:    _guessIsDarkByHour(),
         )) {
+    WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
   ThemeNotifier.withInitial(ThemeState initial) : super(initial) {
+    WidgetsBinding.instance.addObserver(this);
     if (initial.autoSwitch) _scheduleFromSunTimes();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && this.state.autoSwitch) {
+      _scheduleFromSunTimes();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }

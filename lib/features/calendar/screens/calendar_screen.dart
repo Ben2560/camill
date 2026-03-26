@@ -48,6 +48,9 @@ class _CalendarScreenState extends State<CalendarScreen>
     DateTime.now().month,
     DateTime.now().day,
   );
+  // カレンダータップ時のスライドアニメーション
+  late final AnimationController _slideController;
+  Offset _slideBegin = Offset.zero;
 
   // 年ビュー
   static const int _kBaseYear = 2000;
@@ -69,6 +72,10 @@ class _CalendarScreenState extends State<CalendarScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
     _yearScrollController = ScrollController()
       ..addListener(_onYearScroll);
     _loadSummary(_focusedDay);
@@ -82,6 +89,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     widget.returnToTodayNotifier?.removeListener(_onReturnToToday);
     widget.refreshNotifier?.removeListener(_onRefresh);
     _transitionController.dispose();
+    _slideController.dispose();
     _yearScrollController.dispose();
     _dayPageController.dispose();
     super.dispose();
@@ -108,6 +116,10 @@ class _CalendarScreenState extends State<CalendarScreen>
     // table_calendar は UTC で日付を返すのでローカルに正規化
     final d = DateTime(day.year, day.month, day.day);
     if (_selectedDay != null && isSameDay(d, _selectedDay!)) return;
+    // スライド方向を決定（タップした方向へ動く：後の曜日→右へ動く=左から、前の曜日→左へ動く=右から）
+    _slideBegin = (_selectedDay != null && d.weekday > _selectedDay!.weekday)
+        ? const Offset(1.0, 0.0)
+        : const Offset(-1.0, 0.0);
     final needsReload =
         _summaryMonth == null ||
         d.month != _summaryMonth!.month ||
@@ -118,6 +130,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     });
     final diff = d.difference(_baseDate).inDays;
     _dayPageController.jumpToPage(_kMiddlePage + diff);
+    _slideController.forward(from: 0.0);
     if (needsReload) _loadSummary(d);
   }
 
@@ -288,8 +301,8 @@ class _CalendarScreenState extends State<CalendarScreen>
           _summaryCache.remove(key);
           _loadSummary(_focusedDay);
         },
-        onEdit: (receiptListItem) =>
-            context.push('/receipt-edit', extra: receiptListItem),
+        onEdit: (receiptListItem, {bool focusMemo = false}) =>
+            context.push('/receipt-edit', extra: (receipt: receiptListItem, focusMemo: focusMemo)),
       ),
     );
   }
@@ -492,6 +505,14 @@ class _CalendarScreenState extends State<CalendarScreen>
       _isYearView = false;
       _isReturningFromYearView = false;
     });
+    final targetDate = DateTime(year, month, targetDay);
+    final diff = targetDate.difference(_baseDate).inDays;
+    // PageView は setState 後のフレームで初めてツリーに現れるため
+    // addPostFrameCallback でジャンプする
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _dayPageController.jumpToPage(_kMiddlePage + diff);
+    });
     _loadSummary(DateTime(year, month));
   }
 
@@ -661,6 +682,19 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   Widget _buildMonthContent(CamillColors colors) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 利用可能な高さから rowHeight を動的計算:
+        //   曜日ヘッダー28px + 最大6行 + 詳細パネル最低65px が収まるよう調整
+        //   セルコンテンツ（32px日付+14px金額=46px）を下回らないよう 46 でクランプ
+        final rowH = ((constraints.maxHeight - 28.0 - 65.0) / 6)
+            .clamp(46.0, 72.0);
+        return _buildMonthColumn(colors, rowH);
+      },
+    );
+  }
+
+  Widget _buildMonthColumn(CamillColors colors, double rowH) {
     return Column(
       children: [
         TableCalendar(
@@ -668,7 +702,7 @@ class _CalendarScreenState extends State<CalendarScreen>
           firstDay: DateTime(_kBaseYear, 1, 1),
           lastDay: DateTime(_kBaseYear + _kYearCount - 1, 12, 31),
           focusedDay: _focusedDay,
-          rowHeight: 72,
+          rowHeight: rowH,
           selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
           onDaySelected: (selected, focused) => _goToDay(selected),
           onPageChanged: (focusedDay) {
@@ -699,13 +733,26 @@ class _CalendarScreenState extends State<CalendarScreen>
           ),
         ),
         Expanded(
-          child: Material(
-            color: colors.background,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: PageView.builder(
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _slideController,
+              builder: (context, child) {
+                final slide = Tween<Offset>(
+                  begin: _slideBegin,
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: _slideController,
+                  curve: Curves.easeOut,
+                ));
+                return SlideTransition(position: slide, child: child);
+              },
+              child: Material(
+                color: colors.background,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: PageView.builder(
               controller: _dayPageController,
               physics: const BouncingScrollPhysics(),
               onPageChanged: (index) {
@@ -740,6 +787,8 @@ class _CalendarScreenState extends State<CalendarScreen>
             ),
           ),
         ),
+      ),
+    ),
       ],
     );
   }
@@ -929,6 +978,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     final statusBarH = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: colors.background,
+      resizeToAvoidBottomInset: false,
       body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1161,6 +1211,15 @@ class _DetailPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final vPad = constraints.maxHeight < 80 ? 8.0 : 12.0;
+        return _buildColumn(context, vPad);
+      },
+    );
+  }
+
+  Widget _buildColumn(BuildContext context, double vPad) {
     final total = receipts.fold(0, (s, r) => s + r.totalAmount);
     final weekdays = ['日', '月', '火', '水', '木', '金', '土'];
     final weekdayLabel = weekdays[day.weekday % 7];
@@ -1168,7 +1227,7 @@ class _DetailPanel extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          padding: EdgeInsets.fromLTRB(16, vPad, 16, vPad),
           child: Row(
             children: [
               // 日付バッジ
@@ -1431,7 +1490,7 @@ class _ReceiptDetailSheet extends StatefulWidget {
   final ReceiptService receiptService;
   final NumberFormat fmt;
   final VoidCallback onDeleted;
-  final void Function(ReceiptListItem) onEdit;
+  final void Function(ReceiptListItem, {bool focusMemo}) onEdit;
 
   const _ReceiptDetailSheet({
     required this.receiptId,
@@ -1482,8 +1541,12 @@ class _ReceiptDetailSheetState extends State<_ReceiptDetailSheet> {
       final r = await widget.receiptService.getReceiptDetail(widget.receiptId);
       if (mounted) {
         final screenH = MediaQuery.sizeOf(context).height;
-        // ハンドル28 + ヘッダー56 + 仕切り1 + 品目×50 + フッター160
-        final totalH = 244.0 + r.items.length * 50.0;
+        // ハンドル28 + ヘッダー56 + 仕切り1 + 品目×50 + メモカード + フッター160
+        final memoLines = (r.memo ?? '').split('\n').length;
+        final memoH = r.memo != null && r.memo!.isNotEmpty
+            ? 60.0 + memoLines * 20.0  // カードベース＋テキスト行
+            : 60.0;                     // 「メモを追加」カード
+        final totalH = 244.0 + r.items.length * 50.0 + memoH;
         final fraction = (totalH / screenH).clamp(0.40, 0.93);
         setState(() {
           _receipt = r;
@@ -1807,8 +1870,7 @@ class _ReceiptDetailSheetState extends State<_ReceiptDetailSheet> {
                     ),
                     SliverToBoxAdapter(child: Divider(height: 1, color: colors.surfaceBorder)),
                     SliverPadding(
-                      // bottom: フッター分のスペースを確保
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 160),
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                       sliver: SliverList.builder(
                         itemCount: r.items.length,
                         itemBuilder: (_, i) {
@@ -1847,6 +1909,62 @@ class _ReceiptDetailSheetState extends State<_ReceiptDetailSheet> {
                         },
                       ),
                     ),
+                    // ── メモ（表示のみ・編集は「編集する」ボタンから）──
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            widget.onEdit(ReceiptListItem(
+                              receiptId: r.receiptId,
+                              storeName: r.storeName,
+                              totalAmount: r.totalAmount,
+                              purchasedAt: r.purchasedAt,
+                              paymentMethod: r.paymentMethod,
+                              category: r.items.isNotEmpty ? r.items.first.category : 'other',
+                              items: r.items,
+                              memo: r.memo,
+                            ), focusMemo: true);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: colors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: colors.surfaceBorder),
+                            ),
+                            child: (r.memo != null && r.memo!.isNotEmpty)
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.notes_outlined, size: 14, color: colors.textMuted),
+                                          const SizedBox(width: 5),
+                                          Text('メモ', style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600)),
+                                          const Spacer(),
+                                          Icon(Icons.edit_outlined, size: 13, color: colors.textMuted),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(r.memo!, style: camillBodyStyle(14, colors.textPrimary)),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add, size: 16, color: colors.textMuted),
+                                      const SizedBox(width: 6),
+                                      Text('メモを追加', style: camillBodyStyle(14, colors.textMuted)),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // フッター分のスペース（フッター高さ＋セーフエリア）
+                    SliverToBoxAdapter(child: SizedBox(height: 160 + MediaQuery.of(context).padding.bottom)),
                   ],
                 ),
               ),

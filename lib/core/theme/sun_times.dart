@@ -119,7 +119,7 @@ class SunTimes {
   }
 
   static DateTime _dateFromJd(double jd) {
-    final jdi = jd.floor() + 1;
+    final jdi = jd.floor();
     final a = jdi + 32044;
     final b = (4 * a + 3) ~/ 146097;
     final c = a - 146097 * b ~/ 4;

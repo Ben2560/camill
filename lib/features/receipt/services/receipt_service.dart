@@ -69,6 +69,13 @@ class ReceiptService {
     await _api.delete('/receipts/$receiptId');
   }
 
+  // メモのみ更新
+  Future<void> updateMemo(String receiptId, String memo) async {
+    await _api.patch('/receipts/$receiptId', body: {
+      'memo': memo.isEmpty ? null : memo,
+    });
+  }
+
   /// データが存在する月の一覧を取得（"yyyy-MM" 形式、昇順）
   Future<List<String>> getActiveMonths() async {
     final data = await _api.getAny('/receipts/active-months');

@@ -142,7 +142,7 @@ class _ThemeGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount:   3,
-        childAspectRatio: 0.88,
+        childAspectRatio: 0.82,
         crossAxisSpacing: 10,
         mainAxisSpacing:  10,
       ),
@@ -184,6 +184,7 @@ class _ThemeCard extends StatelessWidget {
       onTap: () => ref.read(themeProvider.notifier).setBase(mode),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: cardColors.background,
           borderRadius: BorderRadius.circular(14),
@@ -205,24 +206,46 @@ class _ThemeCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
+            // カラーヘッダー帯
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: mode.hasGradient
+                      ? LinearGradient(
+                          colors: [lightColors.primary, lightColors.accent],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        )
+                      : LinearGradient(
+                          colors: [
+                            lightColors.primary,
+                            lightColors.primary.withAlpha(180),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                ),
+              ),
+            ),
             // メインコンテンツ
             Padding(
-              padding: EdgeInsets.fromLTRB(
-                  8, mode.hasGradient ? 42 : 10, 8, 8),
+              padding: const EdgeInsets.fromLTRB(8, 48, 8, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 日中/夜間スウォッチ
                   Row(
                     children: [
-                      _Swatch(color: lightColors.primary, size: 9),
+                      _Swatch(color: lightColors.primary, size: 10),
                       const SizedBox(width: 3),
-                      _Swatch(color: lightColors.background, size: 9,
+                      _Swatch(color: lightColors.background, size: 10,
                           bordered: true, borderColor: lightColors.surfaceBorder),
-                      const SizedBox(width: 6),
-                      _Swatch(color: darkColors.primary, size: 9),
+                      const SizedBox(width: 5),
+                      _Swatch(color: darkColors.primary, size: 10),
                       const SizedBox(width: 3),
-                      _Swatch(color: darkColors.background, size: 9,
+                      _Swatch(color: darkColors.background, size: 10,
                           bordered: true, borderColor: darkColors.surfaceBorder),
                     ],
                   ),
@@ -230,21 +253,13 @@ class _ThemeCard extends StatelessWidget {
                   Text(
                     mode.displayName,
                     style: TextStyle(
-                      fontSize:   10,
+                      fontSize:   11,
                       color:      cardColors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                     maxLines:  2,
                     overflow:  TextOverflow.ellipsis,
                   ),
-                  if (mode.hasGradient)
-                    Text(
-                      'グラデ',
-                      style: TextStyle(
-                        fontSize: 8,
-                        color:    cardColors.textMuted,
-                      ),
-                    ),
                 ],
               ),
             ),

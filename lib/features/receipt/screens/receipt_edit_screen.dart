@@ -10,7 +10,8 @@ import '../../../shared/widgets/loading_overlay.dart';
 
 class ReceiptEditScreen extends StatefulWidget {
   final ReceiptListItem receipt;
-  const ReceiptEditScreen({super.key, required this.receipt});
+  final bool focusMemo;
+  const ReceiptEditScreen({super.key, required this.receipt, this.focusMemo = false});
 
   @override
   State<ReceiptEditScreen> createState() => _ReceiptEditScreenState();
@@ -19,18 +20,23 @@ class ReceiptEditScreen extends StatefulWidget {
 class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
   final _api = ApiService();
   final _formKey = GlobalKey<FormState>();
+  final _scrollCtrl = ScrollController();
+  final _memoFocusNode = FocusNode();
   late final TextEditingController _storeCtrl;
+  late final TextEditingController _memoCtrl;
   late DateTime _purchasedAt;
   late String _paymentMethod;
   late String _receiptCategory;
   late List<_ItemEntry> _items;
   bool _saving = false;
+  int _memoMinLines = 6;
 
   @override
   void initState() {
     super.initState();
     final r = widget.receipt;
     _storeCtrl = TextEditingController(text: r.storeName);
+    _memoCtrl = TextEditingController(text: r.memo ?? '');
     _purchasedAt = DateTime.tryParse(r.purchasedAt) ?? DateTime.now();
     _paymentMethod = r.paymentMethod;
     _receiptCategory = r.category;
@@ -39,15 +45,50 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
         : r.items
             .map((i) => _ItemEntry.fromReceiptItem(i))
             .toList();
+    _memoCtrl.addListener(_onMemoChanged);
+    _memoFocusNode.addListener(_onMemoFocus);
+    // 既存メモがある場合は行数を反映
+    _onMemoChanged();
+    if (widget.focusMemo) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _memoFocusNode.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _scrollCtrl.dispose();
+    _memoFocusNode.removeListener(_onMemoFocus);
+    _memoFocusNode.dispose();
     _storeCtrl.dispose();
+    _memoCtrl.removeListener(_onMemoChanged);
+    _memoCtrl.dispose();
     for (final item in _items) {
       item.dispose();
     }
     super.dispose();
+  }
+
+  void _onMemoFocus() {
+    if (!_memoFocusNode.hasFocus) return;
+    // キーボードアニメーション完了後に末尾までスクロールしてメモ欄を表示
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted || !_scrollCtrl.hasClients) return;
+      _scrollCtrl.animateTo(
+        _scrollCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _onMemoChanged() {
+    final lineCount = _memoCtrl.text.isEmpty ? 0 : _memoCtrl.text.split('\n').length;
+    final needed = (lineCount + 1).clamp(6, 9999);
+    if (needed > _memoMinLines) {
+      setState(() => _memoMinLines = needed);
+    }
   }
 
   Future<void> _pickDate() async {
@@ -102,6 +143,7 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
         'payment_method': _paymentMethod,
         'category': _receiptCategory,
         'items': items,
+        'memo': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       });
 
       if (mounted) {
@@ -139,6 +181,7 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
         body: Form(
           key: _formKey,
           child: ListView(
+            controller: _scrollCtrl,
             padding: const EdgeInsets.all(16),
             children: [
               TextFormField(
@@ -245,6 +288,45 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                         ),
                       ),
                       style: camillAmountStyle(18, colors.primary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // ── メモ ──
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.surfaceBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.notes_outlined, size: 15, color: colors.textMuted),
+                        const SizedBox(width: 6),
+                        Text('メモ', style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _memoCtrl,
+                      focusNode: _memoFocusNode,
+                      minLines: _memoMinLines,
+                      maxLines: null,
+                      style: camillBodyStyle(14, colors.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'メモを入力...',
+                        hintStyle: camillBodyStyle(14, colors.textMuted),
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                   ],
                 ),

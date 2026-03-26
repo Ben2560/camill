@@ -108,6 +108,7 @@ class ReceiptAnalysis {
   final bool isMedical;
   final int? totalPoints; // 医療レシートの場合の合計点数
   final double? burdenRate; // 負担率（例: 0.3）
+  final String? memo; // メモ
 
   ReceiptAnalysis({
     required this.storeName,
@@ -122,6 +123,7 @@ class ReceiptAnalysis {
     this.isMedical = false,
     this.totalPoints,
     this.burdenRate,
+    this.memo,
   });
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
@@ -143,6 +145,7 @@ class ReceiptAnalysis {
         isMedical: json['is_medical'] as bool? ?? false,
         totalPoints: (json['total_points'] as num?)?.toInt(),
         burdenRate: (json['burden_rate'] as num?)?.toDouble(),
+        memo: json['memo'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -158,6 +161,7 @@ class ReceiptAnalysis {
         'is_medical': isMedical,
         if (totalPoints != null) 'total_points': totalPoints,
         if (burdenRate != null) 'burden_rate': burdenRate,
+        if (memo != null && memo!.isNotEmpty) 'memo': memo,
       };
 }
 
@@ -181,6 +185,7 @@ class Receipt {
   final String paymentMethod;
   final List<ReceiptItem> items;
   final List<ReceiptDiscount> discounts;
+  final String? memo; // メモ
 
   Receipt({
     required this.receiptId,
@@ -190,6 +195,7 @@ class Receipt {
     required this.paymentMethod,
     required this.items,
     this.discounts = const [],
+    this.memo,
   });
 
   factory Receipt.fromJson(Map<String, dynamic> json) => Receipt(
@@ -204,5 +210,6 @@ class Receipt {
         discounts: (json['discounts'] as List<dynamic>? ?? [])
             .map((e) => ReceiptDiscount.fromJson(e as Map<String, dynamic>))
             .toList(),
+        memo: json['memo'] as String?,
       );
 }

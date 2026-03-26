@@ -122,8 +122,11 @@ final _router = GoRouter(
     GoRoute(
       path: '/receipt-edit',
       builder: (_, state) {
-        final receipt = state.extra as ReceiptListItem;
-        return ReceiptEditScreen(receipt: receipt);
+        final extra = state.extra;
+        if (extra is ({ReceiptListItem receipt, bool focusMemo})) {
+          return ReceiptEditScreen(receipt: extra.receipt, focusMemo: extra.focusMemo);
+        }
+        return ReceiptEditScreen(receipt: extra as ReceiptListItem);
       },
     ),
     GoRoute(

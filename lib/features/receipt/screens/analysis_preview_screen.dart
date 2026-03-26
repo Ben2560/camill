@@ -44,6 +44,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   late int _totalPoints;
   late double _burdenRate;
 
+  final _memoCtrl = TextEditingController();
+  int _memoMinLines = 6;
+
   // 品目の支出額が最大のカテゴリを自動判定
   String? get _autoCategory {
     if (_items.isEmpty) return null;
@@ -98,6 +101,22 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     }).toList();
     _couponIncluded = List.filled(_coupons.length, true);
     _shareToComm = List.filled(_coupons.length, false);
+    _memoCtrl.addListener(_onMemoChanged);
+  }
+
+  @override
+  void dispose() {
+    _memoCtrl.removeListener(_onMemoChanged);
+    _memoCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onMemoChanged() {
+    final lineCount = _memoCtrl.text.isEmpty ? 0 : _memoCtrl.text.split('\n').length;
+    final needed = (lineCount + 1).clamp(6, 9999);
+    if (needed > _memoMinLines) {
+      setState(() => _memoMinLines = needed);
+    }
   }
 
   static bool _isConvenienceStore(String name) {
@@ -136,6 +155,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         isMedical: _isMedical,
         totalPoints: _totalPoints != 0 ? _totalPoints : null,
         burdenRate: _burdenRate != 0 ? _burdenRate : null,
+        memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       );
       final receiptId = await _receiptService.saveReceipt(updated);
       // クーポンを /coupons に個別登録（レシートから検出されたので使用済みとして保存）
@@ -221,6 +241,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           isMedical: _isMedical,
           totalPoints: _totalPoints != 0 ? _totalPoints : null,
           burdenRate: _burdenRate != 0 ? _burdenRate : null,
+          memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
         ),
       );
       for (int i = 0; i < _coupons.length; i++) {
@@ -303,6 +324,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         isMedical: _isMedical,
         totalPoints: _totalPoints != 0 ? _totalPoints : null,
         burdenRate: _burdenRate != 0 ? _burdenRate : null,
+        memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       );
       // 1. 古いレシートを削除して新しいレシートを作成
       final newReceiptId =
@@ -1577,6 +1599,47 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                   ),
                 ),
                 ], // end if (!_isMedical)
+                const SizedBox(height: 12),
+                // ── メモ ──
+                Container(
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.surfaceBorder),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.notes_outlined, size: 16, color: colors.textMuted),
+                          const SizedBox(width: 6),
+                          Text(
+                            'メモ',
+                            style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _memoCtrl,
+                        minLines: _memoMinLines,
+                        maxLines: null,
+                        style: camillBodyStyle(14, colors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'メモを入力...',
+                          hintStyle: camillBodyStyle(14, colors.textMuted),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 80),
               ],
             ),

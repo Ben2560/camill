@@ -97,6 +97,7 @@ class ReceiptListItem {
   final String category;
   final List<ReceiptItem> items;
   final bool isTaxExempt;
+  final String? memo; // メモ
 
   ReceiptListItem({
     required this.receiptId,
@@ -107,6 +108,7 @@ class ReceiptListItem {
     required this.category,
     required this.items,
     this.isTaxExempt = false,
+    this.memo,
   });
 
   factory ReceiptListItem.fromJson(Map<String, dynamic> json) =>
@@ -122,6 +124,7 @@ class ReceiptListItem {
                 .toList() ??
             [],
         isTaxExempt: json['is_tax_exempt'] as bool? ?? false,
+        memo: json['memo'] as String?,
       );
 }
 

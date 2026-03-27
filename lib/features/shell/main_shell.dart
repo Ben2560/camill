@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:go_router/go_router.dart';
 import '../../core/theme/camill_colors.dart';
 import '../home/screens/home_screen.dart';
@@ -18,6 +20,9 @@ class _MainShellState extends State<MainShell>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   bool _speedDialOpen = false;
+  bool _fabPressed = false;
+  bool _fabLongPressActivated = false;
+  Timer? _fabLongPressTimer;
   final _calendarReturnNotifier = ValueNotifier<int>(0);
   final _calendarRefreshNotifier = ValueNotifier<int>(0);
   late AnimationController _animController;
@@ -65,6 +70,7 @@ class _MainShellState extends State<MainShell>
     _slideAnim.dispose();
     _animController.dispose();
     _pageController.dispose();
+    _fabLongPressTimer?.cancel();
     _calendarReturnNotifier.dispose();
     _calendarRefreshNotifier.dispose();
     super.dispose();
@@ -199,28 +205,61 @@ class _MainShellState extends State<MainShell>
 
   Widget _buildCenterFab(CamillColors colors) {
     return GestureDetector(
-      onTap: () => _onNavTap(2),
+      onTapDown: (_) {
+        setState(() => _fabPressed = true);
+        _fabLongPressActivated = false;
+        _fabLongPressTimer?.cancel();
+        _fabLongPressTimer = Timer(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          _fabLongPressActivated = true;
+          _fabPressed = false;
+          HapticFeedback.mediumImpact();
+          context.push('/camera', extra: true);
+        });
+      },
+      onTapUp: (_) {
+        _fabLongPressTimer?.cancel();
+        setState(() => _fabPressed = false);
+      },
+      onTapCancel: () {
+        _fabLongPressTimer?.cancel();
+        setState(() => _fabPressed = false);
+      },
+      onTap: () {
+        if (_fabLongPressActivated) {
+          _fabLongPressActivated = false;
+          return;
+        }
+        _onNavTap(2);
+      },
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: _speedDialOpen ? colors.danger : colors.fabBackground,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: colors.fabBackground.withAlpha(80),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      child: AnimatedScale(
+        scale: _fabPressed ? 1.18 : 1.0,
+        duration: _fabPressed
+            ? const Duration(milliseconds: 400)
+            : const Duration(milliseconds: 200),
+        curve: _fabPressed ? Curves.easeOut : Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: _speedDialOpen ? colors.danger : colors.fabBackground,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: colors.fabBackground.withAlpha(_fabPressed ? 120 : 80),
+                blurRadius: _fabPressed ? 18 : 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ScaleTransition(
+            scale: _fabScale,
+            child: RotationTransition(
+              turns: _fabRotation,
+              child: Icon(Icons.add, color: colors.fabIcon, size: 32),
             ),
-          ],
-        ),
-        child: ScaleTransition(
-          scale: _fabScale,
-          child: RotationTransition(
-            turns: _fabRotation,
-            child: Icon(Icons.add, color: colors.fabIcon, size: 32),
           ),
         ),
       ),

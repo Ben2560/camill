@@ -54,7 +54,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
 
   ThemeNotifier()
       : super(ThemeState(
-          selectedBase: CamillThemeMode.midnight,
+          selectedBase: CamillThemeMode.sakura,
           isDarkNow:    _guessIsDarkByHour(),
         )) {
     WidgetsBinding.instance.addObserver(this);

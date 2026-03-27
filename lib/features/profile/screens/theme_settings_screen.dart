@@ -59,50 +59,57 @@ class ThemeSettingsScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Divider(height: 1, color: colors.surfaceBorder),
-                  // 手動トグル (自動OFF時のみ有効)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    child: Row(
-                      children: [
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            themeState.isDarkNow
-                                ? Icons.nightlight_round
-                                : Icons.wb_sunny_rounded,
-                            key: ValueKey(themeState.isDarkNow),
-                            size: 18,
-                            color: themeState.autoSwitch
-                                ? colors.textMuted
-                                : colors.textSecondary,
+                  // 手動トグル (自動OFF時のみ表示)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeInOut,
+                    child: themeState.autoSwitch
+                        ? const SizedBox.shrink()
+                        : Column(
+                            children: [
+                              Divider(height: 1, color: colors.surfaceBorder),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 4),
+                                child: Row(
+                                  children: [
+                                    AnimatedSwitcher(
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      child: Icon(
+                                        themeState.isDarkNow
+                                            ? Icons.nightlight_round
+                                            : Icons.wb_sunny_rounded,
+                                        key: ValueKey(themeState.isDarkNow),
+                                        size: 18,
+                                        color: colors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        themeState.isDarkNow
+                                            ? '夜間モード'
+                                            : '日中モード',
+                                        style: camillBodyStyle(
+                                          14,
+                                          colors.textPrimary,
+                                          weight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Switch(
+                                      value: themeState.isDarkNow,
+                                      activeThumbColor: colors.primary,
+                                      onChanged: (v) => ref
+                                          .read(themeProvider.notifier)
+                                          .setDarkNow(v),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            themeState.isDarkNow ? '夜間モード' : '日中モード',
-                            style: camillBodyStyle(
-                              14,
-                              themeState.autoSwitch
-                                  ? colors.textMuted
-                                  : colors.textPrimary,
-                              weight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Switch(
-                          value: themeState.isDarkNow,
-                          activeThumbColor: colors.primary,
-                          onChanged: themeState.autoSwitch
-                              ? null
-                              : (v) => ref
-                                  .read(themeProvider.notifier)
-                                  .setDarkNow(v),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),

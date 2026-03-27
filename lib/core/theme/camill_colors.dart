@@ -47,48 +47,48 @@ class CamillColors extends ThemeExtension<CamillColors> {
   // ── フラットテーマ ──────────────────────────────────────────
   // ════════════════════════════════════════════════════════════
 
-  // ─── Midnight Dark (既存) ─────────────────────────────────
-  static const _midnightDark = CamillColors(
-    background:    Color(0xFF0D1117),
-    surface:       Color(0xFF161B22),
-    surfaceBorder: Color(0x12FFFFFF),
-    primary:       Color(0xFF7EE8A2),
-    primaryLight:  Color(0x267EE8A2),
+  // ─── Sakura Light (桜→春空) ───────────────────────────────
+  static const _sakuraLight = CamillColors(
+    background:    Color(0xFFFFF3F6),
+    surface:       Color(0xFFFFFBFC),
+    surfaceBorder: Color(0x10C06882),
+    primary:       Color(0xFFC06882),
+    primaryLight:  Color(0x14C06882),
+    textPrimary:   Color(0xFF2A0F17),
+    textSecondary: Color(0x992A0F17),
+    textMuted:     Color(0x592A0F17),
+    navBackground: Color(0xF2FFF3F6),
+    navActive:     Color(0xFFC06882),
+    navInactive:   Color(0x592A0F17),
+    fabBackground: Color(0xFFC06882),
+    fabIcon:       Color(0xFFFFFFFF),
+    danger:        Color(0xFFE53935),
+    success:       Color(0xFF558B2F),
+    accent:        Color(0xFF7BA7D4),
+    accentLight:   Color(0x147BA7D4),
+    isDark:        false,
+  );
+
+  // ─── Sakura Dark (夜桜) ───────────────────────────────────
+  static const _sakuraDark = CamillColors(
+    background:    Color(0xFF170A0D),
+    surface:       Color(0xFF25101A),
+    surfaceBorder: Color(0x14FFFFFF),
+    primary:       Color(0xFFFFAEC9),
+    primaryLight:  Color(0x1AFFAEC9),
     textPrimary:   Color(0xFFFFFFFF),
     textSecondary: Color(0x99FFFFFF),
     textMuted:     Color(0x59FFFFFF),
-    navBackground: Color(0xF20D1117),
-    navActive:     Color(0xFF7EE8A2),
+    navBackground: Color(0xF2170A0D),
+    navActive:     Color(0xFFFFAEC9),
     navInactive:   Color(0x59FFFFFF),
-    fabBackground: Color(0xFF7EE8A2),
-    fabIcon:       Color(0xFF0D1117),
+    fabBackground: Color(0xFFFFAEC9),
+    fabIcon:       Color(0xFF170A0D),
     danger:        Color(0xFFFF6B6B),
-    success:       Color(0xFF4CAF50),
-    accent:        Color(0xFFFFB74D),
-    accentLight:   Color(0x26FFB74D),
+    success:       Color(0xFF8BC34A),
+    accent:        Color(0xFF90CAF9),
+    accentLight:   Color(0x1A90CAF9),
     isDark:        true,
-  );
-
-  // ─── Midnight Light (日中バリアント "Midnight Grey") ─────────
-  static const _midnightLight = CamillColors(
-    background:    Color(0xFFEDF1F5),
-    surface:       Color(0xFFF8FAFB),
-    surfaceBorder: Color(0x15324B5A),
-    primary:       Color(0xFF3D7A57),
-    primaryLight:  Color(0x1A3D7A57),
-    textPrimary:   Color(0xFF1A2B38),
-    textSecondary: Color(0x991A2B38),
-    textMuted:     Color(0x591A2B38),
-    navBackground: Color(0xF2EDF1F5),
-    navActive:     Color(0xFF3D7A57),
-    navInactive:   Color(0x591A2B38),
-    fabBackground: Color(0xFF3D7A57),
-    fabIcon:       Color(0xFFFFFFFF),
-    danger:        Color(0xFFE53935),
-    success:       Color(0xFF43A047),
-    accent:        Color(0xFFFF8F00),
-    accentLight:   Color(0x14FF8F00),
-    isDark:        false,
   );
 
   // ─── Natural Light (既存 Natural Soft) ────────────────────
@@ -403,47 +403,47 @@ class CamillColors extends ThemeExtension<CamillColors> {
     isDark:        true,
   );
 
-  // ─── Ocean Wave Light ────────────────────────────────────
+  // ─── Ocean Wave Light (ティール) ─────────────────────────
   static const _oceanWaveLight = CamillColors(
-    background:    Color(0xFFF0F8FF),
-    surface:       Color(0xFFF8FBFF),
-    surfaceBorder: Color(0x101E88E5),
-    primary:       Color(0xFF0277BD),
-    primaryLight:  Color(0x140277BD),
-    textPrimary:   Color(0xFF021824),
-    textSecondary: Color(0x99021824),
-    textMuted:     Color(0x59021824),
-    navBackground: Color(0xF2F0F8FF),
-    navActive:     Color(0xFF0277BD),
-    navInactive:   Color(0x59021824),
-    fabBackground: Color(0xFF0277BD),
+    background:    Color(0xFFEFF8F8),
+    surface:       Color(0xFFF7FCFC),
+    surfaceBorder: Color(0x1200838F),
+    primary:       Color(0xFF00838F),
+    primaryLight:  Color(0x1400838F),
+    textPrimary:   Color(0xFF012426),
+    textSecondary: Color(0x99012426),
+    textMuted:     Color(0x59012426),
+    navBackground: Color(0xF2EFF8F8),
+    navActive:     Color(0xFF00838F),
+    navInactive:   Color(0x59012426),
+    fabBackground: Color(0xFF00838F),
     fabIcon:       Color(0xFFFFFFFF),
     danger:        Color(0xFFE53935),
     success:       Color(0xFF43A047),
-    accent:        Color(0xFF00838F),
-    accentLight:   Color(0x1400838F),
+    accent:        Color(0xFFFF7043),
+    accentLight:   Color(0x14FF7043),
     isDark:        false,
   );
 
-  // ─── Ocean Wave Dark ─────────────────────────────────────
+  // ─── Ocean Wave Dark (ティール) ──────────────────────────
   static const _oceanWaveDark = CamillColors(
-    background:    Color(0xFF030C18),
-    surface:       Color(0xFF0A1A2C),
+    background:    Color(0xFF001A1C),
+    surface:       Color(0xFF002A2D),
     surfaceBorder: Color(0x14FFFFFF),
-    primary:       Color(0xFF4FC3F7),
-    primaryLight:  Color(0x1A4FC3F7),
+    primary:       Color(0xFF4DB6AC),
+    primaryLight:  Color(0x1A4DB6AC),
     textPrimary:   Color(0xFFFFFFFF),
     textSecondary: Color(0x99FFFFFF),
     textMuted:     Color(0x59FFFFFF),
-    navBackground: Color(0xF2030C18),
-    navActive:     Color(0xFF4FC3F7),
+    navBackground: Color(0xF2001A1C),
+    navActive:     Color(0xFF4DB6AC),
     navInactive:   Color(0x59FFFFFF),
-    fabBackground: Color(0xFF4FC3F7),
-    fabIcon:       Color(0xFF030C18),
+    fabBackground: Color(0xFF4DB6AC),
+    fabIcon:       Color(0xFF001A1C),
     danger:        Color(0xFFFF6B6B),
     success:       Color(0xFF4CAF50),
-    accent:        Color(0xFF00BCD4),
-    accentLight:   Color(0x1400BCD4),
+    accent:        Color(0xFFFFB300),
+    accentLight:   Color(0x26FFB300),
     isDark:        true,
   );
 
@@ -508,8 +508,8 @@ class CamillColors extends ThemeExtension<CamillColors> {
     fabIcon:       Color(0xFFFFFFFF),
     danger:        Color(0xFFE53935),
     success:       Color(0xFF43A047),
-    accent:        Color(0xFF4A148C),
-    accentLight:   Color(0x144A148C),
+    accent:        Color(0xFFFF6E40),
+    accentLight:   Color(0x14FF6E40),
     isDark:        false,
   );
 
@@ -530,8 +530,8 @@ class CamillColors extends ThemeExtension<CamillColors> {
     fabIcon:       Color(0xFF0A0412),
     danger:        Color(0xFFFF6B6B),
     success:       Color(0xFF66BB6A),
-    accent:        Color(0xFF7C4DCA),
-    accentLight:   Color(0x1A7C4DCA),
+    accent:        Color(0xFFFFAB40),
+    accentLight:   Color(0x1AFFAB40),
     isDark:        true,
   );
 
@@ -586,30 +586,30 @@ class CamillColors extends ThemeExtension<CamillColors> {
   /// ベーステーマと日中/夜間フラグからカラーセットを返す
   static CamillColors fromBase(CamillThemeMode mode, {required bool isDark}) {
     switch (mode) {
-      case CamillThemeMode.midnight:
-        return isDark ? _midnightDark  : _midnightLight;
-      case CamillThemeMode.natural:
-        return isDark ? _naturalDark   : _naturalLight;
-      case CamillThemeMode.classic:
-        return isDark ? _classicDark   : _classicLight;
-      case CamillThemeMode.deepOcean:
-        return isDark ? _deepOceanDark : _deepOceanLight;
+      case CamillThemeMode.cherry:
+        return isDark ? _cherryDark      : _cherryLight;
+      case CamillThemeMode.sunset:
+        return isDark ? _sunsetDark      : _sunsetLight;
       case CamillThemeMode.warmSand:
-        return isDark ? _warmSandDark  : _warmSandLight;
+        return isDark ? _warmSandDark    : _warmSandLight;
+      case CamillThemeMode.natural:
+        return isDark ? _naturalDark     : _naturalLight;
+      case CamillThemeMode.emerald:
+        return isDark ? _emeraldDark     : _emeraldLight;
+      case CamillThemeMode.sakura:
+        return isDark ? _sakuraDark      : _sakuraLight;
+      case CamillThemeMode.oceanWave:
+        return isDark ? _oceanWaveDark   : _oceanWaveLight;
+      case CamillThemeMode.classic:
+        return isDark ? _classicDark     : _classicLight;
+      case CamillThemeMode.deepOcean:
+        return isDark ? _deepOceanDark   : _deepOceanLight;
       case CamillThemeMode.nordicSlate:
         return isDark ? _nordicSlateDark : _nordicSlateLight;
       case CamillThemeMode.aurora:
-        return isDark ? _auroraDark    : _auroraLight;
-      case CamillThemeMode.sunset:
-        return isDark ? _sunsetDark    : _sunsetLight;
-      case CamillThemeMode.oceanWave:
-        return isDark ? _oceanWaveDark : _oceanWaveLight;
-      case CamillThemeMode.cherry:
-        return isDark ? _cherryDark    : _cherryLight;
+        return isDark ? _auroraDark      : _auroraLight;
       case CamillThemeMode.twilight:
-        return isDark ? _twilightDark  : _twilightLight;
-      case CamillThemeMode.emerald:
-        return isDark ? _emeraldDark   : _emeraldLight;
+        return isDark ? _twilightDark    : _twilightLight;
     }
   }
 

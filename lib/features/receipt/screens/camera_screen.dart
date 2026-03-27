@@ -9,7 +9,8 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final bool isCard;
+  const CameraScreen({super.key, this.isCard = false});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -23,6 +24,7 @@ class _CameraScreenState extends State<CameraScreen> {
   int _analysisCount = 0;
   int _analysisLimit = 10;
   File? _pendingImage; // 確認待ちの画像（非nullのとき確認画面を表示）
+  double _dragOffset = 0.0;
 
   @override
   void initState() {
@@ -78,26 +80,105 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  void _onDragUpdate(DragUpdateDetails d) {
+    final next = _dragOffset + d.delta.dy;
+    setState(() => _dragOffset = next.clamp(0.0, double.infinity));
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    if (_dragOffset > 120 || (d.primaryVelocity ?? 0) > 600) {
+      context.pop();
+    } else {
+      setState(() => _dragOffset = 0);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (widget.isCard) {
+      return _buildCardLayout(context, colors);
+    }
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.background,
-        title: Text(
-          'レシート撮影',
-          style: camillHeadingStyle(17, colors.textPrimary),
-        ),
+        title: Text('レシート撮影', style: camillHeadingStyle(17, colors.textPrimary)),
         iconTheme: IconThemeData(color: colors.textSecondary),
       ),
       body: LoadingOverlay(
         isLoading: _loading,
         message: 'レシートを解析中',
         subtitle: 'しばらくお待ちください…',
-        child: _pendingImage != null
-            ? _buildConfirmView(colors)
-            : _buildCameraView(colors),
+        child: _pendingImage != null ? _buildConfirmView(colors) : _buildCameraView(colors),
+      ),
+    );
+  }
+
+  Widget _buildCardLayout(BuildContext context, CamillColors colors) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: FractionallySizedBox(
+        heightFactor: 0.93,
+        child: GestureDetector(
+          onVerticalDragUpdate: _onDragUpdate,
+          onVerticalDragEnd: _onDragEnd,
+          child: Transform.translate(
+            offset: Offset(0, _dragOffset),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              child: Scaffold(
+                backgroundColor: colors.background,
+                body: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: colors.textMuted.withAlpha(80),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.close, color: colors.textSecondary),
+                            onPressed: () => context.pop(),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'レシート撮影',
+                              textAlign: TextAlign.center,
+                              style: camillHeadingStyle(17, colors.textPrimary),
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: LoadingOverlay(
+                        isLoading: _loading,
+                        message: 'レシートを解析中',
+                        subtitle: 'しばらくお待ちください…',
+                        child: _pendingImage != null
+                            ? _buildConfirmView(colors)
+                            : _buildCameraView(colors),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

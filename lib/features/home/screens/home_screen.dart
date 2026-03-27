@@ -72,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // レシート保存後の自動リフレッシュ用
   late final GoRouterDelegate _routerDelegate;
+  String? _prevRoutePath;
 
   @override
   void initState() {
@@ -103,9 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onRouteChanged() {
     if (!mounted) return;
     final path = _routerDelegate.currentConfiguration.uri.path;
-    if (path == '/') {
+    if (path == '/' && _prevRoutePath != null && _prevRoutePath != '/') {
       _loadAvailableMonths();
     }
+    _prevRoutePath = path;
   }
 
   /// データがある月の一覧を取得して PageView を再構築

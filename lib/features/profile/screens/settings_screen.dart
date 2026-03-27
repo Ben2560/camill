@@ -176,8 +176,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsItem(
             icon: Icons.palette_outlined,
             title: 'テーマ',
-            subtitle: '${themeState.selectedBase.displayName}'
-                '  ${themeState.isDarkNow ? '🌙' : '☀️'}',
+            subtitle: themeState.selectedBase.displayName,
             colors: colors,
             onTap: () => context.push('/theme-settings'),
           ),

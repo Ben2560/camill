@@ -41,7 +41,7 @@ void main() async {
                 ?? prefs.getString('camill_theme'); // 旧キー後方互換
   final autoSwitch = prefs.getBool('camill_auto_switch') ?? true;
 
-  CamillThemeMode initialBase = CamillThemeMode.midnight;
+  CamillThemeMode initialBase = CamillThemeMode.sakura;
   if (baseName != null) {
     try {
       initialBase = CamillThemeMode.values.byName(baseName);
@@ -98,7 +98,39 @@ final _router = GoRouter(
         );
       },
     ),
-    GoRoute(path: '/camera', builder: (context, state) => const CameraScreen()),
+    GoRoute(
+      path: '/camera',
+      pageBuilder: (context, state) {
+        final isCard = state.extra == true;
+        if (isCard) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            opaque: false,
+            barrierColor: Colors.black.withAlpha(60),
+            child: const CameraScreen(isCard: true),
+            transitionDuration: const Duration(milliseconds: 380),
+            reverseTransitionDuration: const Duration(milliseconds: 260),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 1),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                )),
+                child: child,
+              );
+            },
+          );
+        }
+        return MaterialPage(
+          key: state.pageKey,
+          child: const CameraScreen(isCard: false),
+        );
+      },
+    ),
     GoRoute(
       path: '/manual-input',
       builder: (context, state) => const ManualInputScreen(),

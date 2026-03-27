@@ -8,6 +8,7 @@ import '../../../core/constants.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../receipt/services/receipt_service.dart';
+import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 
 class DataScreen extends StatelessWidget {
@@ -408,15 +409,13 @@ class _MonthPageContentState extends State<_MonthPageContent> {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    if (_loading) {
-      return Center(child: CircularProgressIndicator(color: colors.primary));
-    }
-
     final categories = _summary?.byCategory ?? [];
     final recentReceipts = _summary?.recentReceipts ?? [];
     final total = categories.fold(0, (s, e) => s + e.amount);
 
-    return Stack(
+    return LoadingOverlay(
+      isLoading: _loading,
+      child: Stack(
       children: [
         Listener(
           onPointerMove: (e) {
@@ -499,7 +498,8 @@ class _MonthPageContentState extends State<_MonthPageContent> {
           ),
         ),
       ],
-    );
+      ),    // Stack
+    );      // LoadingOverlay
   }
 }
 
@@ -610,9 +610,9 @@ class _WeekViewState extends State<_WeekView> {
           colors: colors,
         ),
         Expanded(
-          child: _loading
-              ? Center(child: CircularProgressIndicator(color: colors.primary))
-              : Stack(
+          child: LoadingOverlay(
+            isLoading: _loading,
+            child: Stack(
                   children: [
                     Listener(
                       onPointerMove: (e) {
@@ -693,8 +693,9 @@ class _WeekViewState extends State<_WeekView> {
                       ),
                     ),
                   ],
-                ),
-        ),
+                ),     // Stack
+            ),         // LoadingOverlay
+          ),           // Expanded
       ],
     );
   }
@@ -778,9 +779,9 @@ class _YearViewState extends State<_YearView> {
           colors: colors,
         ),
         Expanded(
-          child: _loading
-              ? Center(child: CircularProgressIndicator(color: colors.primary))
-              : Stack(
+          child: LoadingOverlay(
+            isLoading: _loading,
+            child: Stack(
                   children: [
                     Listener(
                       onPointerMove: (e) {
@@ -860,8 +861,9 @@ class _YearViewState extends State<_YearView> {
                       ),
                     ),
                   ],
-                ),
-        ),
+                ),     // Stack
+            ),         // LoadingOverlay
+          ),           // Expanded
       ],
     );
   }

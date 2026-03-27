@@ -6,6 +6,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/camill_card.dart';
+import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 
 class CategoryBudgetScreen extends StatefulWidget {
@@ -476,13 +477,6 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     final colors = context.colors;
     final sh = MediaQuery.of(context).size.height;
 
-    if (_loading) {
-      return Scaffold(
-        backgroundColor: colors.background,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
     // 'other'(その他雑費)は予算未設定でも必ず設定済みセクションに表示
     final setItems = _categories.entries
         .where((e) => (_budgets[e.key] ?? 0) > 0 || e.key == 'other')
@@ -543,7 +537,9 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
           onPressed: () => Navigator.of(context, rootNavigator: false).pop(),
         ),
       ),
-      body: Listener(
+      body: LoadingOverlay(
+        isLoading: _loading,
+        child: Listener(
         onPointerMove: (e) {
           if (_scrollController.hasClients &&
               _scrollController.position.pixels <= 0 &&
@@ -679,7 +675,8 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         ],
       ),      // ListView
     ),        // Listener
-  ),          // Scaffold
+  ),          // LoadingOverlay
+),            // Scaffold
 );            // AnimatedBuilder
   }
 

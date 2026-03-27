@@ -5,13 +5,15 @@ import 'pull_to_refresh.dart';
 class LoadingOverlay extends StatefulWidget {
   final bool isLoading;
   final Widget child;
-  final String? message; // 後方互換のため残す（使用しない）
+  final String? message;
+  final String? subtitle;
 
   const LoadingOverlay({
     super.key,
     required this.isLoading,
     required this.child,
     this.message,
+    this.subtitle,
   });
 
   @override
@@ -81,13 +83,39 @@ class _LoadingOverlayState extends State<LoadingOverlay>
                     minHeight: 2,
                   ),
                 ),
-                // 中央の3ドット
+                // 中央の3ドット（＋メッセージ）
                 Center(
-                  child: PullRefreshDots(
-                    controller: _dotsController,
-                    color: colors.textMuted,
-                    dotsVisible: 3,
-                    isRefreshing: true,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PullRefreshDots(
+                        controller: _dotsController,
+                        color: colors.textMuted,
+                        dotsVisible: 3,
+                        isRefreshing: true,
+                      ),
+                      if (widget.message != null) ...[
+                        const SizedBox(height: 20),
+                        Text(
+                          widget.message!,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ],
+                      if (widget.subtitle != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.subtitle!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],

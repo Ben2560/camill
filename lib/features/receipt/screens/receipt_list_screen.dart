@@ -7,6 +7,7 @@ import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 
 class ReceiptListScreen extends StatefulWidget {
@@ -351,9 +352,9 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
             ),
           ],
         ),
-        body: _loading
-            ? Center(child: CircularProgressIndicator(color: colors.primary))
-            : Stack(
+        body: LoadingOverlay(
+          isLoading: _loading,
+          child: Stack(
                 children: [
                   Listener(
                     onPointerMove: (e) {
@@ -491,7 +492,8 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
                   ),
                 ],
               ),
-      ),
+          ),        // LoadingOverlay
+        ),
     );
   }
 }

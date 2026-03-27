@@ -93,7 +93,8 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
       body: LoadingOverlay(
         isLoading: _loading,
-        message: 'レシートを解析しています...',
+        message: 'レシートを解析中',
+        subtitle: 'しばらくお待ちください…',
         child: _pendingImage != null
             ? _buildConfirmView(colors)
             : _buildCameraView(colors),

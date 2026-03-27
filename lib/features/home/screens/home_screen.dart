@@ -724,6 +724,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   late final ScrollController _scrollController;
   late final GoRouterDelegate _routerDelegate;
+  bool _wasScrollingBeforeTap = false;
 
   static const _allWidgetIds = [
     'budget',
@@ -1381,8 +1382,17 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       closedShape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
+      tappable: false,
       openBuilder: (_, _) => const BalanceChartScreen(),
-      closedBuilder: (_, _) => CamillCard(
+      closedBuilder: (_, openContainer) => GestureDetector(
+        onTap: () {
+          if (_wasScrollingBeforeTap) {
+            _wasScrollingBeforeTap = false;
+            return;
+          }
+          openContainer();
+        },
+        child: CamillCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1608,6 +1618,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         ],
       ),
     ),
+      ),
     );
   }
 
@@ -1673,6 +1684,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () async {
+                  if (_wasScrollingBeforeTap) {
+                    _wasScrollingBeforeTap = false;
+                    return;
+                  }
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2077,9 +2092,18 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       closedShape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
+      tappable: false,
       onClosed: (_) => _load(silent: true),
       openBuilder: (_, _) => const ReceiptListScreen(),
-      closedBuilder: (_, _) => CamillCard(
+      closedBuilder: (_, openContainer) => GestureDetector(
+        onTap: () {
+          if (_wasScrollingBeforeTap) {
+            _wasScrollingBeforeTap = false;
+            return;
+          }
+          openContainer();
+        },
+        child: CamillCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2140,6 +2164,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -2307,7 +2332,13 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             }
             return false;
           },
-          child: CustomScrollView(
+          child: Listener(
+            onPointerDown: (_) {
+              _wasScrollingBeforeTap = _scrollController.hasClients &&
+                  _scrollController.position.isScrollingNotifier.value;
+            },
+            behavior: HitTestBehavior.translucent,
+            child: CustomScrollView(
             controller: _scrollController,
             physics: const RefreshScrollPhysics(),
             slivers: [
@@ -2478,6 +2509,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             ),
           ],
         ],
+          ),
           ),
         ),
         Positioned(

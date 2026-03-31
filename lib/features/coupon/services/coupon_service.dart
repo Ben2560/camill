@@ -55,4 +55,8 @@ class CouponService {
   Future<void> deleteCoupon(String couponId) async {
     await _api.delete('/coupons/$couponId');
   }
+
+  Future<void> shareToCommunity(String couponId) async {
+    await _api.patch('/coupons/$couponId/share-to-community', body: {});
+  }
 }

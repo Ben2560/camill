@@ -13,6 +13,7 @@ class Coupon {
   final bool requiresSurvey;
   final String? surveyUrl;
   final bool surveyAnswered;
+  final bool isCommunityShared;
 
   Coupon({
     required this.couponId,
@@ -28,6 +29,7 @@ class Coupon {
     this.requiresSurvey = false,
     this.surveyUrl,
     this.surveyAnswered = false,
+    this.isCommunityShared = false,
   });
 
   factory Coupon.fromJson(Map<String, dynamic> json) => Coupon(
@@ -50,6 +52,7 @@ class Coupon {
         requiresSurvey: json['requires_survey'] as bool? ?? false,
         surveyUrl: json['survey_url'] as String?,
         surveyAnswered: json['survey_answered'] as bool? ?? false,
+        isCommunityShared: json['is_community_shared'] as bool? ?? false,
       );
 
   bool get isFree => discountAmount == 0;

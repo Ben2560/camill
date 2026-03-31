@@ -175,9 +175,7 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
               else
                 ..._activeCoupons.map((c) => _CouponCard(
                       coupon: c,
-                      onTap: () => _showDetail(c),
-                      onUsed: () => _markUsed(c),
-                      onDelete: () => _deleteCoupon(c),
+                      onTap: () => _showEditDialog(c),
                     )),
               const SizedBox(height: 16),
               GestureDetector(
@@ -199,9 +197,7 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                 ..._expiredCoupons.map((c) => _CouponCard(
                       coupon: c,
                       dimmed: true,
-                      onTap: () => _showDetail(c),
-                      onUsed: null,
-                      onDelete: () => _deleteCoupon(c),
+                      onTap: () => _showEditDialog(c),
                     )),
             ],
               ),
@@ -238,37 +234,6 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showDetail(Coupon coupon) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CouponDetailSheet(
-        coupon: coupon,
-        onUsed: coupon.isUsed || coupon.isExpired
-            ? null
-            : () {
-                Navigator.pop(context);
-                _markUsed(coupon);
-              },
-        onSurveyAnswered: coupon.requiresSurvey && !coupon.surveyAnswered
-            ? () {
-                Navigator.pop(context);
-                _markSurveyAnswered(coupon);
-              }
-            : null,
-        onDelete: () {
-          Navigator.pop(context);
-          _deleteCoupon(coupon);
-        },
-        onEdit: () {
-          Navigator.pop(context);
-          _showEditDialog(coupon);
-        },
       ),
     );
   }
@@ -468,336 +433,375 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
     );
   }
 
-  Future<void> _showEditDialog(Coupon coupon) async {
+  void _showEditDialog(Coupon coupon) {
     final colors = context.colors;
     final nameCtrl = TextEditingController(text: coupon.storeName);
     final descCtrl = TextEditingController(text: coupon.description);
-    final amountCtrl =
-        TextEditingController(text: coupon.discountAmount.toString());
+    final amountCtrl = TextEditingController(
+      text: coupon.discountAmount > 0 ? coupon.discountAmount.toString() : '',
+    );
     DateTime? validFrom = coupon.validFrom;
     DateTime? validUntil = coupon.validUntil;
     List<int> availableDays = List.from(coupon.availableDays ?? []);
 
-    await showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: colors.surface,
-          title:
-              Text('クーポンを編集', style: camillHeadingStyle(16, colors.textPrimary)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  style: camillBodyStyle(14, colors.textPrimary),
-                  decoration: InputDecoration(
-                    labelText: '店名',
-                    labelStyle: camillBodyStyle(13, colors.textMuted),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: descCtrl,
-                  style: camillBodyStyle(14, colors.textPrimary),
-                  decoration: InputDecoration(
-                    labelText: '内容',
-                    labelStyle: camillBodyStyle(13, colors.textMuted),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType: TextInputType.number,
-                  style: camillBodyStyle(14, colors.textPrimary),
-                  decoration: InputDecoration(
-                    labelText: '割引額（円）※無料は0',
-                    labelStyle: camillBodyStyle(13, colors.textMuted),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('使用可能曜日（未選択=毎日）',
-                      style: camillBodyStyle(12, colors.textMuted)),
-                ),
-                const SizedBox(height: 6),
-                _DayPicker(
-                  selected: availableDays,
-                  colors: colors,
-                  onChanged: (days) =>
-                      setDialogState(() => availableDays = days),
-                ),
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: ctx,
-                      initialDate: validFrom ?? DateTime.now(),
-                      firstDate: DateTime.now()
-                          .subtract(const Duration(days: 365)),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (picked != null) setDialogState(() => validFrom = picked);
-                  },
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today,
-                          size: 16, color: colors.textMuted),
-                      const SizedBox(width: 6),
-                      Text(
-                        validFrom != null
-                            ? '開始: ${validFrom!.year}/${validFrom!.month}/${validFrom!.day}'
-                            : '開始日を選択（任意）',
-                        style: camillBodyStyle(13, colors.textMuted),
+        builder: (ctx, setSheet) => AnimatedPadding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ハンドル
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: colors.textMuted.withAlpha(80),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: ctx,
-                      initialDate: validUntil ??
-                          DateTime.now().add(const Duration(days: 7)),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (picked != null) {
-                      setDialogState(() => validUntil = picked);
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      Icon(Icons.event_available,
-                          size: 16, color: colors.textMuted),
-                      const SizedBox(width: 6),
-                      Text(
-                        validUntil != null
-                            ? '有効期限: ${validUntil!.year}/${validUntil!.month}/${validUntil!.day}'
-                            : '有効期限を選択（任意）',
-                        style: camillBodyStyle(13, colors.textMuted),
+                  // ヘッダー：タイトル + 削除
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Text('クーポンを編集',
+                            style: camillBodyStyle(17, colors.textPrimary,
+                                weight: FontWeight.w700)),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () { Navigator.pop(ctx); _deleteCoupon(coupon); },
+                          child: Text('削除',
+                              style: camillBodyStyle(14, colors.danger)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 使用済みにする
+                  if (!coupon.isUsed && !coupon.isExpired) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () { Navigator.pop(ctx); _markUsed(coupon); },
+                          icon: const Icon(Icons.check_circle_outline,
+                              color: Colors.white, size: 18),
+                          label: Text('使用済みにする',
+                              style: camillBodyStyle(15, Colors.white,
+                                  weight: FontWeight.bold)),
+                        ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  // アンケート
+                  if (coupon.requiresSurvey && !coupon.surveyAnswered) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF43A047),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () { Navigator.pop(ctx); _markSurveyAnswered(coupon); },
+                          icon: const Icon(Icons.assignment_turned_in_outlined,
+                              color: Colors.white, size: 18),
+                          label: Text('アンケート回答済みにする',
+                              style: camillBodyStyle(15, Colors.white,
+                                  weight: FontWeight.bold)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  // コミュニティ共有
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: coupon.isCommunityShared
+                        ? Row(
+                            children: [
+                              Icon(Icons.people, size: 14,
+                                  color: colors.textMuted),
+                              const SizedBox(width: 6),
+                              Text('コミュニティに公開済み',
+                                  style: camillBodyStyle(13, colors.textMuted)),
+                            ],
+                          )
+                        : SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                side: BorderSide(color: colors.surfaceBorder),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _shareToCommunity(coupon);
+                              },
+                              icon: Icon(Icons.people_outline,
+                                  size: 18, color: colors.textSecondary),
+                              label: Text('コミュニティに共有',
+                                  style: camillBodyStyle(
+                                      14, colors.textSecondary)),
+                            ),
+                          ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  // フォーム
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('店名', style: camillBodyStyle(13, colors.textMuted)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: nameCtrl,
+                          style: camillBodyStyle(14, colors.textPrimary),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: colors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: colors.surfaceBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: colors.surfaceBorder),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('内容', style: camillBodyStyle(13, colors.textMuted)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: descCtrl,
+                          style: camillBodyStyle(14, colors.textPrimary),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: colors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: colors.surfaceBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: colors.surfaceBorder),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('割引額（円）',
+                            style: camillBodyStyle(13, colors.textMuted)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: amountCtrl,
+                          keyboardType: TextInputType.number,
+                          style: camillBodyStyle(14, colors.textPrimary),
+                          decoration: InputDecoration(
+                            hintText: '0で無料クーポン',
+                            hintStyle: camillBodyStyle(13, colors.textMuted),
+                            filled: true,
+                            fillColor: colors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: colors.surfaceBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: colors.surfaceBorder),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('使用可能曜日（未選択=毎日）',
+                            style: camillBodyStyle(13, colors.textMuted)),
+                        const SizedBox(height: 8),
+                        _DayPicker(
+                          selected: availableDays,
+                          colors: colors,
+                          onChanged: (days) =>
+                              setSheet(() => availableDays = days),
+                        ),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: validFrom ?? DateTime.now(),
+                              firstDate: DateTime.now()
+                                  .subtract(const Duration(days: 365)),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setSheet(() => validFrom = picked);
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_today,
+                                  size: 16, color: colors.textMuted),
+                              const SizedBox(width: 6),
+                              Text(
+                                validFrom != null
+                                    ? '開始: ${validFrom!.year}/${validFrom!.month}/${validFrom!.day}'
+                                    : '開始日を選択（任意）',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: validUntil ??
+                                  DateTime.now().add(const Duration(days: 7)),
+                              firstDate: DateTime.now(),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setSheet(() => validUntil = picked);
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.event_available,
+                                  size: 16, color: colors.textMuted),
+                              const SizedBox(width: 6),
+                              Text(
+                                validUntil != null
+                                    ? '有効期限: ${validUntil!.year}/${validUntil!.month}/${validUntil!.day}'
+                                    : '有効期限を選択（任意）',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colors.primary,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              try {
+                                await _service.deleteCoupon(coupon.couponId);
+                                await _service.createCoupon(
+                                  storeName: nameCtrl.text,
+                                  description: descCtrl.text,
+                                  discountAmount:
+                                      int.tryParse(amountCtrl.text) ?? 0,
+                                  validFrom: validFrom?.toIso8601String(),
+                                  validUntil: validUntil?.toIso8601String(),
+                                  availableDays: availableDays.isEmpty
+                                      ? null
+                                      : availableDays,
+                                  isFromOcr: coupon.isFromOcr,
+                                );
+                                await _loadCoupons();
+                              } catch (e) {
+                                // silently swallow
+                              }
+                            },
+                            child: Text('保存',
+                                style: camillBodyStyle(16, colors.fabIcon,
+                                    weight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('キャンセル',
-                  style: camillBodyStyle(14, colors.textSecondary)),
-            ),
-            ElevatedButton(
-              style:
-                  ElevatedButton.styleFrom(backgroundColor: colors.primary),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  await _service.deleteCoupon(coupon.couponId);
-                  await _service.createCoupon(
-                    storeName: nameCtrl.text,
-                    description: descCtrl.text,
-                    discountAmount: int.tryParse(amountCtrl.text) ?? 0,
-                    validFrom: validFrom?.toIso8601String(),
-                    validUntil: validUntil?.toIso8601String(),
-                    availableDays:
-                        availableDays.isEmpty ? null : availableDays,
-                    isFromOcr: coupon.isFromOcr,
-                  );
-                  await _loadCoupons();
-                } catch (e) {
-                  // silently swallow
-                }
-              },
-              child: Text('保存', style: camillBodyStyle(14, colors.fabIcon)),
-            ),
-          ],
         ),
       ),
     );
   }
-}
 
-// ── 詳細ボトムシート ─────────────────────────────────────────────────────────
-class _CouponDetailSheet extends StatelessWidget {
-  final Coupon coupon;
-  final VoidCallback? onUsed;
-  final VoidCallback? onSurveyAnswered;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
-
-  const _CouponDetailSheet({
-    required this.coupon,
-    required this.onUsed,
-    required this.onDelete,
-    required this.onEdit,
-    this.onSurveyAnswered,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Future<void> _shareToCommunity(Coupon coupon) async {
     final colors = context.colors;
-    final isFree = coupon.isFree;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).padding.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: colors.textMuted.withAlpha(80),
-              borderRadius: BorderRadius.circular(2),
-            ),
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: Text('コミュニティに共有',
+            style: camillHeadingStyle(16, colors.textPrimary)),
+        content: Text(
+          'このクーポン情報をコミュニティに公開しますか？\n一度公開すると取り消せません。',
+          style: camillBodyStyle(14, colors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('キャンセル',
+                style: camillBodyStyle(14, colors.textSecondary)),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: isFree
-                ? _FreeCard(coupon: coupon)
-                : _RegularCard(coupon: coupon, colors: colors),
-          ),
-          if (coupon.availableDays != null &&
-              coupon.availableDays!.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('使用可能曜日',
-                      style: camillBodyStyle(13, colors.textMuted,
-                          weight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  _DayCalendar(
-                      availableDays: coupon.availableDays!, colors: colors),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                if (coupon.requiresSurvey && !coupon.surveyAnswered) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF43A047),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: onSurveyAnswered,
-                      icon: const Icon(Icons.assignment_turned_in_outlined,
-                          color: Colors.white),
-                      label: Text('アンケート回答済みにする',
-                          style: camillBodyStyle(16, Colors.white,
-                              weight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                if (coupon.requiresSurvey && coupon.surveyAnswered) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF43A047).withAlpha(20),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF43A047).withAlpha(80)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.check_circle, size: 16, color: Color(0xFF43A047)),
-                        const SizedBox(width: 6),
-                        Text('アンケート回答済み',
-                            style: camillBodyStyle(14, const Color(0xFF43A047),
-                                weight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                if (onUsed != null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: isFree
-                            ? const Color(0xFFB8860B)
-                            : colors.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: onUsed,
-                      icon: const Icon(Icons.check_circle_outline,
-                          color: Colors.white),
-                      label: Text('使用済みにする',
-                          style: camillBodyStyle(16, Colors.white,
-                              weight: FontWeight.bold)),
-                    ),
-                  ),
-                if (onUsed != null) const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: colors.surfaceBorder),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: onEdit,
-                        icon: Icon(Icons.edit_outlined,
-                            size: 18, color: colors.textSecondary),
-                        label: Text('編集',
-                            style: camillBodyStyle(14, colors.textSecondary)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(
-                              color: colors.danger.withAlpha(120)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: onDelete,
-                        icon: Icon(Icons.delete_outline,
-                            size: 18, color: colors.danger),
-                        label: Text('削除',
-                            style: camillBodyStyle(14, colors.danger)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('公開する',
+                style: camillBodyStyle(14, colors.primary,
+                    weight: FontWeight.bold)),
           ),
         ],
       ),
     );
+    if (confirmed == true) {
+      try {
+        await _service.shareToCommunity(coupon.couponId);
+        await _loadCoupons();
+      } catch (e) {
+        // silently swallow
+      }
+    }
   }
 }
 
@@ -806,15 +810,11 @@ class _CouponCard extends StatelessWidget {
   final Coupon coupon;
   final bool dimmed;
   final VoidCallback onTap;
-  final VoidCallback? onUsed;
-  final VoidCallback onDelete;
 
   const _CouponCard({
     required this.coupon,
     this.dimmed = false,
     required this.onTap,
-    required this.onUsed,
-    required this.onDelete,
   });
 
   @override
@@ -1139,68 +1139,6 @@ class _DayDotsSmall extends StatelessWidget {
               ),
             ),
           ),
-        );
-      }),
-    );
-  }
-}
-
-// ── 曜日カレンダー（詳細シート用）──────────────────────────────────────────
-class _DayCalendar extends StatelessWidget {
-  final List<int> availableDays;
-  final CamillColors colors;
-  const _DayCalendar({required this.availableDays, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    final todayIdx = DateTime.now().weekday - 1;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(7, (i) {
-        final isAvailable = availableDays.contains(i);
-        final isToday = i == todayIdx;
-        return Column(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isAvailable
-                    ? isToday
-                        ? const Color(0xFFFF6B00)
-                        : colors.primary
-                    : colors.surfaceBorder,
-                border: isToday && !isAvailable
-                    ? Border.all(
-                        color: colors.primary.withAlpha(120), width: 2)
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  _dayLabels[i],
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isAvailable ? Colors.white : colors.textMuted,
-                  ),
-                ),
-              ),
-            ),
-            if (isToday) ...[
-              const SizedBox(height: 3),
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isAvailable
-                      ? const Color(0xFFFF6B00)
-                      : colors.primary,
-                ),
-              ),
-            ],
-          ],
         );
       }),
     );

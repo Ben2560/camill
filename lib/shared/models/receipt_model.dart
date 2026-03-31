@@ -58,6 +58,8 @@ class ReceiptItem {
 class CouponDetected {
   final String description;
   final int discountAmount;
+  /// 'yen' | 'percent' | 'other'  (null は 'yen' 扱い)
+  final String? discountUnit;
   final String? validFrom;
   final String? validUntil;
   final String? storageLocation;
@@ -67,6 +69,7 @@ class CouponDetected {
   CouponDetected({
     required this.description,
     required this.discountAmount,
+    this.discountUnit = 'yen',
     this.validFrom,
     this.validUntil,
     this.storageLocation,
@@ -77,6 +80,7 @@ class CouponDetected {
   factory CouponDetected.fromJson(Map<String, dynamic> json) => CouponDetected(
         description: json['description'] as String,
         discountAmount: (json['discount_amount'] as num).toInt(),
+        discountUnit: json['discount_unit'] as String? ?? 'yen',
         validFrom: json['valid_from'] as String?,
         validUntil: json['valid_until'] as String?,
         storageLocation: json['storage_location'] as String?,
@@ -87,6 +91,7 @@ class CouponDetected {
   Map<String, dynamic> toJson() => {
         'description': description,
         'discount_amount': discountAmount,
+        'discount_unit': discountUnit,
         if (validFrom != null) 'valid_from': validFrom,
         if (validUntil != null) 'valid_until': validUntil,
         if (storageLocation != null) 'storage_location': storageLocation,

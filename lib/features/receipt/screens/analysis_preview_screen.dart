@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -45,6 +46,8 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   late double _burdenRate;
 
   final _memoCtrl = TextEditingController();
+  final _memoFocus = FocusNode();
+  bool _memoEditing = false;
   int _memoMinLines = 6;
 
   // 品目の支出額が最大のカテゴリを自動判定
@@ -99,15 +102,21 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       }
       return c;
     }).toList();
-    _couponIncluded = List.filled(_coupons.length, true);
-    _shareToComm = List.filled(_coupons.length, false);
+    _couponIncluded = List.filled(_coupons.length, true, growable: true);
+    _shareToComm = List.filled(_coupons.length, false, growable: true);
     _memoCtrl.addListener(_onMemoChanged);
+    _memoFocus.addListener(() {
+      if (!_memoFocus.hasFocus && _memoEditing) {
+        setState(() => _memoEditing = false);
+      }
+    });
   }
 
   @override
   void dispose() {
     _memoCtrl.removeListener(_onMemoChanged);
     _memoCtrl.dispose();
+    _memoFocus.dispose();
     super.dispose();
   }
 
@@ -561,6 +570,15 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     onDelete: null,
   );
 
+  // ── クーポン削除 ──────────────────────────────────────────────
+  void _deleteCoupon(int index) {
+    setState(() {
+      _coupons.removeAt(index);
+      _couponIncluded.removeAt(index);
+      _shareToComm.removeAt(index);
+    });
+  }
+
   // ── クーポン編集・追加 ─────────────────────────────────────────
   void _editCoupon(int index) => _openCouponSheet(
     coupon: _coupons[index],
@@ -597,6 +615,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       _coupons[index] = CouponDetected(
         description: c.description,
         discountAmount: c.discountAmount,
+        discountUnit: c.discountUnit,
         validFrom: c.validFrom,
         validUntil: c.validUntil,
         storageLocation: location,
@@ -620,6 +639,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     final amtCtrl = TextEditingController(
       text: coupon.discountAmount > 0 ? coupon.discountAmount.toString() : '',
     );
+    String discountUnit = coupon.discountUnit ?? 'yen';
     DateTime? validFrom = coupon.validFrom != null
         ? DateTime.tryParse(coupon.validFrom!)
         : null;
@@ -674,15 +694,77 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // 値引き額
+                // 割引タイプ
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: _labeledField(
-                    label: '値引き額（0 = 無料クーポン）',
-                    child: _numberInputField(ctrl: amtCtrl, colors: colors),
+                    label: '割引タイプ',
+                    child: Row(
+                      children: [
+                        for (final entry in const [
+                          ('yen', '円引き'),
+                          ('percent', '％引き'),
+                          ('free', '無料'),
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () => setSheet(() => discountUnit = entry.$1),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: discountUnit == entry.$1
+                                      ? colors.primary
+                                      : colors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: discountUnit == entry.$1
+                                        ? colors.primary
+                                        : colors.surfaceBorder,
+                                  ),
+                                ),
+                                child: Text(
+                                  entry.$2,
+                                  style: camillBodyStyle(
+                                    13,
+                                    discountUnit == entry.$1
+                                        ? colors.fabIcon
+                                        : colors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
+                // 値引き額（その他のときは非表示）
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeInOut,
+                  child: discountUnit != 'free'
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: _labeledField(
+                                label: discountUnit == 'percent' ? '割引率（%）' : '値引き額',
+                                child: _numberInputField(
+                                  ctrl: amtCtrl,
+                                  colors: colors,
+                                  prefix: discountUnit == 'percent' ? '%' : '¥',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        )
+                      : const SizedBox(width: double.infinity),
+                ),
                 // 有効期間
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -768,7 +850,10 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                     if (desc.isEmpty) return;
                     onSave(CouponDetected(
                       description: desc,
-                      discountAmount: int.tryParse(amtCtrl.text) ?? 0,
+                      discountAmount: discountUnit == 'free'
+                          ? 0
+                          : int.tryParse(amtCtrl.text) ?? 0,
+                      discountUnit: discountUnit,
                       validFrom: _fmtCouponDate(validFrom),
                       validUntil: _fmtCouponDate(validUntil),
                       storageLocation: storageLocation,
@@ -1070,6 +1155,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   Widget _numberInputField({
     required TextEditingController ctrl,
     required CamillColors colors,
+    String prefix = '¥',
   }) => ClipRRect(
     borderRadius: BorderRadius.circular(12),
     child: Container(
@@ -1082,7 +1168,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       child: Row(
         children: [
           Text(
-            '¥',
+            prefix,
             style: camillBodyStyle(
               16,
               colors.textMuted,
@@ -1161,7 +1247,10 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         ),
         iconTheme: IconThemeData(color: colors.textSecondary),
       ),
-      body: Column(
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Column(
         children: [
           Expanded(
             child: ListView(
@@ -1395,8 +1484,10 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                       ..._coupons.asMap().entries.expand((e) {
                         final i = e.key;
                         final c = e.value;
-                        final isFree = c.discountAmount == 0;
-                        final accentColor = isFree
+                        final unit = c.discountUnit ?? 'yen';
+                        final isFree = c.discountAmount == 0 && unit != 'other';
+                        final isOther = unit == 'free';
+                        final accentColor = isFree || isOther
                             ? const Color(0xFFD4A017)
                             : colors.primary;
 
@@ -1418,17 +1509,18 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
 
                         return [
                           if (i > 0) Divider(height: 16, color: colors.surfaceBorder),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 1行目: チェック + アイコン + 説明 + 金額 + 編集
-                                Row(
-                                  children: [
-                                    Transform.translate(
-                                      offset: const Offset(-6, 0),
-                                      child: SizedBox(
+                          _Swipeable(
+                            onDelete: () => _deleteCoupon(i),
+                            background: colors.surface,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 1行目: チェック + アイコン + 説明 + 金額 + 編集
+                                  Row(
+                                    children: [
+                                      SizedBox(
                                         width: 28,
                                         height: 28,
                                         child: Checkbox(
@@ -1439,143 +1531,145 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                                               () => _couponIncluded[i] = v ?? true),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Icon(
-                                      isFree
-                                          ? Icons.card_giftcard_outlined
-                                          : Icons.local_offer_outlined,
-                                      size: 15,
-                                      color: accentColor,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        c.description.isEmpty ? '（未入力）' : c.description,
-                                        style: camillBodyStyle(14, colors.textPrimary,
+                                      const SizedBox(width: 2),
+                                      Icon(
+                                        isFree
+                                            ? Icons.card_giftcard_outlined
+                                            : Icons.local_offer_outlined,
+                                        size: 15,
+                                        color: accentColor,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          c.description.isEmpty ? '（未入力）' : c.description,
+                                          style: camillBodyStyle(14, colors.textPrimary,
+                                              weight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      Text(
+                                        isOther
+                                            ? '無料'
+                                            : isFree
+                                                ? '無料'
+                                                : unit == 'percent'
+                                                    ? '${c.discountAmount}%引き'
+                                                    : '${c.discountAmount}円引き',
+                                        style: camillBodyStyle(13, accentColor,
                                             weight: FontWeight.w500),
                                       ),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () => _editCoupon(i),
+                                        child: Icon(Icons.edit_outlined,
+                                            size: 14, color: colors.textMuted),
+                                      ),
+                                    ],
+                                  ),
+                                  // 2行目: 有効期間
+                                  if (periodText != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 30, top: 2),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.calendar_today_outlined,
+                                              size: 11, color: colors.textMuted),
+                                          const SizedBox(width: 3),
+                                          Text(periodText,
+                                              style: camillBodyStyle(11, colors.textMuted)),
+                                        ],
+                                      ),
                                     ),
-                                    Text(
-                                      isFree ? '無料' : '${c.discountAmount}円引き',
-                                      style: camillBodyStyle(13, accentColor,
-                                          weight: FontWeight.w500),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    GestureDetector(
-                                      onTap: () => _editCoupon(i),
-                                      child: Icon(Icons.edit_outlined,
-                                          size: 14, color: colors.textMuted),
-                                    ),
-                                  ],
-                                ),
-                                // 2行目: 有効期間
-                                if (periodText != null)
+                                  // 3行目: 保管場所ドロップダウン ＋ コミュニティ公開
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 30, top: 2),
+                                    padding: const EdgeInsets.only(left: 30, top: 6),
                                     child: Row(
                                       children: [
-                                        Icon(Icons.calendar_today_outlined,
-                                            size: 11, color: colors.textMuted),
-                                        const SizedBox(width: 3),
-                                        Text(periodText,
-                                            style: camillBodyStyle(11, colors.textMuted)),
-                                      ],
-                                    ),
-                                  ),
-                                // 3行目: 保管場所ドロップダウン ＋ コミュニティ公開
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 30, top: 6),
-                                  child: Row(
-                                    children: [
-                                      // 保管場所ドロップダウン
-                                      IntrinsicWidth(
-                                        child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            color: colors.surface,
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: colors.surfaceBorder),
-                                          ),
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<String?>(
-                                              value: c.storageLocation,
-                                              isDense: true,
+                                        IntrinsicWidth(
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color: colors.surface,
                                               borderRadius: BorderRadius.circular(8),
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 4),
-                                              style: camillBodyStyle(11, colors.textSecondary),
-                                              hint: Text('保管場所',
-                                                  style: camillBodyStyle(11, colors.textMuted)),
-                                              icon: Icon(Icons.expand_more,
-                                                  size: 14, color: colors.textMuted),
-                                              items: [
-                                                DropdownMenuItem(
-                                                  value: null,
-                                                  child: Text('未選択',
-                                                      style: camillBodyStyle(
-                                                          11, colors.textMuted)),
-                                                ),
-                                                ..._storageOptions.map((opt) =>
-                                                    DropdownMenuItem(
-                                                      value: opt,
-                                                      child: Text(opt,
-                                                          style: camillBodyStyle(
-                                                              11, colors.textSecondary)),
-                                                    )),
-                                              ],
-                                              onChanged: (v) =>
-                                                  _updateCouponStorage(i, v),
+                                              border: Border.all(color: colors.surfaceBorder),
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<String?>(
+                                                value: c.storageLocation,
+                                                isDense: true,
+                                                borderRadius: BorderRadius.circular(8),
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 4),
+                                                style: camillBodyStyle(11, colors.textSecondary),
+                                                hint: Text('保管場所',
+                                                    style: camillBodyStyle(11, colors.textMuted)),
+                                                icon: Icon(Icons.expand_more,
+                                                    size: 14, color: colors.textMuted),
+                                                items: [
+                                                  DropdownMenuItem(
+                                                    value: null,
+                                                    child: Text('未選択',
+                                                        style: camillBodyStyle(11, colors.textMuted)),
+                                                  ),
+                                                  ..._storageOptions.map((opt) =>
+                                                      DropdownMenuItem(
+                                                        value: opt,
+                                                        child: Text(opt,
+                                                            style: camillBodyStyle(
+                                                                11, colors.textSecondary)),
+                                                      )),
+                                                ],
+                                                onChanged: (v) => _updateCouponStorage(i, v),
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                      // コミュニティ公開トグル（コンビニ以外）
-                                      if (!_isConvenienceStore(_storeName)) ...[
-                                        const SizedBox(width: 12),
-                                        GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTap: () => setState(
-                                              () => _shareToComm[i] = !_shareToComm[i]),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                _shareToComm[i]
-                                                    ? Icons.people
-                                                    : Icons.people_outline,
-                                                size: 14,
-                                                color: _shareToComm[i]
-                                                    ? colors.primary
-                                                    : colors.textMuted,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'コミュニティに公開',
-                                                style: camillBodyStyle(
-                                                  11,
+                                        if (!_isConvenienceStore(_storeName)) ...[
+                                          const SizedBox(width: 12),
+                                          GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () => setState(
+                                                () => _shareToComm[i] = !_shareToComm[i]),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
                                                   _shareToComm[i]
+                                                      ? Icons.people
+                                                      : Icons.people_outline,
+                                                  size: 14,
+                                                  color: _shareToComm[i]
                                                       ? colors.primary
                                                       : colors.textMuted,
                                                 ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Icon(
-                                                _shareToComm[i]
-                                                    ? Icons.check_circle
-                                                    : Icons.radio_button_unchecked,
-                                                size: 14,
-                                                color: _shareToComm[i]
-                                                    ? colors.primary
-                                                    : colors.textMuted,
-                                              ),
-                                            ],
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'コミュニティに公開',
+                                                  style: camillBodyStyle(
+                                                    11,
+                                                    _shareToComm[i]
+                                                        ? colors.primary
+                                                        : colors.textMuted,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  _shareToComm[i]
+                                                      ? Icons.check_circle
+                                                      : Icons.radio_button_unchecked,
+                                                  size: 14,
+                                                  color: _shareToComm[i]
+                                                      ? colors.primary
+                                                      : colors.textMuted,
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ];
@@ -1624,6 +1718,14 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                       const SizedBox(height: 10),
                       TextField(
                         controller: _memoCtrl,
+                        focusNode: _memoFocus,
+                        readOnly: !_memoEditing,
+                        onTap: () {
+                          if (!_memoEditing) {
+                            setState(() => _memoEditing = true);
+                            _memoFocus.requestFocus();
+                          }
+                        },
                         minLines: _memoMinLines,
                         maxLines: null,
                         style: camillBodyStyle(14, colors.textPrimary),
@@ -1676,6 +1778,92 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+}
+
+// ── スワイプで削除できるラッパー ────────────────────────────────
+class _Swipeable extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDelete;
+  final Color background;
+
+  const _Swipeable({
+    required this.child,
+    required this.onDelete,
+    required this.background,
+  });
+
+  @override
+  State<_Swipeable> createState() => _SwipeableState();
+}
+
+class _SwipeableState extends State<_Swipeable>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  static const _openX = -48.0;
+  static const _spring =
+      SpringDescription(mass: 1, stiffness: 400, damping: 22);
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController.unbounded(vsync: this, value: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    _ctrl.value = (_ctrl.value + d.delta.dx).clamp(_openX, 0.0);
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    final v = d.velocity.pixelsPerSecond.dx;
+    final target = (_ctrl.value < _openX / 2 || v < -300) ? _openX : 0.0;
+    _ctrl.animateWith(SpringSimulation(_spring, _ctrl.value, target, v));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: GestureDetector(
+        onHorizontalDragUpdate: _onDragUpdate,
+        onHorizontalDragEnd: _onDragEnd,
+        child: Stack(
+          children: [
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 48,
+              child: GestureDetector(
+                onTap: widget.onDelete,
+                child: const Center(
+                  child: Icon(Icons.remove_circle,
+                      color: Color(0xFFFF3B30), size: 26),
+                ),
+              ),
+            ),
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, child) => Transform.translate(
+                offset: Offset(_ctrl.value, 0),
+                child: child,
+              ),
+              child: ColoredBox(
+                color: widget.background,
+                child: widget.child,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

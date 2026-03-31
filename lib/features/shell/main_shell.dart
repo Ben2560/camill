@@ -25,6 +25,7 @@ class _MainShellState extends State<MainShell>
   Timer? _fabLongPressTimer;
   final _calendarReturnNotifier = ValueNotifier<int>(0);
   final _calendarRefreshNotifier = ValueNotifier<int>(0);
+  final _profileRefreshNotifier = ValueNotifier<int>(0);
   late AnimationController _animController;
   late CurvedAnimation _slideAnim;
   late CurvedAnimation _fadeAnim;
@@ -73,6 +74,7 @@ class _MainShellState extends State<MainShell>
     _fabLongPressTimer?.cancel();
     _calendarReturnNotifier.dispose();
     _calendarRefreshNotifier.dispose();
+    _profileRefreshNotifier.dispose();
     super.dispose();
   }
 
@@ -104,6 +106,9 @@ class _MainShellState extends State<MainShell>
     }
     if (index == 3 && _currentIndex != 3) {
       _calendarRefreshNotifier.value++;
+    }
+    if (index == 4) {
+      _profileRefreshNotifier.value++;
     }
     final pageIndex = index > 2 ? index - 1 : index;
     _pageController.animateToPage(
@@ -138,7 +143,7 @@ class _MainShellState extends State<MainShell>
                   returnToTodayNotifier: _calendarReturnNotifier,
                   refreshNotifier: _calendarRefreshNotifier,
                 ),
-                ProfileScreen(),
+                ProfileScreen(refreshNotifier: _profileRefreshNotifier),
               ],
             ),
           ),

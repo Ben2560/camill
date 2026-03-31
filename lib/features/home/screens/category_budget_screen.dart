@@ -108,7 +108,6 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    _totalBudget = prefs.getInt(_budgetKey) ?? 0;
     // まずSharedPrefsから読み込む
     for (final key in _categories.keys) {
       _budgets[key] = prefs.getInt('category_budget_$key') ?? 0;
@@ -139,13 +138,23 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     } catch (_) {
       // API失敗時はSharedPrefsのままで続行
     }
+    // カテゴリ予算の合計を月の予算として自動反映
+    final computed = _budgets.values.fold(0, (s, v) => s + v);
+    _totalBudget = computed;
+    await prefs.setInt(_budgetKey, _totalBudget);
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _persist() async {
+  Future<void> _persist({bool updateTotal = true}) async {
     final prefs = await SharedPreferences.getInstance();
     for (final e in _budgets.entries) {
       await prefs.setInt('category_budget_${e.key}', e.value);
+    }
+    if (updateTotal) {
+      // カテゴリ合計を月の予算として保存
+      final computed = _budgets.values.fold(0, (s, v) => s + v);
+      _totalBudget = computed;
+      await prefs.setInt(_budgetKey, _totalBudget);
     }
     // APIにも保存
     try {
@@ -283,7 +292,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setInt(_budgetKey, val);
                       if (mounted) setState(() => _totalBudget = val);
-                      await _persist();
+                      await _persist(updateTotal: false);
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: FilledButton.styleFrom(
@@ -492,17 +501,6 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         .toList();
 
     final totalAllocated = _budgets.values.fold(0, (s, v) => s + v);
-    final remaining = _totalBudget - totalAllocated;
-    final ratio = _totalBudget > 0
-        ? (totalAllocated / _totalBudget).clamp(0.0, 1.0)
-        : 0.0;
-    final remainingColor = _totalBudget == 0
-        ? colors.textMuted
-        : remaining < 0
-            ? colors.danger
-            : remaining == 0
-                ? colors.success
-                : colors.primary;
 
     return AnimatedBuilder(
       animation: Listenable.merge([_dismissOffset, _snapController]),
@@ -581,10 +579,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         physics: const DismissScrollPhysicsWithTopBounce(),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
         children: [
-          // ── Zero-sum budget header ───────────────────────────
+          // ── Monthly budget header ───────────────────────────
           Container(
             margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
             decoration: BoxDecoration(
               color: colors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -596,20 +594,12 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                 Row(
                   children: [
                     Icon(Icons.wallet_outlined,
-                        size: 16, color: colors.textMuted),
-                    const SizedBox(width: 6),
+                        size: 14, color: colors.textMuted),
+                    const SizedBox(width: 5),
                     Text('月に使えるお金',
                         style: camillBodyStyle(12, colors.textMuted,
-                            weight: FontWeight.w600)),
+                            weight: FontWeight.w500)),
                     const Spacer(),
-                    Text(
-                      _totalBudget > 0
-                          ? _fmt.format(_totalBudget)
-                          : '未設定',
-                      style: camillBodyStyle(14, colors.textPrimary,
-                          weight: FontWeight.w700),
-                    ),
-                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: _openTotalBudgetEditor,
                       child: Container(
@@ -626,46 +616,26 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                     ),
                   ],
                 ),
-                if (_totalBudget > 0) ...[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: ratio,
-                      backgroundColor: colors.surfaceBorder,
-                      color: remaining < 0 ? colors.danger : colors.primary,
-                      minHeight: 6,
+                const SizedBox(height: 8),
+                Text(
+                  totalAllocated > 0
+                      ? _fmt.format(_totalBudget)
+                      : '¥ ---',
+                  style: camillBodyStyle(32, colors.textPrimary,
+                      weight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.auto_awesome,
+                        size: 11, color: colors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(
+                      'カテゴリ予算の合計から自動計算',
+                      style: camillBodyStyle(11, colors.textMuted),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Text('合計',
-                          style: camillBodyStyle(12, colors.textMuted)),
-                      const SizedBox(width: 4),
-                      Text(_fmt.format(totalAllocated),
-                          style: camillBodyStyle(12, colors.textSecondary,
-                              weight: FontWeight.w600)),
-                      const Spacer(),
-                      Text(
-                        remaining >= 0 ? '残り' : '超過',
-                        style: camillBodyStyle(12, remainingColor),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _fmt.format(remaining.abs()),
-                        style: camillBodyStyle(13, remainingColor,
-                            weight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'ホーム画面の予算設定から月の予算を設定してください',
-                    style: camillBodyStyle(12, colors.textMuted),
-                  ),
-                ],
+                  ],
+                ),
               ],
             ),
           ),

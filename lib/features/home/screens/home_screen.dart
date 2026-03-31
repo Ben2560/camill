@@ -1655,7 +1655,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       closedShape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
-      onClosed: (_) {
+      onClosed: (_) async {
+        final prefs = await SharedPreferences.getInstance();
+        final newBudget = prefs.getInt('budget_monthly') ?? 0;
+        if (mounted) widget.onBudgetChanged(newBudget);
         _loadCategoryBudgets();
         _load(silent: true);
       },
@@ -1694,6 +1697,9 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                       builder: (_) => const CategoryBudgetScreen(),
                     ),
                   );
+                  final prefs = await SharedPreferences.getInstance();
+                  final newBudget = prefs.getInt('budget_monthly') ?? 0;
+                  if (mounted) widget.onBudgetChanged(newBudget);
                   _loadCategoryBudgets();
                   _load(silent: true);
                 },

@@ -12,7 +12,8 @@ import '../../../shared/widgets/budget_sheet.dart';
 import '../../../shared/widgets/top_notification.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final ValueNotifier<int>? refreshNotifier;
+  const ProfileScreen({super.key, this.refreshNotifier});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -28,6 +29,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _loadBudget();
+    widget.refreshNotifier?.addListener(_loadBudget);
+  }
+
+  @override
+  void dispose() {
+    widget.refreshNotifier?.removeListener(_loadBudget);
+    super.dispose();
   }
 
   Future<void> _loadBudget() async {

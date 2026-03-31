@@ -1329,15 +1329,19 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ..._items.asMap().entries.map(
-                        (e) => _EditableItemRow(
-                          item: e.value,
-                          fmt: _fmt,
-                          colors: colors,
-                          isMedical: _isMedical,
-                          onTap: () => _editItem(e.key),
+                      ..._items.asMap().entries.expand((e) => [
+                        _Swipeable(
+                          onDelete: () => setState(() => _items.removeAt(e.key)),
+                          background: colors.surface,
+                          child: _EditableItemRow(
+                            item: e.value,
+                            fmt: _fmt,
+                            colors: colors,
+                            isMedical: _isMedical,
+                            onTap: () => _editItem(e.key),
+                          ),
                         ),
-                      ),
+                      ]),
                       // 品目追加ボタン
                       GestureDetector(
                         onTap: _addItem,
@@ -1512,12 +1516,15 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                           _Swipeable(
                             onDelete: () => _deleteCoupon(i),
                             background: colors.surface,
-                            child: Padding(
+                            child: GestureDetector(
+                              onTap: () => _editCoupon(i),
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // 1行目: チェック + アイコン + 説明 + 金額 + 編集
+                                  // 1行目: チェック + 表示エリア
                                   Row(
                                     children: [
                                       SizedBox(
@@ -1532,37 +1539,40 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 2),
-                                      Icon(
-                                        isFree
-                                            ? Icons.card_giftcard_outlined
-                                            : Icons.local_offer_outlined,
-                                        size: 15,
-                                        color: accentColor,
-                                      ),
-                                      const SizedBox(width: 6),
                                       Expanded(
-                                        child: Text(
-                                          c.description.isEmpty ? '（未入力）' : c.description,
-                                          style: camillBodyStyle(14, colors.textPrimary,
-                                              weight: FontWeight.w500),
-                                        ),
-                                      ),
-                                      Text(
-                                        isOther
-                                            ? '無料'
-                                            : isFree
-                                                ? '無料'
-                                                : unit == 'percent'
-                                                    ? '${c.discountAmount}%引き'
-                                                    : '${c.discountAmount}円引き',
-                                        style: camillBodyStyle(13, accentColor,
-                                            weight: FontWeight.w500),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      GestureDetector(
-                                        onTap: () => _editCoupon(i),
-                                        child: Icon(Icons.edit_outlined,
-                                            size: 14, color: colors.textMuted),
+                                        child: Row(
+                                            children: [
+                                              Icon(
+                                                isFree
+                                                    ? Icons.card_giftcard_outlined
+                                                    : Icons.local_offer_outlined,
+                                                size: 15,
+                                                color: accentColor,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  c.description.isEmpty ? '（未入力）' : c.description,
+                                                  style: camillBodyStyle(14, colors.textPrimary,
+                                                      weight: FontWeight.w500),
+                                                ),
+                                              ),
+                                              Text(
+                                                isOther
+                                                    ? '無料'
+                                                    : isFree
+                                                        ? '無料'
+                                                        : unit == 'percent'
+                                                            ? '${c.discountAmount}%引き'
+                                                            : '${c.discountAmount}円引き',
+                                                style: camillBodyStyle(13, accentColor,
+                                                    weight: FontWeight.w500),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Icon(Icons.chevron_right,
+                                                  size: 16, color: colors.textMuted),
+                                            ],
+                                          ),
                                       ),
                                     ],
                                   ),
@@ -1629,7 +1639,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                                             behavior: HitTestBehavior.opaque,
                                             onTap: () => setState(
                                                 () => _shareToComm[i] = !_shareToComm[i]),
-                                            child: Row(
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                                              child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Icon(
@@ -1663,6 +1675,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                                                 ),
                                               ],
                                             ),
+                                            ),
                                           ),
                                         ],
                                       ],
@@ -1670,6 +1683,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                                   ),
                                 ],
                               ),
+                            ),
                             ),
                           ),
                         ];
@@ -1990,7 +2004,7 @@ class _EditableItemRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.edit_outlined, size: 14, color: colors.textMuted),
+            Icon(Icons.chevron_right, size: 16, color: colors.textMuted),
           ],
         ),
       ),

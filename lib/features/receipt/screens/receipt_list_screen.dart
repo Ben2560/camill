@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -62,10 +63,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
     if (_dismissOffset.value >= limit) {
       _isDismissing = true;
       _dismissOffset.removeListener(_onOffsetChanged);
-      _dismissOffset.value = limit;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context, rootNavigator: false).pop();
-      });
+      _beginDismiss();
     }
   }
 
@@ -74,10 +72,18 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
     final sh = MediaQuery.of(context).size.height;
     if (_dismissOffset.value > sh * 0.20) {
       _isDismissing = true;
-      Navigator.of(context, rootNavigator: false).pop();
+      _beginDismiss();
     } else {
       _snapBack();
     }
+  }
+
+  void _beginDismiss() {
+    _snapController.duration = const Duration(milliseconds: 200);
+    _snapController.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) Navigator.of(context, rootNavigator: false).pop();
+    });
   }
 
   void _snapBack() {
@@ -295,9 +301,17 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
     final sh = MediaQuery.of(context).size.height;
 
     return AnimatedBuilder(
-      animation: _dismissOffset,
+      animation: Listenable.merge([_dismissOffset, _snapController]),
       builder: (ctx, child) {
         final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        final blur = _isDismissing ? _snapController.value * 12.0 : 0.0;
+        Widget content = child!;
+        if (blur > 0.1) {
+          content = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: content,
+          );
+        }
         return Stack(
           children: [
             Container(color: colors.background),
@@ -311,7 +325,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(progress * 22.0),
                   ),
-                  child: child,
+                  child: content,
                 ),
               ),
             ),
@@ -358,6 +372,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
                 children: [
                   Listener(
                     onPointerMove: (e) {
+                      if (_isDismissing) return;
                       if (_scrollController.hasClients &&
                           _scrollController.position.pixels <= 0 &&
                           e.delta.dy > 0) {
@@ -369,10 +384,12 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
                       }
                     },
                     onPointerUp: (_) {
+                      if (_isDismissing) return;
                       endDismiss();
                       _pullDistance = 0;
                     },
                     onPointerCancel: (_) {
+                      if (_isDismissing) return;
                       _pullDistance = 0;
                       _dismissOffset.value = 0;
                     },

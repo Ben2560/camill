@@ -1,4 +1,5 @@
 import 'dart:math' show max;
+import 'dart:ui' as ui;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/camill_colors.dart';
@@ -94,10 +95,7 @@ class _BalanceChartScreenState extends State<BalanceChartScreen>
     if (_dismissOffset.value >= limit) {
       _isDismissing = true;
       _dismissOffset.removeListener(_onOffsetChanged);
-      _dismissOffset.value = limit;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context, rootNavigator: false).pop();
-      });
+      _beginDismiss();
     }
   }
 
@@ -114,10 +112,18 @@ class _BalanceChartScreenState extends State<BalanceChartScreen>
     final sh = MediaQuery.of(context).size.height;
     if (_dismissOffset.value > sh * 0.20) {
       _isDismissing = true;
-      Navigator.of(context, rootNavigator: false).pop();
+      _beginDismiss();
     } else {
       _snapBack();
     }
+  }
+
+  void _beginDismiss() {
+    _snapController.duration = const Duration(milliseconds: 200);
+    _snapController.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) Navigator.of(context, rootNavigator: false).pop();
+    });
   }
 
   void _snapBack() {
@@ -137,16 +143,21 @@ class _BalanceChartScreenState extends State<BalanceChartScreen>
     final sh = MediaQuery.of(context).size.height;
 
     return AnimatedBuilder(
-      animation: _dismissOffset,
+      animation: Listenable.merge([_dismissOffset, _snapController]),
       builder: (ctx, child) {
         final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        final blur = _isDismissing ? _snapController.value * 12.0 : 0.0;
+        Widget content = child!;
+        if (blur > 0.1) {
+          content = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: content,
+          );
+        }
         return Stack(
           children: [
-            // ホームと同じ背景色 → 黒にならない
             Container(color: colors.background),
-            // 引くにつれてディムがかかる（奥行き感）
             Container(color: Colors.black.withValues(alpha: 0.28 * progress)),
-            // スケール・スライドするシート
             Transform.translate(
               offset: Offset(0, _dismissOffset.value),
               child: Transform.scale(
@@ -156,7 +167,7 @@ class _BalanceChartScreenState extends State<BalanceChartScreen>
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(progress * 22.0),
                   ),
-                  child: child,
+                  child: content,
                 ),
               ),
             ),
@@ -179,6 +190,7 @@ class _BalanceChartScreenState extends State<BalanceChartScreen>
           currencyFmt: currencyFmt,
           dismissOffset: _dismissOffset,
           onDismissEnd: endDismiss,
+          isDismissing: () => _isDismissing,
         ),
       ),
     );
@@ -191,10 +203,12 @@ class _ChartTab extends StatefulWidget {
   final NumberFormat currencyFmt;
   final ValueNotifier<double> dismissOffset;
   final VoidCallback onDismissEnd;
+  final bool Function() isDismissing;
   const _ChartTab({
     required this.currencyFmt,
     required this.dismissOffset,
     required this.onDismissEnd,
+    required this.isDismissing,
   });
 
   @override
@@ -230,16 +244,19 @@ class _ChartTabState extends State<_ChartTab> {
               currencyFmt: widget.currencyFmt,
               dismissOffset: widget.dismissOffset,
               onDismissEnd: widget.onDismissEnd,
+              isDismissing: widget.isDismissing,
             ),
             2 => _YearView(
               currencyFmt: widget.currencyFmt,
               dismissOffset: widget.dismissOffset,
               onDismissEnd: widget.onDismissEnd,
+              isDismissing: widget.isDismissing,
             ),
             _ => _MonthView(
               currencyFmt: widget.currencyFmt,
               dismissOffset: widget.dismissOffset,
               onDismissEnd: widget.onDismissEnd,
+              isDismissing: widget.isDismissing,
             ),
           },
         ),
@@ -254,10 +271,12 @@ class _MonthView extends StatefulWidget {
   final NumberFormat currencyFmt;
   final ValueNotifier<double> dismissOffset;
   final VoidCallback onDismissEnd;
+  final bool Function() isDismissing;
   const _MonthView({
     required this.currencyFmt,
     required this.dismissOffset,
     required this.onDismissEnd,
+    required this.isDismissing,
   });
 
   @override
@@ -324,6 +343,7 @@ class _MonthViewState extends State<_MonthView> {
           currencyFmt: widget.currencyFmt,
           dismissOffset: widget.dismissOffset,
           onDismissEnd: widget.onDismissEnd,
+          isDismissing: widget.isDismissing,
           onPrev: page == 0
               ? null
               : () => _pageController.previousPage(
@@ -349,6 +369,7 @@ class _MonthPageContent extends StatefulWidget {
   final NumberFormat currencyFmt;
   final ValueNotifier<double> dismissOffset;
   final VoidCallback onDismissEnd;
+  final bool Function() isDismissing;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
 
@@ -358,6 +379,7 @@ class _MonthPageContent extends StatefulWidget {
     required this.currencyFmt,
     required this.dismissOffset,
     required this.onDismissEnd,
+    required this.isDismissing,
     required this.onPrev,
     required this.onNext,
   });
@@ -419,6 +441,7 @@ class _MonthPageContentState extends State<_MonthPageContent> {
       children: [
         Listener(
           onPointerMove: (e) {
+            if (widget.isDismissing()) return;
             if (_scrollController.hasClients &&
                 _scrollController.position.pixels <= 0 &&
                 e.delta.dy > 0) {
@@ -430,10 +453,12 @@ class _MonthPageContentState extends State<_MonthPageContent> {
             }
           },
           onPointerUp: (_) {
+            if (widget.isDismissing()) return;
             widget.onDismissEnd();
             _pullDistance = 0;
           },
           onPointerCancel: (_) {
+            if (widget.isDismissing()) return;
             _pullDistance = 0;
             widget.dismissOffset.value = 0;
           },
@@ -509,10 +534,12 @@ class _WeekView extends StatefulWidget {
   final NumberFormat currencyFmt;
   final ValueNotifier<double> dismissOffset;
   final VoidCallback onDismissEnd;
+  final bool Function() isDismissing;
   const _WeekView({
     required this.currencyFmt,
     required this.dismissOffset,
     required this.onDismissEnd,
+    required this.isDismissing,
   });
 
   @override
@@ -616,6 +643,7 @@ class _WeekViewState extends State<_WeekView> {
                   children: [
                     Listener(
                       onPointerMove: (e) {
+                        if (widget.isDismissing()) return;
                         if (_scrollController.hasClients &&
                             _scrollController.position.pixels <= 0 &&
                             e.delta.dy > 0) {
@@ -627,10 +655,12 @@ class _WeekViewState extends State<_WeekView> {
                         }
                       },
                       onPointerUp: (_) {
+                        if (widget.isDismissing()) return;
                         widget.onDismissEnd();
                         _pullDistance = 0;
                       },
                       onPointerCancel: (_) {
+                        if (widget.isDismissing()) return;
                         _pullDistance = 0;
                         widget.dismissOffset.value = 0;
                       },
@@ -707,10 +737,12 @@ class _YearView extends StatefulWidget {
   final NumberFormat currencyFmt;
   final ValueNotifier<double> dismissOffset;
   final VoidCallback onDismissEnd;
+  final bool Function() isDismissing;
   const _YearView({
     required this.currencyFmt,
     required this.dismissOffset,
     required this.onDismissEnd,
+    required this.isDismissing,
   });
 
   @override
@@ -785,6 +817,7 @@ class _YearViewState extends State<_YearView> {
                   children: [
                     Listener(
                       onPointerMove: (e) {
+                        if (widget.isDismissing()) return;
                         if (_scrollController.hasClients &&
                             _scrollController.position.pixels <= 0 &&
                             e.delta.dy > 0) {
@@ -796,10 +829,12 @@ class _YearViewState extends State<_YearView> {
                         }
                       },
                       onPointerUp: (_) {
+                        if (widget.isDismissing()) return;
                         widget.onDismissEnd();
                         _pullDistance = 0;
                       },
                       onPointerCancel: (_) {
+                        if (widget.isDismissing()) return;
                         _pullDistance = 0;
                         widget.dismissOffset.value = 0;
                       },

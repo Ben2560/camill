@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/camill_colors.dart';
@@ -52,10 +53,7 @@ class _ReportScreenState extends State<ReportScreen>
     if (_dismissOffset.value >= limit) {
       _isDismissing = true;
       _dismissOffset.removeListener(_onOffsetChanged);
-      _dismissOffset.value = limit;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context, rootNavigator: false).pop();
-      });
+      _beginDismiss();
     }
   }
 
@@ -64,10 +62,18 @@ class _ReportScreenState extends State<ReportScreen>
     final sh = MediaQuery.of(context).size.height;
     if (_dismissOffset.value > sh * 0.20) {
       _isDismissing = true;
-      Navigator.of(context, rootNavigator: false).pop();
+      _beginDismiss();
     } else {
       _snapBack();
     }
+  }
+
+  void _beginDismiss() {
+    _snapController.duration = const Duration(milliseconds: 200);
+    _snapController.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) Navigator.of(context, rootNavigator: false).pop();
+    });
   }
 
   void _snapBack() {
@@ -127,9 +133,17 @@ class _ReportScreenState extends State<ReportScreen>
     final sh = MediaQuery.of(context).size.height;
 
     return AnimatedBuilder(
-      animation: _dismissOffset,
+      animation: Listenable.merge([_dismissOffset, _snapController]),
       builder: (ctx, child) {
         final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        final blur = _isDismissing ? _snapController.value * 12.0 : 0.0;
+        Widget content = child!;
+        if (blur > 0.1) {
+          content = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: content,
+          );
+        }
         return Stack(
           children: [
             Container(color: colors.background),
@@ -143,7 +157,7 @@ class _ReportScreenState extends State<ReportScreen>
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(progress * 22.0),
                   ),
-                  child: child,
+                  child: content,
                 ),
               ),
             ),
@@ -174,6 +188,7 @@ class _ReportScreenState extends State<ReportScreen>
               month: month.month,
               dismissOffset: _dismissOffset,
               onDismissEnd: endDismiss,
+              isDismissing: () => _isDismissing,
             );
           },
         ),
@@ -189,12 +204,14 @@ class _ReportPage extends StatefulWidget {
   final int month;
   final ValueNotifier<double> dismissOffset;
   final VoidCallback onDismissEnd;
+  final bool Function() isDismissing;
   const _ReportPage({
     super.key,
     required this.year,
     required this.month,
     required this.dismissOffset,
     required this.onDismissEnd,
+    required this.isDismissing,
   });
 
   @override
@@ -247,6 +264,7 @@ class _ReportPageState extends State<_ReportPage> {
           if (_report != null)
             Listener(
               onPointerMove: (e) {
+                if (widget.isDismissing()) return;
                 if (_scrollController.hasClients &&
                     _scrollController.position.pixels <= 0 &&
                     e.delta.dy > 0) {
@@ -258,10 +276,12 @@ class _ReportPageState extends State<_ReportPage> {
                 }
               },
               onPointerUp: (_) {
+                if (widget.isDismissing()) return;
                 widget.onDismissEnd();
                 _pullDistance = 0;
               },
               onPointerCancel: (_) {
+                if (widget.isDismissing()) return;
                 _pullDistance = 0;
                 widget.dismissOffset.value = 0;
               },

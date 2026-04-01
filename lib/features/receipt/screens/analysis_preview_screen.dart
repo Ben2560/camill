@@ -3,7 +3,6 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
@@ -12,6 +11,7 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 import '../../bill/services/bill_service.dart';
 import '../../community/services/community_service.dart';
+import '../../calendar/screens/calendar_screen.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../services/receipt_service.dart';
 
@@ -64,7 +64,12 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         return;
       }
     }
-    if (mounted) context.go('/');
+    if (mounted) {
+      if (_visibleAnalyses.any((a) => a.isBill)) {
+        CalendarScreen.billRefreshSignal.value++;
+      }
+      context.go('/');
+    }
   }
 
   @override
@@ -153,7 +158,11 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                       )
                     : Icon(Icons.save_outlined, color: colors.fabIcon),
                 label: Text(
-                  count > 1 ? '全$count件を登録' : 'このレシートを登録',
+                  count > 1
+                      ? '全$count件を登録'
+                      : (_visibleAnalyses.first.isBill
+                          ? 'この請求書を登録'
+                          : 'このレシートを登録'),
                   style: camillBodyStyle(16, colors.fabIcon),
                 ),
               ),
@@ -193,13 +202,13 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
   late bool _taxFromReceipt;
   late List<CouponDetected> _coupons;
   late List<bool> _couponIncluded;
-  late List<LinePromotion> _linePromotions;
   late List<bool> _shareToComm;
   late bool _isMedical;
   late int _totalPoints;
   late double _burdenRate;
   late bool _isBill;
   DateTime? _billDueDate;
+  late String _billStatus; // 'paid' | 'unpaid'
 
   final _memoCtrl = TextEditingController();
   final _memoFocus = FocusNode();
@@ -250,6 +259,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
     _burdenRate = widget.analysis.burdenRate ?? 0.0;
     _isBill = widget.analysis.isBill;
     _billDueDate = widget.analysis.billDueDate;
+    _billStatus = widget.analysis.billStatus;
     if (_isMedical) {
       if (_receiptCategory == null) {
         _receiptCategory = 'medical';
@@ -272,7 +282,6 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
     }).toList();
     _couponIncluded = List.filled(_coupons.length, true, growable: true);
     _shareToComm = List.filled(_coupons.length, false, growable: true);
-    _linePromotions = List.from(widget.analysis.linePromotions);
     _memoCtrl.addListener(_onMemoChanged);
     _memoFocus.addListener(() {
       if (!_memoFocus.hasFocus && _memoEditing) {
@@ -340,17 +349,18 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
       memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
     );
     try {
-      final receiptId = await _receiptService.saveReceipt(updated);
       if (_isBill) {
-        try {
-          await _billService.createBill(
-            title: _storeName,
-            amount: _totalAmount,
-            dueDate: _billDueDate?.toIso8601String(),
-            category: _receiptCategory ?? _autoCategory,
-          );
-        } catch (_) {}
+        // 請求書はレシートテーブルに保存しない（二重計上防止）
+        await _billService.createBill(
+          title: _storeName,
+          amount: _totalAmount,
+          dueDate: _billDueDate?.toLocal().toIso8601String(),
+          status: _billStatus,
+          category: _receiptCategory ?? _autoCategory,
+        );
+        return true;
       }
+      final receiptId = await _receiptService.saveReceipt(updated);
       for (int i = 0; i < _coupons.length; i++) {
         if (!_couponIncluded[i]) continue;
         final c = _coupons[i];
@@ -620,6 +630,70 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
         time.minute,
       );
     });
+  }
+
+  // ── 請求書支払期限編集 ─────────────────────────────────────
+  Future<void> _editBillDueDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _billDueDate ?? DateTime.now().add(const Duration(days: 14)),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _billDueDate = picked);
+  }
+
+  // ── 請求書支払方法編集（現金・QR・ペイジーのみ） ────────────
+  Future<void> _editBillPaymentMethod() async {
+    final colors = context.colors;
+    const billPaymentOptions = {
+      'cash': '現金',
+      'qr': 'QRコード',
+      'pay_easy': 'ペイジー',
+    };
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sheetHandle(colors),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+              child: Text(
+                '支払方法',
+                style: camillBodyStyle(17, colors.textPrimary,
+                    weight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...billPaymentOptions.entries.map(
+              (e) => ListTile(
+                title: Text(e.value,
+                    style: camillBodyStyle(15, colors.textPrimary)),
+                leading: Icon(
+                  _paymentMethod == e.key
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: _paymentMethod == e.key
+                      ? colors.primary
+                      : colors.textMuted,
+                ),
+                onTap: () {
+                  setState(() => _paymentMethod = e.key);
+                  Navigator.pop(ctx);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── 支払方法編集 ───────────────────────────────────────────
@@ -1183,6 +1257,61 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
     );
   }
 
+  // ── 請求金額編集 ───────────────────────────────────────────────
+  Future<void> _editTotalAmount() async {
+    final colors = context.colors;
+    final ctrl = TextEditingController(text: _totalAmount.toString());
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => AnimatedPadding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sheetHandle(colors),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Icon(Icons.description_outlined,
+                      color: colors.primary, size: 22),
+                  const SizedBox(width: 10),
+                  Text(
+                    '請求金額',
+                    style: camillBodyStyle(17, colors.textPrimary,
+                        weight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _numberInputField(ctrl: ctrl, colors: colors),
+            ),
+            const SizedBox(height: 20),
+            _saveButton(
+              colors: colors,
+              onPressed: () {
+                setState(() =>
+                    _totalAmount = int.tryParse(ctrl.text) ?? _totalAmount);
+                Navigator.pop(ctx);
+              },
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── 消費税編集 ─────────────────────────────────────────────────
   Future<void> _editTax() async {
     final colors = context.colors;
@@ -1409,50 +1538,145 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
             child: Column(
               children: [
                 _EditableInfoRow(
-                  label: '店名',
+                  label: _isBill ? '支払先' : '店名',
                   value: _storeName,
-                  icon: Icons.store_outlined,
+                  icon: _isBill
+                      ? Icons.account_balance_outlined
+                      : Icons.store_outlined,
                   colors: colors,
                   onTap: _editStoreName,
                 ),
                 Divider(height: 20, color: colors.surfaceBorder),
-                _EditableInfoRow(
-                  label: _isMedical ? '来院日時' : '購入日時',
-                  value: purchasedAt != null
-                      ? (_isMedical &&
-                              purchasedAt.hour == 0 &&
-                              purchasedAt.minute == 0)
-                          ? DateFormat('yyyy年M月d日').format(purchasedAt)
-                          : DateFormat('yyyy年M月d日 HH:mm').format(purchasedAt)
-                      : widget.analysis.purchasedAt,
-                  icon: Icons.calendar_today_outlined,
-                  colors: colors,
-                  onTap: _editDateTime,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0, 0.15),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                          parent: animation, curve: Curves.easeOut)),
+                      child: child,
+                    ),
+                  ),
+                  child: _EditableInfoRow(
+                    key: ValueKey(_isBill ? _billStatus : 'normal'),
+                    label: _isBill
+                        ? (_billStatus == 'paid' ? '支払日時' : '支払期限')
+                        : (_isMedical ? '来院日時' : '購入日時'),
+                    value: _isBill
+                        ? (_billDueDate != null
+                            ? DateFormat('yyyy年M月d日')
+                                .format(_billDueDate!.toLocal())
+                            : '未設定')
+                        : (purchasedAt != null
+                            ? (_isMedical &&
+                                    purchasedAt.hour == 0 &&
+                                    purchasedAt.minute == 0)
+                                ? DateFormat('yyyy年M月d日').format(purchasedAt)
+                                : DateFormat('yyyy年M月d日 HH:mm')
+                                    .format(purchasedAt)
+                            : widget.analysis.purchasedAt),
+                    icon: Icons.calendar_today_outlined,
+                    colors: colors,
+                    onTap: _isBill ? _editBillDueDate : _editDateTime,
+                  ),
                 ),
-                Divider(height: 20, color: colors.surfaceBorder),
-                _EditableInfoRow(
-                  label: '支払方法',
-                  value: AppConstants.paymentLabels[_paymentMethod] ??
-                      _paymentMethod,
-                  icon: Icons.payment_outlined,
-                  colors: colors,
-                  onTap: _editPaymentMethod,
-                ),
-                Divider(height: 20, color: colors.surfaceBorder),
-                _EditableInfoRow(
-                  label: 'カテゴリ',
-                  value: AppConstants.categoryLabels[_effectiveCategory] ??
-                      (_effectiveCategory ?? '未設定'),
-                  badge: _categoryIsAuto ? '自動' : null,
-                  icon: Icons.label_outline,
-                  colors: colors,
-                  onTap: _editReceiptCategory,
-                ),
+                if (!_isBill) ...[
+                  Divider(height: 20, color: colors.surfaceBorder),
+                  _EditableInfoRow(
+                    label: '支払方法',
+                    value: AppConstants.paymentLabels[_paymentMethod] ??
+                        _paymentMethod,
+                    icon: Icons.payment_outlined,
+                    colors: colors,
+                    onTap: _editPaymentMethod,
+                  ),
+                ] else
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    transitionBuilder: (child, animation) => SizeTransition(
+                      sizeFactor: CurvedAnimation(
+                          parent: animation, curve: Curves.easeInOut),
+                      axisAlignment: -1,
+                      child: FadeTransition(opacity: animation, child: child),
+                    ),
+                    child: _billStatus == 'paid'
+                        ? Column(
+                            key: const ValueKey('paid'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Divider(
+                                  height: 20, color: colors.surfaceBorder),
+                              _EditableInfoRow(
+                                label: '支払方法',
+                                value: AppConstants
+                                        .paymentLabels[_paymentMethod] ??
+                                    _paymentMethod,
+                                icon: Icons.payment_outlined,
+                                colors: colors,
+                                onTap: _editBillPaymentMethod,
+                              ),
+                            ],
+                          )
+                        : const SizedBox(
+                            key: ValueKey('unpaid'),
+                            width: double.infinity,
+                          ),
+                  ),
+                if (!_isBill) ...[
+                  Divider(height: 20, color: colors.surfaceBorder),
+                  _EditableInfoRow(
+                    label: 'カテゴリ',
+                    value: AppConstants.categoryLabels[_effectiveCategory] ??
+                        (_effectiveCategory ?? '未設定'),
+                    badge: _categoryIsAuto ? '自動' : null,
+                    icon: Icons.label_outline,
+                    colors: colors,
+                    onTap: _editReceiptCategory,
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 12),
-          // ── 品目リスト ──
+          // ── 品目リスト（請求書時は金額のみ表示）──
+          if (_isBill)
+            GestureDetector(
+              onTap: _editTotalAmount,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colors.surfaceBorder),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '請求金額',
+                      style: camillBodyStyle(14, colors.textPrimary,
+                          weight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          _fmt.format(_totalAmount),
+                          style: camillAmountStyle(20, colors.textPrimary),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(Icons.edit_outlined,
+                            size: 14, color: colors.textMuted),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
           Container(
             decoration: BoxDecoration(
               color: colors.surface,
@@ -1593,8 +1817,8 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
               ],
             ),
           ),
-          // ── クーポン（医療時は非表示）──
-          if (!_isMedical) ...[
+          // ── クーポン（医療時・請求書時は非表示）──
+          if (!_isMedical && !_isBill) ...[
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
@@ -1858,107 +2082,12 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
               ),
             ),
           ],
-          // ── LINE公式アカウント誘導 ──
-          if (_linePromotions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: const Color(0xFF06C755).withAlpha(100)),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF06C755),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'L',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'LINE公式アカウント',
-                        style: camillBodyStyle(15, colors.textPrimary,
-                            weight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ..._linePromotions.asMap().entries.map((e) {
-                    final i = e.key;
-                    final p = e.value;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (i > 0)
-                          Divider(height: 16, color: colors.surfaceBorder),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                p.description,
-                                style: camillBodyStyle(
-                                    13, colors.textSecondary),
-                              ),
-                            ),
-                            if (p.lineUrl != null)
-                              GestureDetector(
-                                onTap: () async {
-                                  final uri = Uri.tryParse(p.lineUrl!);
-                                  if (uri != null && await canLaunchUrl(uri)) {
-                                    await launchUrl(uri,
-                                        mode:
-                                            LaunchMode.externalApplication);
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF06C755),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    'LINEで開く',
-                                    style: camillBodyStyle(12, Colors.white,
-                                        weight: FontWeight.w600),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ],
           if (_isBill) ...[
             const SizedBox(height: 12),
             _BillSection(
-              isBill: _isBill,
-              dueDate: _billDueDate,
+              billStatus: _billStatus,
               colors: colors,
-              onToggle: (v) => setState(() => _isBill = v),
-              onPickDate: (d) => setState(() => _billDueDate = d),
+              onStatusChange: (s) => setState(() => _billStatus = s),
             ),
           ],
           const SizedBox(height: 12),
@@ -2115,6 +2244,7 @@ class _EditableInfoRow extends StatelessWidget {
   final VoidCallback onTap;
 
   const _EditableInfoRow({
+    super.key,
     required this.label,
     required this.value,
     this.badge,
@@ -2379,114 +2509,222 @@ class _DatePickerField extends StatelessWidget {
 }
 
 // ── 請求書セクション ───────────────────────────────────────────
-class _BillSection extends StatelessWidget {
-  final bool isBill;
-  final DateTime? dueDate;
+class _BillSection extends StatefulWidget {
+  final String billStatus;
   final CamillColors colors;
-  final void Function(bool) onToggle;
-  final void Function(DateTime?) onPickDate;
+  final void Function(String) onStatusChange;
 
   const _BillSection({
-    required this.isBill,
-    required this.dueDate,
+    required this.billStatus,
     required this.colors,
-    required this.onToggle,
-    required this.onPickDate,
+    required this.onStatusChange,
   });
 
   @override
+  State<_BillSection> createState() => _BillSectionState();
+}
+
+class _BillSectionState extends State<_BillSection>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim; // 0.0 = unpaid, 1.0 = paid
+
+  static const _unpaidColor = Color(0xFFE53935); // danger相当
+  static const _paidColor = Color(0xFF43A047);   // green
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+    if (widget.billStatus == 'paid') _ctrl.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(_BillSection old) {
+    super.didUpdateWidget(old);
+    if (old.billStatus != widget.billStatus) {
+      widget.billStatus == 'paid' ? _ctrl.forward() : _ctrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    if (_ctrl.value >= 0.5) {
+      _ctrl.forward();
+      widget.onStatusChange('paid');
+    } else {
+      _ctrl.reverse();
+      widget.onStatusChange('unpaid');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colors = widget.colors;
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color:
-              isBill ? colors.danger.withAlpha(120) : colors.surfaceBorder,
-        ),
+        border: Border.all(color: colors.danger.withAlpha(120)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => onToggle(!isBill),
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.description_outlined,
-                  size: 18,
-                  color: isBill ? colors.danger : colors.textMuted,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '請求書として登録',
+          Row(
+            children: [
+              Icon(Icons.description_outlined, size: 18, color: colors.danger),
+              const SizedBox(width: 8),
+              Text('請求内容',
                   style: camillBodyStyle(15, colors.textPrimary,
-                      weight: FontWeight.bold),
-                ),
-                const Spacer(),
-                Switch(
-                  value: isBill,
-                  onChanged: onToggle,
-                  activeThumbColor: colors.danger,
-                  activeTrackColor: colors.danger.withAlpha(80),
-                ),
-              ],
-            ),
+                      weight: FontWeight.bold)),
+            ],
           ),
-          if (isBill) ...[
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: dueDate ??
-                      DateTime.now().add(const Duration(days: 14)),
-                  firstDate:
-                      DateTime.now().subtract(const Duration(days: 1)),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (picked != null) onPickDate(picked);
+          const SizedBox(height: 12),
+          // ── スライダートグル ──
+          LayoutBuilder(builder: (context, constraints) {
+            final totalWidth = constraints.maxWidth;
+            final halfWidth = totalWidth / 2;
+            return GestureDetector(
+              onTapDown: (d) {
+                if (d.localPosition.dx < halfWidth) {
+                  _ctrl.reverse();
+                  widget.onStatusChange('unpaid');
+                } else {
+                  _ctrl.forward();
+                  widget.onStatusChange('paid');
+                }
               },
-              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (d) {
+                _ctrl.value =
+                    (_ctrl.value + d.delta.dx / halfWidth).clamp(0.0, 1.0);
+              },
+              onHorizontalDragEnd: (_) => _commit(),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 11),
+                height: 40,
                 decoration: BoxDecoration(
                   color: colors.background,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: colors.surfaceBorder),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today_outlined,
-                        size: 15, color: colors.textMuted),
-                    const SizedBox(width: 8),
-                    Text(
-                      dueDate != null
-                          ? '支払期限: ${dueDate!.year}/${dueDate!.month}/${dueDate!.day}'
-                          : '支払期限を選択（任意）',
-                      style: camillBodyStyle(
-                        13,
-                        dueDate != null
-                            ? colors.textPrimary
-                            : colors.textMuted,
-                      ),
-                    ),
-                    if (dueDate != null) ...[
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => onPickDate(null),
-                        child: Icon(Icons.close,
-                            size: 15, color: colors.textMuted),
-                      ),
-                    ],
-                  ],
+                child: AnimatedBuilder(
+                  animation: _anim,
+                  builder: (context, _) {
+                    final t = _anim.value;
+                    final indicatorColor =
+                        Color.lerp(_unpaidColor, _paidColor, t)!
+                            .withAlpha(210);
+                    final leftPos = t * halfWidth;
+                    return Stack(
+                      children: [
+                        // スライドするインジケーター
+                        Positioned(
+                          left: leftPos + 2,
+                          top: 2,
+                          bottom: 2,
+                          width: halfWidth - 4,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: indicatorColor,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: indicatorColor.withAlpha(80),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // ラベル行（インジケーターの上・高さいっぱいに広げる）
+                        Positioned.fill(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.pending_outlined,
+                                        size: 14,
+                                        color: Color.lerp(Colors.white,
+                                            colors.textMuted, t)),
+                                    const SizedBox(width: 4),
+                                    Text('未払い',
+                                        style: camillBodyStyle(
+                                          13,
+                                          Color.lerp(Colors.white,
+                                              colors.textMuted, t)!,
+                                          weight: FontWeight.w600,
+                                        )),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.check_circle_outline,
+                                        size: 14,
+                                        color: Color.lerp(colors.textMuted,
+                                            Colors.white, t)),
+                                    const SizedBox(width: 4),
+                                    Text('支払済み',
+                                        style: camillBodyStyle(
+                                          13,
+                                          Color.lerp(colors.textMuted,
+                                              Colors.white, t)!,
+                                          weight: FontWeight.w600,
+                                        )),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
+            );
+          }),
+          // ── 支払済み検出メッセージ（フェードイン）──
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeInOut,
+            child: AnimatedBuilder(
+              animation: _anim,
+              builder: (context, _) {
+                final opacity = (_anim.value * 2 - 1).clamp(0.0, 1.0);
+                if (opacity <= 0) return const SizedBox(width: double.infinity);
+                return Opacity(
+                  opacity: opacity,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 12, color: colors.textMuted),
+                        const SizedBox(width: 4),
+                        Text('印鑑・支払済みスタンプを検出しました',
+                            style: camillBodyStyle(11, colors.textMuted)),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
+          ),
         ],
       ),
     );

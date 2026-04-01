@@ -66,6 +66,7 @@ class ReceiptService {
         burdenRate: base.burdenRate,
         isBill: base.isBill,
         billDueDate: base.billDueDate,
+        billStatus: base.billStatus,
       );
     }).toList();
   }

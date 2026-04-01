@@ -23,6 +23,9 @@ class CalendarScreen extends StatefulWidget {
   final ValueNotifier<int>? returnToTodayNotifier;
   final ValueNotifier<int>? refreshNotifier;
 
+  /// 外部（登録画面など）からカレンダーのbillリストを更新させるシグナル
+  static final billRefreshSignal = ValueNotifier<int>(0);
+
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
@@ -87,12 +90,14 @@ class _CalendarScreenState extends State<CalendarScreen>
     _loadBills();
     widget.returnToTodayNotifier?.addListener(_onReturnToToday);
     widget.refreshNotifier?.addListener(_onRefresh);
+    CalendarScreen.billRefreshSignal.addListener(_loadBills);
   }
 
   @override
   void dispose() {
     widget.returnToTodayNotifier?.removeListener(_onReturnToToday);
     widget.refreshNotifier?.removeListener(_onRefresh);
+    CalendarScreen.billRefreshSignal.removeListener(_loadBills);
     _transitionController.dispose();
     _slideController.dispose();
     _yearScrollController.dispose();

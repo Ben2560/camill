@@ -14,8 +14,10 @@ import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/camill_card.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
+import '../../bill/services/bill_service.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../../receipt/services/receipt_service.dart';
+import '../../../shared/models/bill_model.dart';
 import '../../receipt/screens/receipt_list_screen.dart';
 import '../../data/screens/data_screen.dart';
 import '../../reports/screens/report_screen.dart';
@@ -43,6 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // 今日使えるクーポン
   final _couponService = CouponService();
   List<Coupon> _todayCoupons = [];
+
+  // 未払い請求書アラート
+  final _billService = BillService();
+  List<Bill> _upcomingBills = [];
 
   // 予算
   int _budget = 80000;
@@ -87,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadWeekStartPref();
     _loadBillingStatus();
     _loadTodayCoupons();
+    _loadUpcomingBills();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routerDelegate = GoRouter.of(context).routerDelegate;
       _routerDelegate.addListener(_onRouteChanged);
@@ -106,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final path = _routerDelegate.currentConfiguration.uri.path;
     if (path == '/' && _prevRoutePath != null && _prevRoutePath != '/') {
       _loadAvailableMonths();
+      _loadUpcomingBills();
     }
     _prevRoutePath = path;
   }
@@ -151,6 +159,19 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       // ホーム画面なのでエラーは無視
     }
+  }
+
+  Future<void> _loadUpcomingBills() async {
+    try {
+      final bills = await _billService.fetchBills(status: 'unpaid');
+      if (!mounted) return;
+      setState(() {
+        _upcomingBills = bills
+            .where((b) => b.dueDate != null)
+            .toList()
+          ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadWeekStartPref() async {
@@ -344,6 +365,87 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(Icons.chevron_right, color: chevronColor, size: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBillAlertBanner(CamillColors colors) {
+    final urgent = _upcomingBills.where((b) => b.isUrgent).toList();
+    final isUrgent = urgent.isNotEmpty;
+    final displayBills = isUrgent ? urgent : _upcomingBills;
+    final bill = displayBills.first;
+    final days = bill.daysUntilDue;
+    final fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
+
+    String subtitle;
+    if (days == 0) {
+      subtitle = '本日が支払い期限です';
+    } else if (days == 1) {
+      subtitle = '明日が支払い期限です';
+    } else {
+      subtitle = 'あと${days}日';
+    }
+    if (displayBills.length > 1) {
+      subtitle += '（他${displayBills.length - 1}件）';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isUrgent
+            ? const Color(0xFFE57373).withAlpha(20)
+            : colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isUrgent
+              ? const Color(0xFFE57373).withAlpha(100)
+              : colors.surfaceBorder,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (isUrgent ? const Color(0xFFE57373) : colors.primary)
+                .withAlpha(25),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isUrgent
+                ? Icons.warning_amber_rounded
+                : Icons.receipt_long_outlined,
+            color: isUrgent ? const Color(0xFFE57373) : colors.primary,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bill.title,
+                  style: camillBodyStyle(
+                    14,
+                    colors.textPrimary,
+                    weight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${fmt.format(bill.amount)}　$subtitle',
+                  style: camillBodyStyle(
+                    11,
+                    isUrgent ? const Color(0xFFE57373) : colors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -626,6 +728,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           couponBanner: _todayCoupons.isNotEmpty
                               ? _buildTodayCouponBanner(colors)
                               : null,
+                          billBanner: _upcomingBills.isNotEmpty
+                              ? _buildBillAlertBanner(colors)
+                              : null,
                         ),
                       ),
                     // ── ヘッダー境目グラデーションブラー ──────────────
@@ -672,6 +777,7 @@ class _HomeMonthPage extends StatefulWidget {
   final VoidCallback onEnterEditMode;
   final VoidCallback onExitEditMode;
   final Widget? couponBanner;
+  final Widget? billBanner;
 
   const _HomeMonthPage({
     super.key,
@@ -689,6 +795,7 @@ class _HomeMonthPage extends StatefulWidget {
     required this.onEnterEditMode,
     required this.onExitEditMode,
     this.couponBanner,
+    this.billBanner,
   });
 
   @override
@@ -2357,6 +2464,20 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             ),
           ),
           if (_summary != null) ...[
+            if (widget.billBanner != null) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: _buildSectionHeader('未払い請求書', colors),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: widget.billBanner,
+                ),
+              ),
+            ],
             if (widget.couponBanner != null) ...[
               SliverToBoxAdapter(
                 child: Padding(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // FastAPI base URL (localhost for development)
-  static const String apiBaseUrl = 'http://172.20.10.10:8000/v1';
+  static const String apiBaseUrl = 'http://192.168.2.101:8000/v1';
 
   // Category labels (Japanese)
   static const Map<String, String> categoryLabels = {
@@ -46,6 +46,7 @@ class AppConstants {
     'credit': 'クレカ',
     'ic': 'IC/電子マネー',
     'qr': 'QRコード',
+    'pay_easy': 'ペイジー',
     'other': 'その他',
   };
 }

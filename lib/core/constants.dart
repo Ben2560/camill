@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // FastAPI base URL (localhost for development)
-  static const String apiBaseUrl = 'http://192.168.150.221:8000/v1';
+  static const String apiBaseUrl = 'http://172.20.10.10:8000/v1';
 
   // Category labels (Japanese)
   static const Map<String, String> categoryLabels = {

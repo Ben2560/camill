@@ -8,7 +8,6 @@ import '../../../shared/services/api_service.dart';
 class ReceiptService {
   final _api = ApiService();
 
-  /// 画像を幅1000px・品質75のJPEGに圧縮する
   Future<Uint8List> _compressImage(File imageFile) async {
     final result = await FlutterImageCompress.compressWithFile(
       imageFile.absolute.path,
@@ -17,20 +16,68 @@ class ReceiptService {
       quality: 75,
       format: CompressFormat.jpeg,
     );
-    // 圧縮失敗時はそのまま送信
     return result ?? await imageFile.readAsBytes();
   }
 
-  // 画像を圧縮→Base64エンコードして解析リクエスト
-  Future<ReceiptAnalysis> analyzeReceipt(File imageFile) async {
+  Future<List<ReceiptAnalysis>> analyzeReceipt(File imageFile) async {
     final compressed = await _compressImage(imageFile);
     final base64Image = base64Encode(compressed);
-
     final data = await _api.post('/receipts/analyze', body: {
       'image_base64': 'data:image/jpeg;base64,$base64Image',
       'image_type': 'jpeg',
     });
-    return ReceiptAnalysis.fromJson(data);
+    List<ReceiptAnalysis> receipts;
+    if (data.containsKey('receipts')) {
+      receipts = (data['receipts'] as List<dynamic>)
+          .map((e) => ReceiptAnalysis.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else {
+      receipts = [ReceiptAnalysis.fromJson(data)];
+    }
+    return _mergeReceiptsAndCoupons(receipts);
+  }
+
+  List<ReceiptAnalysis> _mergeReceiptsAndCoupons(List<ReceiptAnalysis> receipts) {
+    if (receipts.length <= 1) return receipts;
+    final groups = <String, List<ReceiptAnalysis>>{};
+    for (final r in receipts) {
+      final key = _mergeKey(r.storeName, r.purchasedAt);
+      groups.putIfAbsent(key, () => []).add(r);
+    }
+    return groups.values.map((group) {
+      if (group.length == 1) return group.first;
+      group.sort((a, b) => b.items.length.compareTo(a.items.length));
+      final base = group.first;
+      final allCoupons = group.expand((r) => r.couponsDetected).toList();
+      final allLinePromos = group.expand((r) => r.linePromotions).toList();
+      return ReceiptAnalysis(
+        storeName: base.storeName,
+        purchasedAt: base.purchasedAt,
+        totalAmount: base.totalAmount,
+        taxAmount: base.taxAmount,
+        paymentMethod: base.paymentMethod,
+        category: base.category,
+        items: base.items,
+        couponsDetected: allCoupons,
+        linePromotions: allLinePromos,
+        duplicateCheckHash: base.duplicateCheckHash,
+        isMedical: base.isMedical,
+        totalPoints: base.totalPoints,
+        burdenRate: base.burdenRate,
+        isBill: base.isBill,
+        billDueDate: base.billDueDate,
+      );
+    }).toList();
+  }
+
+  String _mergeKey(String storeName, String purchasedAt) {
+    final normalized = storeName.toLowerCase().trim();
+    final dt = DateTime.tryParse(purchasedAt)?.toLocal();
+    if (dt == null) return normalized;
+    final dateStr =
+        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '$normalized|$dateStr';
   }
 
   // 確認済みデータをDBに登録

@@ -138,8 +138,17 @@ final _router = GoRouter(
     GoRoute(
       path: '/receipt-preview',
       builder: (_, state) {
-        final analysis = state.extra as ReceiptAnalysis;
-        return AnalysisPreviewScreen(analysis: analysis);
+        final extra = state.extra;
+        if (extra is ({List<ReceiptAnalysis> analyses, int maxReceipts})) {
+          return AnalysisPreviewScreen(
+            analyses: extra.analyses,
+            maxReceipts: extra.maxReceipts,
+          );
+        }
+        return AnalysisPreviewScreen(
+          analyses: [extra as ReceiptAnalysis],
+          maxReceipts: 1,
+        );
       },
     ),
     GoRoute(

@@ -90,7 +90,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
       duplicateCheckHash: '',
     );
 
-    context.push('/receipt-preview', extra: analysis);
+    context.push('/receipt-preview', extra: (analyses: [analysis], maxReceipts: 1));
   }
 
   @override

@@ -21,6 +21,7 @@ class _CameraScreenState extends State<CameraScreen> {
   final _receiptService = ReceiptService();
   final _api = ApiService();
   bool _loading = false;
+  bool _isPremium = false;
   int _analysisCount = 0;
   int _analysisLimit = 10;
   File? _pendingImage; // 確認待ちの画像（非nullのとき確認画面を表示）
@@ -40,6 +41,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _analysisCount =
             (data['analysis_count_this_month'] as num?)?.toInt() ?? 0;
         _analysisLimit = (data['analysis_limit'] as num?)?.toInt() ?? 10;
+        _isPremium = data['is_premium'] as bool? ?? false;
       });
     } catch (_) {}
   }
@@ -69,9 +71,10 @@ class _CameraScreenState extends State<CameraScreen> {
       _loading = true;
     });
     try {
-      final analysis = await _receiptService.analyzeReceipt(imageFile);
+      final analyses = await _receiptService.analyzeReceipt(imageFile);
+      final maxReceipts = _isPremium ? 5 : 1;
       if (mounted) {
-        context.push('/receipt-preview', extra: analysis);
+        context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
       }
     } catch (e) {
       // silently swallow

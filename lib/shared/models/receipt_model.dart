@@ -100,6 +100,23 @@ class CouponDetected {
       };
 }
 
+class LinePromotion {
+  final String description;
+  final String? lineUrl; // QRコードから読み取ったURL（null = QRのみで解析不可）
+
+  LinePromotion({required this.description, this.lineUrl});
+
+  factory LinePromotion.fromJson(Map<String, dynamic> json) => LinePromotion(
+        description: json['description'] as String,
+        lineUrl: json['line_url'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'description': description,
+        if (lineUrl != null) 'line_url': lineUrl,
+      };
+}
+
 class ReceiptAnalysis {
   final String storeName;
   final String purchasedAt;
@@ -109,6 +126,7 @@ class ReceiptAnalysis {
   final String? category;
   final List<ReceiptItem> items;
   final List<CouponDetected> couponsDetected;
+  final List<LinePromotion> linePromotions;
   final String duplicateCheckHash;
   final bool isMedical;
   final int? totalPoints; // 医療レシートの場合の合計点数
@@ -126,6 +144,7 @@ class ReceiptAnalysis {
     this.category,
     required this.items,
     required this.couponsDetected,
+    this.linePromotions = const [],
     required this.duplicateCheckHash,
     this.isMedical = false,
     this.totalPoints,
@@ -150,6 +169,9 @@ class ReceiptAnalysis {
         couponsDetected: (json['coupons_detected'] as List<dynamic>? ?? [])
             .map((e) => CouponDetected.fromJson(e as Map<String, dynamic>))
             .toList(),
+        linePromotions: (json['line_promotions'] as List<dynamic>? ?? [])
+            .map((e) => LinePromotion.fromJson(e as Map<String, dynamic>))
+            .toList(),
         duplicateCheckHash: json['duplicate_check_hash'] as String? ?? '',
         isMedical: json['is_medical'] as bool? ?? false,
         totalPoints: (json['total_points'] as num?)?.toInt(),
@@ -170,6 +192,7 @@ class ReceiptAnalysis {
         if (category != null) 'category': category,
         'items': items.map((e) => e.toJson()).toList(),
         'coupons_detected': couponsDetected.map((e) => e.toJson()).toList(),
+        'line_promotions': linePromotions.map((e) => e.toJson()).toList(),
         'duplicate_check_hash': duplicateCheckHash,
         'is_medical': isMedical,
         if (totalPoints != null) 'total_points': totalPoints,

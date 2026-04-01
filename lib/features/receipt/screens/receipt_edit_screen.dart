@@ -128,8 +128,8 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
       final items = _items.map((e) {
         final amt = int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0;
         return {
-          'item_name': e.nameCtrl.text,
-          'item_name_raw': e.nameCtrl.text,
+          'item_name': e.nameCtrl.text.trim().isEmpty ? _ItemEntry._unknown : e.nameCtrl.text.trim(),
+          'item_name_raw': e.nameCtrl.text.trim().isEmpty ? _ItemEntry._unknown : e.nameCtrl.text.trim(),
           'category': e.category,
           'unit_price': amt,
           'quantity': 1,
@@ -347,9 +347,12 @@ class _ItemEntry {
 
   _ItemEntry({this.category = 'food'});
 
+  static const _unknown = '不明';
+  static const _unknownVariants = {'不明', '商品不明'};
+
   factory _ItemEntry.fromReceiptItem(ReceiptItem item) {
     final e = _ItemEntry(category: item.category);
-    e.nameCtrl.text = item.itemName;
+    e.nameCtrl.text = _unknownVariants.contains(item.itemName) ? '' : item.itemName;
     e.priceCtrl.text = item.amount.toString();
     return e;
   }
@@ -410,10 +413,11 @@ class _ItemRow extends StatelessWidget {
                   flex: 3,
                   child: TextFormField(
                     controller: entry.nameCtrl,
-                    decoration:
-                        const InputDecoration(labelText: '商品名', isDense: true),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? '商品名を入力' : null,
+                    decoration: const InputDecoration(
+                      labelText: '商品名',
+                      hintText: _ItemEntry._unknown,
+                      isDense: true,
+                    ),
                     onChanged: (_) => onChanged(),
                   ),
                 ),

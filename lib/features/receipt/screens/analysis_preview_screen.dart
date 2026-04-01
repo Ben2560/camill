@@ -3,6 +3,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
@@ -42,6 +43,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   late bool _taxFromReceipt;
   late List<CouponDetected> _coupons;
   late List<bool> _couponIncluded;
+  late List<LinePromotion> _linePromotions;
   late List<bool> _shareToComm;
   late bool _isMedical;
   late int _totalPoints;
@@ -70,7 +72,22 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   @override
   void initState() {
     super.initState();
-    _items = widget.analysis.items.where((item) => item.amount > 0).toList();
+    _items = widget.analysis.items.where((item) => item.amount > 0).expand((
+      item,
+    ) {
+      if (item.quantity <= 1) return [item];
+      // unit_price が正しければそれを、なければ合計÷個数で算出
+      final perUnit =
+          (item.unitPrice > 0 && item.unitPrice * item.quantity == item.amount)
+          ? item.unitPrice
+          : item.amount ~/ item.quantity;
+      final unit = item.copyWith(
+        quantity: 1,
+        unitPrice: perUnit,
+        amount: perUnit,
+      );
+      return List.filled(item.quantity, unit);
+    }).toList();
     _storeName = widget.analysis.storeName;
     _purchasedAt = DateTime.tryParse(widget.analysis.purchasedAt)?.toLocal();
     _paymentMethod = widget.analysis.paymentMethod;
@@ -110,6 +127,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     }).toList();
     _couponIncluded = List.filled(_coupons.length, true, growable: true);
     _shareToComm = List.filled(_coupons.length, false, growable: true);
+    _linePromotions = List.from(widget.analysis.linePromotions);
     _memoCtrl.addListener(_onMemoChanged);
     _memoFocus.addListener(() {
       if (!_memoFocus.hasFocus && _memoEditing) {
@@ -127,7 +145,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   }
 
   void _onMemoChanged() {
-    final lineCount = _memoCtrl.text.isEmpty ? 0 : _memoCtrl.text.split('\n').length;
+    final lineCount = _memoCtrl.text.isEmpty
+        ? 0
+        : _memoCtrl.text.split('\n').length;
     final needed = (lineCount + 1).clamp(6, 9999);
     if (needed > _memoMinLines) {
       setState(() => _memoMinLines = needed);
@@ -136,11 +156,16 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
 
   static bool _isConvenienceStore(String name) {
     const keywords = [
-      'セブンイレブン', 'セブン-イレブン', '7-eleven', '7eleven',
-      'ファミリーマート', 'ファミマ',
+      'セブンイレブン',
+      'セブン-イレブン',
+      '7-eleven',
+      '7eleven',
+      'ファミリーマート',
+      'ファミマ',
       'ローソン',
       'ミニストップ',
-      'デイリーヤマザキ', 'ヤマザキデイリー',
+      'デイリーヤマザキ',
+      'ヤマザキデイリー',
       'セイコーマート',
     ];
     final lower = name.toLowerCase();
@@ -216,7 +241,8 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         String? existingId;
         try {
           final purchasedAt =
-              _purchasedAt ?? DateTime.parse(widget.analysis.purchasedAt).toLocal();
+              _purchasedAt ??
+              DateTime.parse(widget.analysis.purchasedAt).toLocal();
           final yearMonth = DateFormat('yyyy-MM').format(purchasedAt);
           final receipts = await _receiptService.getReceipts(yearMonth);
           final match = receipts.where((r) {
@@ -306,9 +332,14 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('すでに登録済みです',
-            style: camillBodyStyle(16, colors.textPrimary,
-                weight: FontWeight.w700)),
+        title: Text(
+          'すでに登録済みです',
+          style: camillBodyStyle(
+            16,
+            colors.textPrimary,
+            weight: FontWeight.w700,
+          ),
+        ),
         content: Text(
           'このレシートはすでに登録されています。\n上書きして再登録しますか？',
           style: camillBodyStyle(14, colors.textSecondary),
@@ -316,14 +347,18 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('キャンセル',
-                style: camillBodyStyle(14, colors.textMuted)),
+            child: Text('キャンセル', style: camillBodyStyle(14, colors.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('上書き登録',
-                style: camillBodyStyle(14, colors.primary,
-                    weight: FontWeight.w600)),
+            child: Text(
+              '上書き登録',
+              style: camillBodyStyle(
+                14,
+                colors.primary,
+                weight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -353,15 +388,18 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       );
       // 1. 古いレシートを削除して新しいレシートを作成
-      final newReceiptId =
-          await _receiptService.overwriteReceipt(existingId!, updated);
+      final newReceiptId = await _receiptService.overwriteReceipt(
+        existingId!,
+        updated,
+      );
       // 2. 同店・同説明文の既存クーポンを削除（重複防止）
       if (includedCoupons.isNotEmpty) {
         final existingCoupons = await _couponService.fetchCoupons();
         for (final existing in existingCoupons) {
           if (existing.storeName == _storeName &&
-              includedCoupons
-                  .any((c) => c.description == existing.description)) {
+              includedCoupons.any(
+                (c) => c.description == existing.description,
+              )) {
             try {
               await _couponService.deleteCoupon(existing.couponId);
             } catch (_) {}
@@ -391,8 +429,11 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         }
       }
       if (mounted) {
-        showTopNotification(context, 'レシートを上書き登録しました',
-            backgroundColor: colors.primary);
+        showTopNotification(
+          context,
+          'レシートを上書き登録しました',
+          backgroundColor: colors.primary,
+        );
         context.go('/');
       }
     } catch (e) {
@@ -642,9 +683,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     });
   }
 
-  static const _storageOptions = [
-    '紙クーポン', 'アプリ', 'ポイントカード', 'メール・LINE', 'その他',
-  ];
+  static const _storageOptions = ['紙クーポン', 'アプリ', 'ポイントカード', 'メール・LINE', 'その他'];
 
   void _openCouponSheet({
     required CouponDetected coupon,
@@ -674,7 +713,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => AnimatedPadding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
           child: SingleChildScrollView(
@@ -687,15 +728,25 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      Text('クーポンを編集',
-                          style: camillBodyStyle(17, colors.textPrimary,
-                              weight: FontWeight.w700)),
+                      Text(
+                        'クーポンを編集',
+                        style: camillBodyStyle(
+                          17,
+                          colors.textPrimary,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
                       const Spacer(),
                       if (onDelete != null)
                         GestureDetector(
-                          onTap: () { Navigator.pop(ctx); onDelete(); },
-                          child: Text('削除',
-                              style: camillBodyStyle(14, const Color(0xFFFF3B30))),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            onDelete();
+                          },
+                          child: Text(
+                            '削除',
+                            style: camillBodyStyle(14, const Color(0xFFFF3B30)),
+                          ),
                         ),
                     ],
                   ),
@@ -707,7 +758,10 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                   child: _labeledField(
                     label: '品目（クーポン名・内容）',
                     child: _textInputField(
-                        ctrl: descCtrl, hint: 'クーポンの内容を入力', colors: colors),
+                      ctrl: descCtrl,
+                      hint: 'クーポンの内容を入力',
+                      colors: colors,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -726,10 +780,13 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
-                              onTap: () => setSheet(() => discountUnit = entry.$1),
+                              onTap: () =>
+                                  setSheet(() => discountUnit = entry.$1),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 7),
+                                  horizontal: 16,
+                                  vertical: 7,
+                                ),
                                 decoration: BoxDecoration(
                                   color: discountUnit == entry.$1
                                       ? colors.primary
@@ -767,9 +824,13 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
                               child: _labeledField(
-                                label: discountUnit == 'percent' ? '割引率（%）' : '値引き額',
+                                label: discountUnit == 'percent'
+                                    ? '割引率（%）'
+                                    : '値引き額',
                                 child: _numberInputField(
                                   ctrl: amtCtrl,
                                   colors: colors,
@@ -801,7 +862,10 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text('〜', style: camillBodyStyle(14, colors.textMuted)),
+                          child: Text(
+                            '〜',
+                            style: camillBodyStyle(14, colors.textMuted),
+                          ),
                         ),
                         Expanded(
                           child: _DatePickerField(
@@ -829,15 +893,16 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                       children: _storageOptions.map((opt) {
                         final selected = storageLocation == opt;
                         return GestureDetector(
-                          onTap: () => setSheet(() =>
-                              storageLocation = selected ? null : opt),
+                          onTap: () => setSheet(
+                            () => storageLocation = selected ? null : opt,
+                          ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 7),
+                              horizontal: 14,
+                              vertical: 7,
+                            ),
                             decoration: BoxDecoration(
-                              color: selected
-                                  ? colors.primary
-                                  : colors.surface,
+                              color: selected ? colors.primary : colors.surface,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: selected
@@ -848,10 +913,11 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                             child: Text(
                               opt,
                               style: camillBodyStyle(
-                                  13,
-                                  selected
-                                      ? colors.fabIcon
-                                      : colors.textSecondary),
+                                13,
+                                selected
+                                    ? colors.fabIcon
+                                    : colors.textSecondary,
+                              ),
                             ),
                           ),
                         );
@@ -865,16 +931,18 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                   onPressed: () {
                     final desc = descCtrl.text.trim();
                     if (desc.isEmpty) return;
-                    onSave(CouponDetected(
-                      description: desc,
-                      discountAmount: discountUnit == 'free'
-                          ? 0
-                          : int.tryParse(amtCtrl.text) ?? 0,
-                      discountUnit: discountUnit,
-                      validFrom: _fmtCouponDate(validFrom),
-                      validUntil: _fmtCouponDate(validUntil),
-                      storageLocation: storageLocation,
-                    ));
+                    onSave(
+                      CouponDetected(
+                        description: desc,
+                        discountAmount: discountUnit == 'free'
+                            ? 0
+                            : int.tryParse(amtCtrl.text) ?? 0,
+                        discountUnit: discountUnit,
+                        validFrom: _fmtCouponDate(validFrom),
+                        validUntil: _fmtCouponDate(validUntil),
+                        storageLocation: storageLocation,
+                      ),
+                    );
                     Navigator.pop(ctx);
                   },
                 ),
@@ -893,7 +961,11 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     required VoidCallback? onDelete,
   }) {
     final colors = context.colors;
-    final nameCtrl = TextEditingController(text: item.itemName);
+    const unknown = '不明';
+    const unknownVariants = {'不明', '商品不明'};
+    final nameCtrl = TextEditingController(
+      text: unknownVariants.contains(item.itemName) ? '' : item.itemName,
+    );
     final amtCtrl = TextEditingController(
       text: item.amount > 0 ? item.amount.toString() : '',
     );
@@ -954,7 +1026,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                   label: '品目名',
                   child: _textInputField(
                     ctrl: nameCtrl,
-                    hint: '品目名を入力',
+                    hint: unknown,
                     colors: colors,
                   ),
                 ),
@@ -1026,9 +1098,10 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
               _saveButton(
                 colors: colors,
                 onPressed: () {
-                  final name = nameCtrl.text.trim();
+                  final name = nameCtrl.text.trim().isEmpty
+                      ? unknown  // 空欄のまま保存 → '不明'
+                      : nameCtrl.text.trim();
                   final amt = int.tryParse(amtCtrl.text) ?? 0;
-                  if (name.isEmpty) return;
                   onSave(
                     ReceiptItem(
                       itemName: name,
@@ -1073,12 +1146,20 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 children: [
-                  Icon(Icons.receipt_long_outlined,
-                      color: colors.primary, size: 22),
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    color: colors.primary,
+                    size: 22,
+                  ),
                   const SizedBox(width: 10),
-                  Text('内消費税等',
-                      style: camillBodyStyle(17, colors.textPrimary,
-                          weight: FontWeight.w700)),
+                  Text(
+                    '内消費税等',
+                    style: camillBodyStyle(
+                      17,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1091,7 +1172,9 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
             _saveButton(
               colors: colors,
               onPressed: () {
-                setState(() => _taxAmount = int.tryParse(ctrl.text) ?? _taxAmount);
+                setState(
+                  () => _taxAmount = int.tryParse(ctrl.text) ?? _taxAmount,
+                );
                 Navigator.pop(ctx);
               },
             ),
@@ -1268,557 +1351,805 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // ── ヘッダー情報 ──
-                Container(
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.surfaceBorder),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _EditableInfoRow(
-                        label: '店名',
-                        value: _storeName,
-                        icon: Icons.store_outlined,
-                        colors: colors,
-                        onTap: _editStoreName,
-                      ),
-                      Divider(height: 20, color: colors.surfaceBorder),
-                      _EditableInfoRow(
-                        label: _isMedical ? '来院日時' : '購入日時',
-                        value: purchasedAt != null
-                            ? (_isMedical && purchasedAt.hour == 0 && purchasedAt.minute == 0)
-                                ? DateFormat('yyyy年M月d日').format(purchasedAt)
-                                : DateFormat('yyyy年M月d日 HH:mm').format(purchasedAt)
-                            : widget.analysis.purchasedAt,
-                        icon: Icons.calendar_today_outlined,
-                        colors: colors,
-                        onTap: _editDateTime,
-                      ),
-                      Divider(height: 20, color: colors.surfaceBorder),
-                      _EditableInfoRow(
-                        label: '支払方法',
-                        value:
-                            AppConstants.paymentLabels[_paymentMethod] ??
-                            _paymentMethod,
-                        icon: Icons.payment_outlined,
-                        colors: colors,
-                        onTap: _editPaymentMethod,
-                      ),
-                      Divider(height: 20, color: colors.surfaceBorder),
-                      _EditableInfoRow(
-                        label: 'カテゴリ',
-                        value: AppConstants.categoryLabels[_effectiveCategory] ??
-                            (_effectiveCategory ?? '未設定'),
-                        badge: _categoryIsAuto ? '自動' : null,
-                        icon: Icons.label_outline,
-                        colors: colors,
-                        onTap: _editReceiptCategory,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // ── 品目リスト ──
-                Container(
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.surfaceBorder),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isMedical ? '診療内容' : '品目',
-                        style: camillBodyStyle(
-                          15,
-                          colors.textPrimary,
-                          weight: FontWeight.bold,
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // ── ヘッダー情報 ──
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colors.surfaceBorder),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _EditableInfoRow(
+                          label: '店名',
+                          value: _storeName,
+                          icon: Icons.store_outlined,
+                          colors: colors,
+                          onTap: _editStoreName,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._items.asMap().entries.expand((e) => [
-                        _Swipeable(
-                          onDelete: () => setState(() => _items.removeAt(e.key)),
-                          background: colors.surface,
-                          child: _EditableItemRow(
-                            item: e.value,
-                            fmt: _fmt,
-                            colors: colors,
-                            isMedical: _isMedical,
-                            onTap: () => _editItem(e.key),
+                        Divider(height: 20, color: colors.surfaceBorder),
+                        _EditableInfoRow(
+                          label: _isMedical ? '来院日時' : '購入日時',
+                          value: purchasedAt != null
+                              ? (_isMedical &&
+                                        purchasedAt.hour == 0 &&
+                                        purchasedAt.minute == 0)
+                                    ? DateFormat(
+                                        'yyyy年M月d日',
+                                      ).format(purchasedAt)
+                                    : DateFormat(
+                                        'yyyy年M月d日 HH:mm',
+                                      ).format(purchasedAt)
+                              : widget.analysis.purchasedAt,
+                          icon: Icons.calendar_today_outlined,
+                          colors: colors,
+                          onTap: _editDateTime,
+                        ),
+                        Divider(height: 20, color: colors.surfaceBorder),
+                        _EditableInfoRow(
+                          label: '支払方法',
+                          value:
+                              AppConstants.paymentLabels[_paymentMethod] ??
+                              _paymentMethod,
+                          icon: Icons.payment_outlined,
+                          colors: colors,
+                          onTap: _editPaymentMethod,
+                        ),
+                        Divider(height: 20, color: colors.surfaceBorder),
+                        _EditableInfoRow(
+                          label: 'カテゴリ',
+                          value:
+                              AppConstants.categoryLabels[_effectiveCategory] ??
+                              (_effectiveCategory ?? '未設定'),
+                          badge: _categoryIsAuto ? '自動' : null,
+                          icon: Icons.label_outline,
+                          colors: colors,
+                          onTap: _editReceiptCategory,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ── 品目リスト ──
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colors.surfaceBorder),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isMedical ? '診療内容' : '品目',
+                          style: camillBodyStyle(
+                            15,
+                            colors.textPrimary,
+                            weight: FontWeight.bold,
                           ),
                         ),
-                      ]),
-                      // 品目追加ボタン
-                      GestureDetector(
-                        onTap: _addItem,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.add_circle_outline,
-                                size: 18,
-                                color: colors.primary,
+                        const SizedBox(height: 8),
+                        ..._items.asMap().entries.expand(
+                          (e) => [
+                            _Swipeable(
+                              onDelete: () =>
+                                  setState(() => _items.removeAt(e.key)),
+                              background: colors.surface,
+                              child: _EditableItemRow(
+                                item: e.value,
+                                fmt: _fmt,
+                                colors: colors,
+                                isMedical: _isMedical,
+                                onTap: () => _editItem(e.key),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '品目を追加',
-                                style: camillBodyStyle(13, colors.primary),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ),
-                      if (_taxFromReceipt) ...[
-                        Divider(color: colors.surfaceBorder),
-                        // 消費税行（編集可能）
+                        // 品目追加ボタン
                         GestureDetector(
-                          onTap: () => _editTax(),
-                          behavior: HitTestBehavior.opaque,
+                          onTap: _addItem,
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: [
-                                Icon(Icons.receipt_long_outlined,
-                                    size: 14, color: colors.textMuted),
+                                Icon(
+                                  Icons.add_circle_outline,
+                                  size: 18,
+                                  color: colors.primary,
+                                ),
                                 const SizedBox(width: 6),
-                                Text('内消費税等',
-                                    style: camillBodyStyle(13, colors.textMuted)),
-                                const Spacer(),
-                                Text(_fmt.format(_taxAmount),
-                                    style: camillBodyStyle(
-                                        13, colors.textMuted,
-                                        weight: FontWeight.w500)),
-                                const SizedBox(width: 6),
-                                Icon(Icons.edit_outlined,
-                                    size: 13, color: colors.textMuted),
+                                Text(
+                                  '品目を追加',
+                                  style: camillBodyStyle(13, colors.primary),
+                                ),
                               ],
                             ),
                           ),
                         ),
-                      ],
-                      Divider(color: colors.surfaceBorder),
-                      if (_isMedical) ...[
-                        // 合計点数 + 10割金額
-                        Row(
-                          children: [
-                            Text(
-                              '合計',
-                              style: camillBodyStyle(13, colors.textMuted),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '$_totalPoints点',
-                              style: camillBodyStyle(15, colors.textPrimary,
-                                  weight: FontWeight.w600),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '10割: ${_fmt.format(_totalPoints * 10)}',
-                              style: camillBodyStyle(12, colors.textMuted),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // 負担率
-                        Row(
-                          children: [
-                            Text(
-                              '負担率',
-                              style: camillBodyStyle(13, colors.textMuted),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${(_burdenRate * 10).round()}割負担',
-                              style: camillBodyStyle(13, colors.textSecondary,
-                                  weight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // 実負担額
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '実負担額',
-                              style: camillBodyStyle(14, colors.textPrimary,
-                                  weight: FontWeight.bold),
-                            ),
-                            Text(
-                              _fmt.format(_totalAmount),
-                              style: camillAmountStyle(18, colors.textPrimary),
-                            ),
-                          ],
-                        ),
-                      ] else
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '合計（税込）',
-                              style: camillBodyStyle(
-                                14,
-                                colors.textPrimary,
-                                weight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              _fmt.format(_totalAmount),
-                              style: camillAmountStyle(18, colors.textPrimary),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-                // ── クーポン（医療時は非表示）──
-                if (!_isMedical) ...[
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.surfaceBorder),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'クーポン',
-                        style: camillBodyStyle(15, colors.textPrimary,
-                            weight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._coupons.asMap().entries.expand((e) {
-                        final i = e.key;
-                        final c = e.value;
-                        final unit = c.discountUnit ?? 'yen';
-                        final isFree = c.discountAmount == 0 && unit != 'other';
-                        final isOther = unit == 'free';
-                        final accentColor = isFree || isOther
-                            ? const Color(0xFFD4A017)
-                            : colors.primary;
-
-                        // 有効期間テキスト
-                        String? periodText;
-                        if (c.validFrom != null && c.validUntil != null) {
-                          final f = DateTime.tryParse(c.validFrom!);
-                          final u = DateTime.tryParse(c.validUntil!);
-                          if (f != null && u != null) {
-                            periodText = '${f.month}/${f.day} 〜 ${u.month}/${u.day}';
-                          }
-                        } else if (c.validUntil != null) {
-                          final u = DateTime.tryParse(c.validUntil!);
-                          if (u != null) periodText = '〜 ${u.month}/${u.day}まで';
-                        } else if (c.validFrom != null) {
-                          final f = DateTime.tryParse(c.validFrom!);
-                          if (f != null) periodText = '${f.month}/${f.day}〜';
-                        }
-
-                        return [
-                          if (i > 0) Divider(height: 16, color: colors.surfaceBorder),
-                          _Swipeable(
-                            onDelete: () => _deleteCoupon(i),
-                            background: colors.surface,
-                            child: GestureDetector(
-                              onTap: () => _editCoupon(i),
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        if (_taxFromReceipt) ...[
+                          Divider(color: colors.surfaceBorder),
+                          // 消費税行（編集可能）
+                          GestureDetector(
+                            onTap: () => _editTax(),
+                            behavior: HitTestBehavior.opaque,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
                                 children: [
-                                  // 1行目: チェック + 表示エリア
-                                  Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 28,
-                                        height: 28,
-                                        child: Checkbox(
-                                          value: _couponIncluded[i],
-                                          activeColor: colors.primary,
-                                          visualDensity: VisualDensity.compact,
-                                          onChanged: (v) => setState(
-                                              () => _couponIncluded[i] = v ?? true),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Expanded(
-                                        child: Row(
-                                            children: [
-                                              Icon(
-                                                isFree
-                                                    ? Icons.card_giftcard_outlined
-                                                    : Icons.local_offer_outlined,
-                                                size: 15,
-                                                color: accentColor,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  c.description.isEmpty ? '（未入力）' : c.description,
-                                                  style: camillBodyStyle(14, colors.textPrimary,
-                                                      weight: FontWeight.w500),
-                                                ),
-                                              ),
-                                              Text(
-                                                isOther
-                                                    ? '無料'
-                                                    : isFree
-                                                        ? '無料'
-                                                        : unit == 'percent'
-                                                            ? '${c.discountAmount}%引き'
-                                                            : '${c.discountAmount}円引き',
-                                                style: camillBodyStyle(13, accentColor,
-                                                    weight: FontWeight.w500),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Icon(Icons.chevron_right,
-                                                  size: 16, color: colors.textMuted),
-                                            ],
-                                          ),
-                                      ),
-                                    ],
+                                  Icon(
+                                    Icons.receipt_long_outlined,
+                                    size: 14,
+                                    color: colors.textMuted,
                                   ),
-                                  // 2行目: 有効期間
-                                  if (periodText != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 30, top: 2),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.calendar_today_outlined,
-                                              size: 11, color: colors.textMuted),
-                                          const SizedBox(width: 3),
-                                          Text(periodText,
-                                              style: camillBodyStyle(11, colors.textMuted)),
-                                        ],
-                                      ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '内消費税等',
+                                    style: camillBodyStyle(
+                                      13,
+                                      colors.textMuted,
                                     ),
-                                  // 3行目: 保管場所ドロップダウン ＋ コミュニティ公開
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 30, top: 6),
-                                    child: Row(
-                                      children: [
-                                        IntrinsicWidth(
-                                          child: DecoratedBox(
-                                            decoration: BoxDecoration(
-                                              color: colors.surface,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: colors.surfaceBorder),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String?>(
-                                                value: c.storageLocation,
-                                                isDense: true,
-                                                borderRadius: BorderRadius.circular(8),
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 4),
-                                                style: camillBodyStyle(11, colors.textSecondary),
-                                                hint: Text('保管場所',
-                                                    style: camillBodyStyle(11, colors.textMuted)),
-                                                icon: Icon(Icons.expand_more,
-                                                    size: 14, color: colors.textMuted),
-                                                items: [
-                                                  DropdownMenuItem(
-                                                    value: null,
-                                                    child: Text('未選択',
-                                                        style: camillBodyStyle(11, colors.textMuted)),
-                                                  ),
-                                                  ..._storageOptions.map((opt) =>
-                                                      DropdownMenuItem(
-                                                        value: opt,
-                                                        child: Text(opt,
-                                                            style: camillBodyStyle(
-                                                                11, colors.textSecondary)),
-                                                      )),
-                                                ],
-                                                onChanged: (v) => _updateCouponStorage(i, v),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        if (!_isConvenienceStore(_storeName)) ...[
-                                          const SizedBox(width: 12),
-                                          GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: () => setState(
-                                                () => _shareToComm[i] = !_shareToComm[i]),
-                                            child: Padding(
-                                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                                              child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  _shareToComm[i]
-                                                      ? Icons.people
-                                                      : Icons.people_outline,
-                                                  size: 14,
-                                                  color: _shareToComm[i]
-                                                      ? colors.primary
-                                                      : colors.textMuted,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'コミュニティに公開',
-                                                  style: camillBodyStyle(
-                                                    11,
-                                                    _shareToComm[i]
-                                                        ? colors.primary
-                                                        : colors.textMuted,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Icon(
-                                                  _shareToComm[i]
-                                                      ? Icons.check_circle
-                                                      : Icons.radio_button_unchecked,
-                                                  size: 14,
-                                                  color: _shareToComm[i]
-                                                      ? colors.primary
-                                                      : colors.textMuted,
-                                                ),
-                                              ],
-                                            ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    _fmt.format(_taxAmount),
+                                    style: camillBodyStyle(
+                                      13,
+                                      colors.textMuted,
+                                      weight: FontWeight.w500,
                                     ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    size: 13,
+                                    color: colors.textMuted,
                                   ),
                                 ],
                               ),
                             ),
-                            ),
                           ),
-                        ];
-                      }),
-                      GestureDetector(
-                        onTap: _addCoupon,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Row(
+                        ],
+                        Divider(color: colors.surfaceBorder),
+                        if (_isMedical) ...[
+                          // 合計点数 + 10割金額
+                          Row(
                             children: [
-                              Icon(Icons.add_circle_outline,
-                                  size: 18, color: colors.primary),
+                              Text(
+                                '合計',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
                               const SizedBox(width: 6),
-                              Text('クーポンを追加',
-                                  style: camillBodyStyle(13, colors.primary)),
+                              Text(
+                                '$_totalPoints点',
+                                style: camillBodyStyle(
+                                  15,
+                                  colors.textPrimary,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '10割: ${_fmt.format(_totalPoints * 10)}',
+                                style: camillBodyStyle(12, colors.textMuted),
+                              ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 6),
+                          // 負担率
+                          Row(
+                            children: [
+                              Text(
+                                '負担率',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${(_burdenRate * 10).round()}割負担',
+                                style: camillBodyStyle(
+                                  13,
+                                  colors.textSecondary,
+                                  weight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          // 実負担額
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '実負担額',
+                                style: camillBodyStyle(
+                                  14,
+                                  colors.textPrimary,
+                                  weight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                _fmt.format(_totalAmount),
+                                style: camillAmountStyle(
+                                  18,
+                                  colors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '合計（税込）',
+                                style: camillBodyStyle(
+                                  14,
+                                  colors.textPrimary,
+                                  weight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                _fmt.format(_totalAmount),
+                                style: camillAmountStyle(
+                                  18,
+                                  colors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                  // ── クーポン（医療時は非表示）──
+                  if (!_isMedical) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: colors.surfaceBorder),
                       ),
-                    ],
-                  ),
-                ),
-                ], // end if (!_isMedical)
-                const SizedBox(height: 12),
-                // ── 請求書 ──
-                _BillSection(
-                  isBill: _isBill,
-                  dueDate: _billDueDate,
-                  colors: colors,
-                  onToggle: (v) => setState(() => _isBill = v),
-                  onPickDate: (d) => setState(() => _billDueDate = d),
-                ),
-                const SizedBox(height: 12),
-                // ── メモ ──
-                Container(
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.surfaceBorder),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.notes_outlined, size: 16, color: colors.textMuted),
-                          const SizedBox(width: 6),
                           Text(
-                            'メモ',
-                            style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.bold),
+                            'クーポン',
+                            style: camillBodyStyle(
+                              15,
+                              colors.textPrimary,
+                              weight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ..._coupons.asMap().entries.expand((e) {
+                            final i = e.key;
+                            final c = e.value;
+                            final unit = c.discountUnit ?? 'yen';
+                            final isFree =
+                                c.discountAmount == 0 && unit != 'other';
+                            final isOther = unit == 'free';
+                            final accentColor = isFree || isOther
+                                ? const Color(0xFFD4A017)
+                                : colors.primary;
+
+                            // 有効期間テキスト
+                            String? periodText;
+                            if (c.validFrom != null && c.validUntil != null) {
+                              final f = DateTime.tryParse(c.validFrom!);
+                              final u = DateTime.tryParse(c.validUntil!);
+                              if (f != null && u != null) {
+                                periodText =
+                                    '${f.month}/${f.day} 〜 ${u.month}/${u.day}';
+                              }
+                            } else if (c.validUntil != null) {
+                              final u = DateTime.tryParse(c.validUntil!);
+                              if (u != null) {
+                                periodText = '〜 ${u.month}/${u.day}まで';
+                              }
+                            } else if (c.validFrom != null) {
+                              final f = DateTime.tryParse(c.validFrom!);
+                              if (f != null) {
+                                periodText = '${f.month}/${f.day}〜';
+                              }
+                            }
+
+                            return [
+                              if (i > 0)
+                                Divider(
+                                  height: 16,
+                                  color: colors.surfaceBorder,
+                                ),
+                              _Swipeable(
+                                onDelete: () => _deleteCoupon(i),
+                                background: colors.surface,
+                                child: GestureDetector(
+                                  onTap: () => _editCoupon(i),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // 1行目: チェック + 表示エリア
+                                        Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 28,
+                                              height: 28,
+                                              child: Checkbox(
+                                                value: _couponIncluded[i],
+                                                activeColor: colors.primary,
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                onChanged: (v) => setState(
+                                                  () => _couponIncluded[i] =
+                                                      v ?? true,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 2),
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    isFree
+                                                        ? Icons
+                                                              .card_giftcard_outlined
+                                                        : Icons
+                                                              .local_offer_outlined,
+                                                    size: 15,
+                                                    color: accentColor,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      c.description.isEmpty
+                                                          ? '（未入力）'
+                                                          : c.description,
+                                                      style: camillBodyStyle(
+                                                        14,
+                                                        colors.textPrimary,
+                                                        weight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    isOther
+                                                        ? '無料'
+                                                        : isFree
+                                                        ? '無料'
+                                                        : unit == 'percent'
+                                                        ? '${c.discountAmount}%引き'
+                                                        : '${c.discountAmount}円引き',
+                                                    style: camillBodyStyle(
+                                                      13,
+                                                      accentColor,
+                                                      weight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Icon(
+                                                    Icons.chevron_right,
+                                                    size: 16,
+                                                    color: colors.textMuted,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // 2行目: 有効期間
+                                        if (periodText != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 30,
+                                              top: 2,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_today_outlined,
+                                                  size: 11,
+                                                  color: colors.textMuted,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  periodText,
+                                                  style: camillBodyStyle(
+                                                    11,
+                                                    colors.textMuted,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        // 3行目: 保管場所ドロップダウン ＋ コミュニティ公開
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 30,
+                                            top: 6,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              IntrinsicWidth(
+                                                child: DecoratedBox(
+                                                  decoration: BoxDecoration(
+                                                    color: colors.surface,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    border: Border.all(
+                                                      color:
+                                                          colors.surfaceBorder,
+                                                    ),
+                                                  ),
+                                                  child: DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String?>(
+                                                      value: c.storageLocation,
+                                                      isDense: true,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 4,
+                                                          ),
+                                                      style: camillBodyStyle(
+                                                        11,
+                                                        colors.textSecondary,
+                                                      ),
+                                                      hint: Text(
+                                                        '保管場所',
+                                                        style: camillBodyStyle(
+                                                          11,
+                                                          colors.textMuted,
+                                                        ),
+                                                      ),
+                                                      icon: Icon(
+                                                        Icons.expand_more,
+                                                        size: 14,
+                                                        color: colors.textMuted,
+                                                      ),
+                                                      items: [
+                                                        DropdownMenuItem(
+                                                          value: null,
+                                                          child: Text(
+                                                            '未選択',
+                                                            style:
+                                                                camillBodyStyle(
+                                                                  11,
+                                                                  colors
+                                                                      .textMuted,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        ..._storageOptions.map(
+                                                          (
+                                                            opt,
+                                                          ) => DropdownMenuItem(
+                                                            value: opt,
+                                                            child: Text(
+                                                              opt,
+                                                              style: camillBodyStyle(
+                                                                11,
+                                                                colors
+                                                                    .textSecondary,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                      onChanged: (v) =>
+                                                          _updateCouponStorage(
+                                                            i,
+                                                            v,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (!_isConvenienceStore(
+                                                _storeName,
+                                              )) ...[
+                                                const SizedBox(width: 12),
+                                                GestureDetector(
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onTap: () => setState(
+                                                    () => _shareToComm[i] =
+                                                        !_shareToComm[i],
+                                                  ),
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                          horizontal: 6,
+                                                        ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          _shareToComm[i]
+                                                              ? Icons.people
+                                                              : Icons
+                                                                    .people_outline,
+                                                          size: 14,
+                                                          color: _shareToComm[i]
+                                                              ? colors.primary
+                                                              : colors
+                                                                    .textMuted,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        Text(
+                                                          'コミュニティに公開',
+                                                          style: camillBodyStyle(
+                                                            11,
+                                                            _shareToComm[i]
+                                                                ? colors.primary
+                                                                : colors
+                                                                      .textMuted,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        Icon(
+                                                          _shareToComm[i]
+                                                              ? Icons
+                                                                    .check_circle
+                                                              : Icons
+                                                                    .radio_button_unchecked,
+                                                          size: 14,
+                                                          color: _shareToComm[i]
+                                                              ? colors.primary
+                                                              : colors
+                                                                    .textMuted,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ];
+                          }),
+                          GestureDetector(
+                            onTap: _addCoupon,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.add_circle_outline,
+                                    size: 18,
+                                    color: colors.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'クーポンを追加',
+                                    style: camillBodyStyle(13, colors.primary),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _memoCtrl,
-                        focusNode: _memoFocus,
-                        readOnly: !_memoEditing,
-                        onTap: () {
-                          if (!_memoEditing) {
-                            setState(() => _memoEditing = true);
-                            _memoFocus.requestFocus();
-                          }
-                        },
-                        minLines: _memoMinLines,
-                        maxLines: null,
-                        style: camillBodyStyle(14, colors.textPrimary),
-                        decoration: InputDecoration(
-                          hintText: 'メモを入力...',
-                          hintStyle: camillBodyStyle(14, colors.textMuted),
-                          border: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                    ),
+                  ], // end if (!_isMedical)
+                  // ── LINE公式アカウント誘導 ──
+                  if (_linePromotions.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF06C755).withAlpha(100)),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 80),
-              ],
-            ),
-          ),
-          // ── 登録ボタン ──
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: _saving ? null : _saveReceipt,
-                icon: _saving
-                    ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.fabIcon,
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF06C755),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'L',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'LINE公式アカウント',
+                                style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ..._linePromotions.asMap().entries.map((e) {
+                            final i = e.key;
+                            final p = e.value;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (i > 0) Divider(height: 16, color: colors.surfaceBorder),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        p.description,
+                                        style: camillBodyStyle(13, colors.textSecondary),
+                                      ),
+                                    ),
+                                    if (p.lineUrl != null)
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final uri = Uri.tryParse(p.lineUrl!);
+                                          if (uri != null && await canLaunchUrl(uri)) {
+                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF06C755),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            'LINEで開く',
+                                            style: camillBodyStyle(12, Colors.white, weight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (_isBill) ...[
+                    const SizedBox(height: 12),
+                    // ── 請求書 ──
+                    _BillSection(
+                      isBill: _isBill,
+                      dueDate: _billDueDate,
+                      colors: colors,
+                      onToggle: (v) => setState(() => _isBill = v),
+                      onPickDate: (d) => setState(() => _billDueDate = d),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  // ── メモ ──
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colors.surfaceBorder),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.notes_outlined,
+                              size: 16,
+                              color: colors.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'メモ',
+                              style: camillBodyStyle(
+                                15,
+                                colors.textPrimary,
+                                weight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    : Icon(Icons.save_outlined, color: colors.fabIcon),
-                label: Text(
-                  'このレシートを登録',
-                  style: camillBodyStyle(16, colors.fabIcon),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _memoCtrl,
+                          focusNode: _memoFocus,
+                          readOnly: !_memoEditing,
+                          onTap: () {
+                            if (!_memoEditing) {
+                              setState(() => _memoEditing = true);
+                              _memoFocus.requestFocus();
+                            }
+                          },
+                          minLines: _memoMinLines,
+                          maxLines: null,
+                          style: camillBodyStyle(14, colors.textPrimary),
+                          decoration: InputDecoration(
+                            hintText: 'メモを入力...',
+                            hintStyle: camillBodyStyle(14, colors.textMuted),
+                            border: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 80),
+                ],
+              ),
+            ),
+            // ── 登録ボタン ──
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: _saving ? null : _saveReceipt,
+                  icon: _saving
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.fabIcon,
+                          ),
+                        )
+                      : Icon(Icons.save_outlined, color: colors.fabIcon),
+                  label: Text(
+                    'このレシートを登録',
+                    style: camillBodyStyle(16, colors.fabIcon),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -1845,8 +2176,11 @@ class _SwipeableState extends State<_Swipeable>
   late final AnimationController _ctrl;
 
   static const _openX = -48.0;
-  static const _spring =
-      SpringDescription(mass: 1, stiffness: 400, damping: 22);
+  static const _spring = SpringDescription(
+    mass: 1,
+    stiffness: 400,
+    damping: 22,
+  );
 
   @override
   void initState() {
@@ -1886,8 +2220,11 @@ class _SwipeableState extends State<_Swipeable>
               child: GestureDetector(
                 onTap: widget.onDelete,
                 child: const Center(
-                  child: Icon(Icons.remove_circle,
-                      color: Color(0xFFFF3B30), size: 26),
+                  child: Icon(
+                    Icons.remove_circle,
+                    color: Color(0xFFFF3B30),
+                    size: 26,
+                  ),
                 ),
               ),
             ),
@@ -1897,10 +2234,7 @@ class _SwipeableState extends State<_Swipeable>
                 offset: Offset(_ctrl.value, 0),
                 child: child,
               ),
-              child: ColoredBox(
-                color: widget.background,
-                child: widget.child,
-              ),
+              child: ColoredBox(color: widget.background, child: widget.child),
             ),
           ],
         ),
@@ -1940,7 +2274,11 @@ class _EditableInfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: camillBodyStyle(13, colors.textPrimary, weight: FontWeight.w500),
+              style: camillBodyStyle(
+                13,
+                colors.textPrimary,
+                weight: FontWeight.w500,
+              ),
             ),
           ),
           if (badge != null) ...[
@@ -1950,7 +2288,14 @@ class _EditableInfoRow extends StatelessWidget {
                 color: colors.primaryLight,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(badge!, style: camillBodyStyle(10, colors.primary, weight: FontWeight.w600)),
+              child: Text(
+                badge!,
+                style: camillBodyStyle(
+                  10,
+                  colors.primary,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(width: 6),
           ],
@@ -1981,9 +2326,7 @@ class _EditableItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final catLabel =
         AppConstants.categoryLabels[item.category] ?? item.category;
-    final amountText = isMedical
-        ? '${item.points}点'
-        : '${item.quantity > 1 ? '×${item.quantity}  ' : ''}${fmt.format(item.amount)}';
+    final amountText = isMedical ? '${item.points}点' : fmt.format(item.amount);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -2146,12 +2489,19 @@ class _DatePickerField extends StatelessWidget {
         }
         final time = await showTimePicker(
           context: context,
-          initialTime: hasDate ? TimeOfDay.fromDateTime(date!) : TimeOfDay.now(),
+          initialTime: hasDate
+              ? TimeOfDay.fromDateTime(date!)
+              : TimeOfDay.now(),
         );
-        onPick(DateTime(
-          picked.year, picked.month, picked.day,
-          time?.hour ?? 0, time?.minute ?? 0,
-        ));
+        onPick(
+          DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            time?.hour ?? 0,
+            time?.minute ?? 0,
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -2162,14 +2512,19 @@ class _DatePickerField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 14, color: colors.textMuted),
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 14,
+              color: colors.textMuted,
+            ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 displayText,
                 style: camillBodyStyle(
-                    13, hasDate ? colors.textPrimary : colors.textMuted),
+                  13,
+                  hasDate ? colors.textPrimary : colors.textMuted,
+                ),
               ),
             ),
             if (hasDate)
@@ -2206,7 +2561,9 @@ class _BillSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isBill ? colors.danger.withAlpha(120) : colors.surfaceBorder),
+        border: Border.all(
+          color: isBill ? colors.danger.withAlpha(120) : colors.surfaceBorder,
+        ),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -2217,11 +2574,19 @@ class _BillSection extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                Icon(Icons.description_outlined, size: 18, color: isBill ? colors.danger : colors.textMuted),
+                Icon(
+                  Icons.description_outlined,
+                  size: 18,
+                  color: isBill ? colors.danger : colors.textMuted,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '請求書として登録',
-                  style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.bold),
+                  style: camillBodyStyle(
+                    15,
+                    colors.textPrimary,
+                    weight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 Switch(
@@ -2239,7 +2604,8 @@ class _BillSection extends StatelessWidget {
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: dueDate ?? DateTime.now().add(const Duration(days: 14)),
+                  initialDate:
+                      dueDate ?? DateTime.now().add(const Duration(days: 14)),
                   firstDate: DateTime.now().subtract(const Duration(days: 1)),
                   lastDate: DateTime.now().add(const Duration(days: 365)),
                 );
@@ -2247,7 +2613,10 @@ class _BillSection extends StatelessWidget {
               },
               behavior: HitTestBehavior.opaque,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
                 decoration: BoxDecoration(
                   color: colors.background,
                   borderRadius: BorderRadius.circular(10),
@@ -2255,19 +2624,30 @@ class _BillSection extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 15, color: colors.textMuted),
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 15,
+                      color: colors.textMuted,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       dueDate != null
                           ? '支払期限: ${dueDate!.year}/${dueDate!.month}/${dueDate!.day}'
                           : '支払期限を選択（任意）',
-                      style: camillBodyStyle(13, dueDate != null ? colors.textPrimary : colors.textMuted),
+                      style: camillBodyStyle(
+                        13,
+                        dueDate != null ? colors.textPrimary : colors.textMuted,
+                      ),
                     ),
                     if (dueDate != null) ...[
                       const Spacer(),
                       GestureDetector(
                         onTap: () => onPickDate(null),
-                        child: Icon(Icons.close, size: 15, color: colors.textMuted),
+                        child: Icon(
+                          Icons.close,
+                          size: 15,
+                          color: colors.textMuted,
+                        ),
                       ),
                     ],
                   ],

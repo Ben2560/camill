@@ -18,12 +18,14 @@ class BillService {
     required int amount,
     String? dueDate,
     String status = 'unpaid',
+    String? category,
   }) async {
     final data = await _api.postAny('/bills', body: {
       'title': title,
       'amount': amount,
       'due_date': dueDate,
       'status': status,
+      'category': category,
     });
     return Bill.fromJson(data as Map<String, dynamic>);
   }

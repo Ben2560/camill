@@ -3,7 +3,9 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/camill_colors.dart';
+import '../../shared/widgets/month_greeting_overlay.dart';
 import '../home/screens/home_screen.dart';
 import '../community/screens/community_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
@@ -26,6 +28,8 @@ class _MainShellState extends State<MainShell>
   final _calendarReturnNotifier = ValueNotifier<int>(0);
   final _calendarRefreshNotifier = ValueNotifier<int>(0);
   final _profileRefreshNotifier = ValueNotifier<int>(0);
+  bool _showMonthGreeting = false;
+  int _greetingMonth = 1;
   late AnimationController _animController;
   late CurvedAnimation _slideAnim;
   late CurvedAnimation _fadeAnim;
@@ -63,6 +67,23 @@ class _MainShellState extends State<MainShell>
       ),
     );
     _pageController = PageController();
+    _checkMonthGreeting();
+  }
+
+  Future<void> _checkMonthGreeting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final currentKey = '${now.year}-${now.month}';
+    final lastSeen = prefs.getString('last_month_greeting');
+    if (lastSeen != currentKey) {
+      await prefs.setString('last_month_greeting', currentKey);
+      if (mounted) {
+        setState(() {
+          _showMonthGreeting = true;
+          _greetingMonth = now.month;
+        });
+      }
+    }
   }
 
   @override
@@ -203,6 +224,14 @@ class _MainShellState extends State<MainShell>
             right: 0,
             child: Center(child: _buildCenterFab(colors)),
           ),
+          // 月初グリーティング（最前面）
+          if (_showMonthGreeting)
+            Positioned.fill(
+              child: MonthGreetingOverlay(
+                month: _greetingMonth,
+                onDismiss: () => setState(() => _showMonthGreeting = false),
+              ),
+            ),
         ],
       ),
     );

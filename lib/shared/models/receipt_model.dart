@@ -114,6 +114,8 @@ class ReceiptAnalysis {
   final int? totalPoints; // 医療レシートの場合の合計点数
   final double? burdenRate; // 負担率（例: 0.3）
   final String? memo; // メモ
+  final bool isBill; // 請求書フラグ
+  final DateTime? billDueDate; // 請求書の支払期限
 
   ReceiptAnalysis({
     required this.storeName,
@@ -129,6 +131,8 @@ class ReceiptAnalysis {
     this.totalPoints,
     this.burdenRate,
     this.memo,
+    this.isBill = false,
+    this.billDueDate,
   });
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
@@ -151,6 +155,10 @@ class ReceiptAnalysis {
         totalPoints: (json['total_points'] as num?)?.toInt(),
         burdenRate: (json['burden_rate'] as num?)?.toDouble(),
         memo: json['memo'] as String?,
+        isBill: json['is_bill'] as bool? ?? false,
+        billDueDate: json['bill_due_date'] != null
+            ? DateTime.tryParse(json['bill_due_date'] as String)
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -167,6 +175,8 @@ class ReceiptAnalysis {
         if (totalPoints != null) 'total_points': totalPoints,
         if (burdenRate != null) 'burden_rate': burdenRate,
         if (memo != null && memo!.isNotEmpty) 'memo': memo,
+        'is_bill': isBill,
+        if (billDueDate != null) 'bill_due_date': billDueDate!.toIso8601String(),
       };
 }
 

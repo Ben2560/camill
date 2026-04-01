@@ -9,6 +9,7 @@ import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
+import '../../bill/services/bill_service.dart';
 import '../../community/services/community_service.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../services/receipt_service.dart';
@@ -26,6 +27,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   final _receiptService = ReceiptService();
   final _couponService = CouponService();
   final _communityService = CommunityService();
+  final _billService = BillService();
   final _fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
   bool _saving = false;
 
@@ -44,6 +46,8 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
   late bool _isMedical;
   late int _totalPoints;
   late double _burdenRate;
+  late bool _isBill;
+  DateTime? _billDueDate;
 
   final _memoCtrl = TextEditingController();
   final _memoFocus = FocusNode();
@@ -80,6 +84,8 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     _isMedical = widget.analysis.isMedical;
     _totalPoints = widget.analysis.totalPoints ?? 0;
     _burdenRate = widget.analysis.burdenRate ?? 0.0;
+    _isBill = widget.analysis.isBill;
+    _billDueDate = widget.analysis.billDueDate;
     // 医療レシートのデフォルト補正
     if (_isMedical) {
       if (_receiptCategory == null) {
@@ -167,6 +173,17 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       );
       final receiptId = await _receiptService.saveReceipt(updated);
+      // 請求書として登録
+      if (_isBill) {
+        try {
+          await _billService.createBill(
+            title: _storeName,
+            amount: _totalAmount,
+            dueDate: _billDueDate?.toIso8601String(),
+            category: _receiptCategory ?? _autoCategory,
+          );
+        } catch (_) {}
+      }
       // クーポンを /coupons に個別登録（レシートから検出されたので使用済みとして保存）
       for (int i = 0; i < _coupons.length; i++) {
         if (!_couponIncluded[i]) continue;
@@ -1708,6 +1725,15 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
                 ),
                 ], // end if (!_isMedical)
                 const SizedBox(height: 12),
+                // ── 請求書 ──
+                _BillSection(
+                  isBill: _isBill,
+                  dueDate: _billDueDate,
+                  colors: colors,
+                  onToggle: (v) => setState(() => _isBill = v),
+                  onPickDate: (d) => setState(() => _billDueDate = d),
+                ),
+                const SizedBox(height: 12),
                 // ── メモ ──
                 Container(
                   decoration: BoxDecoration(
@@ -2153,6 +2179,103 @@ class _DatePickerField extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── 請求書セクション ───────────────────────────────────────────
+class _BillSection extends StatelessWidget {
+  final bool isBill;
+  final DateTime? dueDate;
+  final CamillColors colors;
+  final void Function(bool) onToggle;
+  final void Function(DateTime?) onPickDate;
+
+  const _BillSection({
+    required this.isBill,
+    required this.dueDate,
+    required this.colors,
+    required this.onToggle,
+    required this.onPickDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isBill ? colors.danger.withAlpha(120) : colors.surfaceBorder),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => onToggle(!isBill),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                Icon(Icons.description_outlined, size: 18, color: isBill ? colors.danger : colors.textMuted),
+                const SizedBox(width: 8),
+                Text(
+                  '請求書として登録',
+                  style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Switch(
+                  value: isBill,
+                  onChanged: onToggle,
+                  activeThumbColor: colors.danger,
+                  activeTrackColor: colors.danger.withAlpha(80),
+                ),
+              ],
+            ),
+          ),
+          if (isBill) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: dueDate ?? DateTime.now().add(const Duration(days: 14)),
+                  firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) onPickDate(picked);
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.surfaceBorder),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today_outlined, size: 15, color: colors.textMuted),
+                    const SizedBox(width: 8),
+                    Text(
+                      dueDate != null
+                          ? '支払期限: ${dueDate!.year}/${dueDate!.month}/${dueDate!.day}'
+                          : '支払期限を選択（任意）',
+                      style: camillBodyStyle(13, dueDate != null ? colors.textPrimary : colors.textMuted),
+                    ),
+                    if (dueDate != null) ...[
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => onPickDate(null),
+                        child: Icon(Icons.close, size: 15, color: colors.textMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

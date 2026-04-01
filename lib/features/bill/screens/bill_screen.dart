@@ -30,7 +30,7 @@ class _BillScreenState extends State<BillScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _bounceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -74,9 +74,7 @@ class _BillScreenState extends State<BillScreen>
   }
 
   List<Bill> get _unpaid =>
-      _bills.where((b) => b.status == BillStatus.unpaid).toList();
-  List<Bill> get _pending =>
-      _bills.where((b) => b.status == BillStatus.pending).toList();
+      _bills.where((b) => b.status == BillStatus.unpaid || b.status == BillStatus.pending).toList();
   List<Bill> get _paid =>
       _bills.where((b) => b.status == BillStatus.paid).toList();
 
@@ -84,7 +82,7 @@ class _BillScreenState extends State<BillScreen>
     try {
       await _service.payBill(bill.billId);
       await _loadBills();
-      _tabController.animateTo(2);
+      _tabController.animateTo(1);
     } catch (e) {
       // silently swallow
     }
@@ -139,7 +137,6 @@ class _BillScreenState extends State<BillScreen>
             indicatorColor: Colors.white,
             tabs: [
               Tab(text: '未払い (${_unpaid.length})'),
-              Tab(text: '支払中 (${_pending.length})'),
               Tab(text: '支払済み (${_paid.length})'),
             ],
           ),
@@ -176,7 +173,6 @@ class _BillScreenState extends State<BillScreen>
                 controller: _tabController,
                 children: [
                   _BillList(bills: _unpaid, currencyFmt: _currencyFmt, onPaid: _markPaid, onDelete: _deleteBill, emptyMessage: '未払いの請求書はありません'),
-                  _BillList(bills: _pending, currencyFmt: _currencyFmt, onPaid: _markPaid, onDelete: _deleteBill, emptyMessage: '支払中の請求書はありません'),
                   _BillList(bills: _paid, currencyFmt: _currencyFmt, onPaid: null, onDelete: _deleteBill, emptyMessage: '支払済みの請求書はありません'),
                 ],
               ),

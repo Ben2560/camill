@@ -43,9 +43,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   late CurvedAnimation _fadeAnim;
   late Animation<double> _fabScale;
   late AnimationController _fabSpinController;
-  late Animation<double> _fabRotationCW;
-  late Animation<double> _fabRotationCCW;
-  bool _fabSpinCW = true;
+  late Animation<double> _fabRotation;
   late PageController _pageController;
 
   @override
@@ -62,14 +60,16 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
     _fabSpinController = AnimationController(
-      duration: const Duration(milliseconds: 420),
+      duration: const Duration(milliseconds: 520),
+      reverseDuration: const Duration(milliseconds: 480),
       vsync: this,
     );
-    _fabRotationCW = Tween<double>(begin: 0.0, end: 0.5).animate(
-      CurvedAnimation(parent: _fabSpinController, curve: Curves.easeOutQuart),
-    );
-    _fabRotationCCW = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _fabSpinController, curve: Curves.easeOutQuart),
+    _fabRotation = Tween<double>(begin: 0.0, end: 1.125).animate(
+      CurvedAnimation(
+        parent: _fabSpinController,
+        curve: Curves.easeOutQuart,
+        reverseCurve: Curves.easeInQuart,
+      ),
     );
     _fabScale = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(
@@ -126,11 +126,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   void _toggleSpeedDial() {
     if (_speedDialOpen) {
-      setState(() {
-        _speedDialOpen = false;
-        _fabSpinCW = false;
-      });
-      _fabSpinController.forward(from: 0.5);
+      setState(() => _speedDialOpen = false);
+      _fabSpinController.reverse();
       _animController.reverse().then((_) {
         if (mounted) setState(() => _speedDialVisible = false);
       });
@@ -138,9 +135,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
       setState(() {
         _speedDialOpen = true;
         _speedDialVisible = true;
-        _fabSpinCW = true;
       });
-      _fabSpinController.forward(from: 0.0);
+      _fabSpinController.forward();
       _animController.forward();
       _fetchBillingStatus();
     }
@@ -148,11 +144,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   void _closeSpeedDial() {
     if (_speedDialOpen) {
-      setState(() {
-        _speedDialOpen = false;
-        _fabSpinCW = false;
-      });
-      _fabSpinController.forward(from: 0.5);
+      setState(() => _speedDialOpen = false);
+      _fabSpinController.reverse();
       _animController.reverse().then((_) {
         if (mounted) setState(() => _speedDialVisible = false);
       });
@@ -347,7 +340,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
           child: ScaleTransition(
             scale: _fabScale,
             child: RotationTransition(
-              turns: _fabSpinCW ? _fabRotationCW : _fabRotationCCW,
+              turns: _fabRotation,
               child: Icon(Icons.add, color: colors.fabIcon, size: 32),
             ),
           ),

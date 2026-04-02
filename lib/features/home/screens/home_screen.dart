@@ -18,6 +18,7 @@ import '../../bill/services/bill_service.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../../receipt/services/receipt_service.dart';
 import '../../../shared/models/bill_model.dart';
+import '../../bill/screens/bill_screen.dart';
 import '../../receipt/screens/receipt_list_screen.dart';
 import '../../data/screens/data_screen.dart';
 import '../../reports/screens/report_screen.dart';
@@ -49,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // 未払い請求書アラート
   final _billService = BillService();
   List<Bill> _upcomingBills = [];
+  // 請求書一覧（直近5件・ハイライトウィジェット用）
+  List<Bill> _recentBills = [];
 
   // 予算
   int _budget = 80000;
@@ -65,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'compare',
     'recent',
     'tax',
+    'bills',
   ];
   static const _layoutKey = 'home_layout';
   List<String> _homeWidgets = List.from(_allWidgetIds);
@@ -94,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadBillingStatus();
     _loadTodayCoupons();
     _loadUpcomingBills();
+    _loadRecentBills();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routerDelegate = GoRouter.of(context).routerDelegate;
       _routerDelegate.addListener(_onRouteChanged);
@@ -114,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (path == '/' && _prevRoutePath != null && _prevRoutePath != '/') {
       _loadAvailableMonths();
       _loadUpcomingBills();
+      _loadRecentBills();
     }
     _prevRoutePath = path;
   }
@@ -134,6 +140,15 @@ class _HomeScreenState extends State<HomeScreen> {
       months.sort((a, b) => a.compareTo(b));
 
       if (!mounted) return;
+
+      // 月リストが変わっていなければ PageView を再構築しない
+      final changed = months.length != _availableMonths.length ||
+          !months.asMap().entries.every((e) =>
+              e.key < _availableMonths.length &&
+              _availableMonths[e.key].year == e.value.year &&
+              _availableMonths[e.key].month == e.value.month);
+      if (!changed) return;
+
       _pageController.dispose();
       setState(() {
         _availableMonths = months;
@@ -170,6 +185,17 @@ class _HomeScreenState extends State<HomeScreen> {
             .where((b) => b.dueDate != null)
             .toList()
           ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadRecentBills() async {
+    try {
+      final bills = await _billService.fetchBills();
+      if (!mounted) return;
+      bills.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      setState(() {
+        _recentBills = bills.take(5).toList();
       });
     } catch (_) {}
   }
@@ -383,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (days == 1) {
       subtitle = '明日が支払い期限です';
     } else {
-      subtitle = 'あと${days}日';
+      subtitle = 'あと$days日';
     }
     if (displayBills.length > 1) {
       subtitle += '（他${displayBills.length - 1}件）';
@@ -731,6 +757,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           billBanner: _upcomingBills.isNotEmpty
                               ? _buildBillAlertBanner(colors)
                               : null,
+                          recentBills: _recentBills,
                         ),
                       ),
                     // ── ヘッダー境目グラデーションブラー ──────────────
@@ -778,6 +805,7 @@ class _HomeMonthPage extends StatefulWidget {
   final VoidCallback onExitEditMode;
   final Widget? couponBanner;
   final Widget? billBanner;
+  final List<Bill> recentBills;
 
   const _HomeMonthPage({
     super.key,
@@ -796,6 +824,7 @@ class _HomeMonthPage extends StatefulWidget {
     required this.onExitEditMode,
     this.couponBanner,
     this.billBanner,
+    this.recentBills = const [],
   });
 
   @override
@@ -803,7 +832,7 @@ class _HomeMonthPage extends StatefulWidget {
 }
 
 class _HomeMonthPageState extends State<_HomeMonthPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final _api = ApiService();
   final _currencyFmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
 
@@ -840,6 +869,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'compare',
     'recent',
     'tax',
+    'bills',
   ];
   static const _widgetLabels = <String, ({String title, IconData icon})>{
     'budget': (title: '収支', icon: Icons.account_balance_wallet_outlined),
@@ -848,6 +878,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'compare': (title: '先月との比較', icon: Icons.compare_arrows),
     'recent': (title: '最近のレシート', icon: Icons.receipt_outlined),
     'tax': (title: '消費税', icon: Icons.account_balance_outlined),
+    'bills': (title: '請求書', icon: Icons.receipt_long_outlined),
   };
 
   static const _categoryMeta = <String, ({IconData icon, String label})>{
@@ -1086,6 +1117,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         return _buildRecentReceipts(colors);
       case 'tax':
         return _buildTaxCard(colors);
+      case 'bills':
+        return _buildBillsCard(colors);
       default:
         return const SizedBox.shrink();
     }
@@ -2404,8 +2437,150 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     );
   }
 
+  Widget _buildBillsCard(CamillColors colors) {
+    final bills = widget.recentBills;
+    if (bills.isEmpty) return const SizedBox.shrink();
+    final fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fade,
+      transitionDuration: const Duration(milliseconds: 400),
+      closedColor: colors.surface,
+      openColor: colors.background,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      tappable: false,
+      onClosed: (_) => _load(silent: true),
+      openBuilder: (_, _) => const BillScreen(),
+      closedBuilder: (_, openContainer) => GestureDetector(
+        onTap: () {
+          if (_wasScrollingBeforeTap) {
+            _wasScrollingBeforeTap = false;
+            return;
+          }
+          openContainer();
+        },
+        child: CamillCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.receipt_long_outlined, color: colors.primary, size: 16),
+                        const SizedBox(width: 6),
+                        Text('請求書', style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w700)),
+                      ],
+                    ),
+                    Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: colors.surfaceBorder),
+              ...List.generate(bills.length, (i) {
+                return _buildBillRow(bills[i], colors, fmt, i == bills.length - 1);
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBillRow(Bill bill, CamillColors colors, NumberFormat fmt, bool isLast) {
+    final isPaid = bill.status == BillStatus.paid;
+    final days = bill.daysUntilDue;
+
+    String statusLabel;
+    Color statusColor;
+    if (isPaid) {
+      statusLabel = '支払済';
+      statusColor = const Color(0xFF4CAF50);
+    } else if (days == null) {
+      statusLabel = '未払い';
+      statusColor = colors.textMuted;
+    } else if (days < 0) {
+      statusLabel = '期限切れ';
+      statusColor = const Color(0xFFE57373);
+    } else if (days == 0) {
+      statusLabel = '本日まで';
+      statusColor = const Color(0xFFE57373);
+    } else if (days <= 3) {
+      statusLabel = 'あと$days日';
+      statusColor = const Color(0xFFE57373);
+    } else {
+      statusLabel = 'あと$days日';
+      statusColor = colors.textMuted;
+    }
+
+    final dotColor = isPaid
+        ? const Color(0xFF4CAF50)
+        : bill.isUrgent
+            ? const Color(0xFFE57373)
+            : colors.textMuted.withAlpha(150);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(0, 12, 0, isLast ? 0 : 0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  bill.title,
+                  style: camillBodyStyle(13, isPaid ? colors.textMuted : colors.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                fmt.format(bill.amount),
+                style: camillBodyStyle(13, isPaid ? colors.textMuted : colors.textPrimary, weight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          if (!isLast)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Divider(height: 1, color: colors.surfaceBorder),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final colors = context.colors;
 
     return Stack(

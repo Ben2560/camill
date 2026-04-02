@@ -7,6 +7,12 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>開発用APIサーバー（ローカルネットワーク）に接続するために使用します</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>レシートを撮影するためにカメラを使用します</string>
 	<key>NSPhotoLibraryUsageDescription</key>

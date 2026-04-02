@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
@@ -22,27 +24,77 @@ class _BillScreenState extends State<BillScreen>
   final _currencyFmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
   List<Bill> _bills = [];
   bool _loading = true;
-  int _dotsVisible = 0;
-  bool _isRefreshing = false;
-  bool _ignoreUntilTop = false;
-  late final AnimationController _bounceController;
+
+  // dismiss
+  final _dismissOffset = ValueNotifier<double>(0);
+  late final AnimationController _snapController;
+  bool _isDismissing = false;
+  double _pullDistance = 0;
+
+  // per-tab scroll controllers
+  final _scrollControllers = [ScrollController(), ScrollController()];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _bounceController = AnimationController(
+    _snapController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 300),
     );
+    _dismissOffset.addListener(_onOffsetChanged);
     _loadBills();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _bounceController.dispose();
+    _snapController.dispose();
+    _dismissOffset.removeListener(_onOffsetChanged);
+    _dismissOffset.dispose();
+    for (final c in _scrollControllers) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  void _onOffsetChanged() {
+    if (!mounted || _isDismissing) return;
+    final limit = MediaQuery.of(context).size.height * 0.19;
+    if (_dismissOffset.value >= limit) {
+      _isDismissing = true;
+      _dismissOffset.removeListener(_onOffsetChanged);
+      _beginDismiss();
+    }
+  }
+
+  void endDismiss() {
+    if (_isDismissing) return;
+    final sh = MediaQuery.of(context).size.height;
+    if (_dismissOffset.value > sh * 0.20) {
+      _isDismissing = true;
+      _beginDismiss();
+    } else {
+      _snapBack();
+    }
+  }
+
+  void _beginDismiss() {
+    _snapController.duration = const Duration(milliseconds: 200);
+    _snapController.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) Navigator.of(context, rootNavigator: false).pop();
+    });
+  }
+
+  void _snapBack() {
+    final start = _dismissOffset.value;
+    _snapController.reset();
+    final anim = Tween<double>(begin: start, end: 0).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+    anim.addListener(() => _dismissOffset.value = anim.value);
+    _snapController.forward();
   }
 
   Future<void> _loadBills({bool silent = false}) async {
@@ -61,18 +113,6 @@ class _BillScreenState extends State<BillScreen>
     }
   }
 
-  void _startSilentRefresh() {
-    if (_isRefreshing) return;
-    setState(() { _isRefreshing = true; _dotsVisible = 3; _ignoreUntilTop = true; });
-    if (!_bounceController.isAnimating) _bounceController.repeat();
-    _loadBills(silent: true).then((_) {
-      if (!mounted) return;
-      _bounceController.stop();
-      _bounceController.reset();
-      setState(() { _isRefreshing = false; _dotsVisible = 0; });
-    });
-  }
-
   List<Bill> get _unpaid =>
       _bills.where((b) => b.status == BillStatus.unpaid || b.status == BillStatus.pending).toList();
   List<Bill> get _paid =>
@@ -81,7 +121,7 @@ class _BillScreenState extends State<BillScreen>
   Future<void> _markPaid(Bill bill) async {
     try {
       await _service.payBill(bill.billId);
-      await _loadBills();
+      await _loadBills(silent: true);
       _tabController.animateTo(1);
     } catch (e) {
       // silently swallow
@@ -107,107 +147,124 @@ class _BillScreenState extends State<BillScreen>
     if (confirmed == true) {
       try {
         await _service.deleteBill(bill.billId);
-        await _loadBills();
+        await _loadBills(silent: true);
       } catch (e) {
         // silently swallow
       }
     }
   }
 
+  ScrollController get _activeScrollController =>
+      _scrollControllers[_tabController.index];
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return LoadingOverlay(
-      isLoading: _loading,
-      child: Scaffold(
-        backgroundColor: colors.background,
-        appBar: AppBar(
-          backgroundColor: colors.primary,
-          title: Text('請求書管理', style: camillHeadingStyle(17, Colors.white)),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add, color: Colors.white),
-              onPressed: _showAddDialog,
-            ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            tabs: [
-              Tab(text: '未払い (${_unpaid.length})'),
-              Tab(text: '支払済み (${_paid.length})'),
-            ],
-          ),
-        ),
-        body: Stack(
+    final sh = MediaQuery.of(context).size.height;
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([_dismissOffset, _snapController]),
+      builder: (ctx, child) {
+        final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        final blur = _isDismissing ? _snapController.value * 12.0 : 0.0;
+        Widget content = child!;
+        if (blur > 0.1) {
+          content = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: content,
+          );
+        }
+        return Stack(
           children: [
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (_isRefreshing) return false;
-                if (notification is ScrollUpdateNotification) {
-                  final pixels = notification.metrics.pixels;
-                  if (pixels >= 0) _ignoreUntilTop = false;
-                  if (_ignoreUntilTop) return false;
-                  if (pixels < 0) {
-                    final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
-                    if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
-                  } else if (_dotsVisible > 0) {
-                    _ignoreUntilTop = true;
-                    setState(() => _dotsVisible = 0);
-                  }
-                } else if (notification is ScrollEndNotification) {
-                  if (!_isRefreshing) {
-                    if (_dotsVisible == 3) {
-                      _startSilentRefresh();
-                    } else if (_dotsVisible > 0) {
-                      _ignoreUntilTop = true;
-                      setState(() => _dotsVisible = 0);
-                    }
-                  }
-                }
-                return false;
-              },
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _BillList(bills: _unpaid, currencyFmt: _currencyFmt, onPaid: _markPaid, onDelete: _deleteBill, emptyMessage: '未払いの請求書はありません'),
-                  _BillList(bills: _paid, currencyFmt: _currencyFmt, onPaid: null, onDelete: _deleteBill, emptyMessage: '支払済みの請求書はありません'),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: IgnorePointer(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [colors.background, colors.background.withAlpha(0)],
-                    ),
+            Container(color: colors.background),
+            Container(color: Colors.black.withValues(alpha: 0.28 * progress)),
+            Transform.translate(
+              offset: Offset(0, _dismissOffset.value),
+              child: Transform.scale(
+                scale: 1.0 - progress * 0.07,
+                alignment: Alignment.topCenter,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(progress * 22.0),
                   ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 4, left: 0, right: 0,
-              child: IgnorePointer(
-                child: SizedBox(
-                  height: 28,
-                  child: Center(
-                    child: PullRefreshDots(
-                      controller: _bounceController,
-                      color: colors.primary,
-                      dotsVisible: _dotsVisible,
-                      isRefreshing: _isRefreshing,
-                    ),
-                  ),
+                  child: content,
                 ),
               ),
             ),
           ],
+        );
+      },
+      child: LoadingOverlay(
+        isLoading: _loading,
+        child: Scaffold(
+          backgroundColor: colors.background,
+          appBar: AppBar(
+            backgroundColor: colors.background,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Text('請求書管理', style: camillHeadingStyle(17, colors.textPrimary)),
+            iconTheme: IconThemeData(color: colors.textSecondary),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.add, color: colors.primary),
+                onPressed: _showAddDialog,
+              ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: colors.primary,
+              unselectedLabelColor: colors.textMuted,
+              indicatorColor: colors.primary,
+              tabs: [
+                Tab(text: '未払い (${_unpaid.length})'),
+                Tab(text: '支払済み (${_paid.length})'),
+              ],
+            ),
+          ),
+          body: Listener(
+            onPointerMove: (e) {
+              if (_isDismissing) return;
+              final sc = _activeScrollController;
+              if (sc.hasClients && sc.position.pixels <= 0 && e.delta.dy > 0) {
+                _pullDistance += e.delta.dy;
+                _dismissOffset.value = _pullDistance;
+              } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                _pullDistance = 0;
+                _dismissOffset.value = 0;
+              }
+            },
+            onPointerUp: (_) {
+              if (_isDismissing) return;
+              endDismiss();
+              _pullDistance = 0;
+            },
+            onPointerCancel: (_) {
+              if (_isDismissing) return;
+              _pullDistance = 0;
+              _dismissOffset.value = 0;
+            },
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _BillList(
+                  bills: _unpaid,
+                  currencyFmt: _currencyFmt,
+                  onPaid: _markPaid,
+                  onDelete: _deleteBill,
+                  emptyMessage: '未払いの請求書はありません',
+                  scrollController: _scrollControllers[0],
+                ),
+                _BillList(
+                  bills: _paid,
+                  currencyFmt: _currencyFmt,
+                  onPaid: null,
+                  onDelete: _deleteBill,
+                  emptyMessage: '支払済みの請求書はありません',
+                  scrollController: _scrollControllers[1],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -304,7 +361,7 @@ class _BillScreenState extends State<BillScreen>
                         amount: int.tryParse(amountCtrl.text) ?? 0,
                         dueDate: dueDate?.toIso8601String(),
                       );
-                      await _loadBills();
+                      await _loadBills(silent: true);
                     } catch (e) {
                       // silently swallow
                     }
@@ -327,6 +384,7 @@ class _BillList extends StatelessWidget {
   final void Function(Bill)? onPaid;
   final void Function(Bill) onDelete;
   final String emptyMessage;
+  final ScrollController scrollController;
 
   const _BillList({
     required this.bills,
@@ -334,6 +392,7 @@ class _BillList extends StatelessWidget {
     required this.onPaid,
     required this.onDelete,
     required this.emptyMessage,
+    required this.scrollController,
   });
 
   @override
@@ -344,7 +403,8 @@ class _BillList extends StatelessWidget {
           child: Text(emptyMessage, style: camillBodyStyle(14, colors.textMuted)));
     }
     return ListView.separated(
-      physics: const RefreshScrollPhysics(),
+      controller: scrollController,
+      physics: const DismissScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: bills.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),

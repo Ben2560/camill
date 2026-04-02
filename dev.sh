@@ -31,6 +31,27 @@ if [ "$IP_CHANGED" = true ]; then
   flutter pub get
 fi
 
+# iOSバージョンを確認・変化があれば pub get & pod install
+IOS_VERSION_FILE="/Users/tsutomuwatanabe/camill/.ios_device_version"
+CURRENT_IOS=$(xcrun xctrace list devices 2>/dev/null | grep -E "iPhone|iPad" | grep -v Simulator | head -1 | grep -oE '\([0-9]+\.[0-9]+(\.[0-9]+)?\)' | tr -d '()')
+
+if [ -n "$CURRENT_IOS" ]; then
+  SAVED_IOS=$(cat "$IOS_VERSION_FILE" 2>/dev/null)
+  if [ "$CURRENT_IOS" != "$SAVED_IOS" ]; then
+    echo "📱 iOSバージョン変更を検知: ${SAVED_IOS:-なし} → $CURRENT_IOS"
+    echo "🔧 flutter pub get & pod install を実行します..."
+    cd /Users/tsutomuwatanabe/camill
+    flutter pub get
+    cd ios && pod install --repo-update && cd ..
+    echo "$CURRENT_IOS" > "$IOS_VERSION_FILE"
+    echo "✅ 完了（バージョンを保存しました）"
+  else
+    echo "✅ iOSバージョン変更なし ($CURRENT_IOS)"
+  fi
+else
+  echo "⚠️  iOSデバイスのバージョン取得できませんでした（デバイス未接続？）"
+fi
+
 # APIサーバーをバックグラウンドで起動
 cd /Users/tsutomuwatanabe/camill-api
 source venv/bin/activate

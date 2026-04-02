@@ -31,7 +31,7 @@ class AppConstants {
     'hobby':        Color(0xFF9575CD), // 趣味        - パープル
     'medical':      Color(0xFFE57373), // 医療        - レッド
     'education':    Color(0xFF4CAF50), // 教育・書籍  - グリーン
-    'utility':      Color(0xFFFFD54F), // 光熱費      - イエロー
+    'utility':      Color(0xFF0097A7), // 光熱費      - シアン
     'subscription': Color(0xFF7986CB), // サブスク    - インディゴ
     'other':        Color(0xFF90A4AE), // その他      - グレー
   };

@@ -10,7 +10,9 @@ import '../../../shared/widgets/loading_overlay.dart';
 
 class CameraScreen extends StatefulWidget {
   final bool isCard;
-  const CameraScreen({super.key, this.isCard = false});
+  final ImageSource? autoSource;
+  final File? initialImage;
+  const CameraScreen({super.key, this.isCard = false, this.autoSource, this.initialImage});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -31,6 +33,13 @@ class _CameraScreenState extends State<CameraScreen> {
   void initState() {
     super.initState();
     _loadBillingStatus();
+    if (widget.initialImage != null) {
+      _pendingImage = widget.initialImage;
+    } else if (widget.autoSource != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pickImage(widget.autoSource!);
+      });
+    }
   }
 
   Future<void> _loadBillingStatus() async {
@@ -52,7 +61,11 @@ class _CameraScreenState extends State<CameraScreen> {
       imageQuality: 72,
       maxWidth: 1000,
     );
-    if (picked == null) return;
+    if (picked == null) {
+      // autoSource で自動起動して何も選ばなかった場合は戻る
+      if (widget.autoSource != null && mounted) context.pop();
+      return;
+    }
     if (!mounted) return;
     final file = File(picked.path);
 

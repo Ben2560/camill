@@ -12,6 +12,8 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/phone_verify_screen.dart';
 import 'features/shell/main_shell.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'features/receipt/screens/camera_screen.dart';
 import 'features/receipt/screens/analysis_preview_screen.dart';
 import 'features/receipt/screens/manual_input_screen.dart';
@@ -101,13 +103,16 @@ final _router = GoRouter(
     GoRoute(
       path: '/camera',
       pageBuilder: (context, state) {
-        final isCard = state.extra == true;
+        final extra = state.extra;
+        final isCard = extra == true || extra == 'camera' || extra is File;
+        final autoSource = extra == 'camera' ? ImageSource.camera : null;
+        final initialImage = extra is File ? extra : null;
         if (isCard) {
           return CustomTransitionPage(
             key: state.pageKey,
             opaque: false,
             barrierColor: Colors.black.withAlpha(60),
-            child: const CameraScreen(isCard: true),
+            child: CameraScreen(isCard: true, autoSource: autoSource, initialImage: initialImage),
             transitionDuration: const Duration(milliseconds: 380),
             reverseTransitionDuration: const Duration(milliseconds: 260),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {

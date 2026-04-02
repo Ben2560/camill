@@ -44,7 +44,6 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   late Animation<double> _fabScale;
   late AnimationController _fabSpinController;
   late Animation<double> _fabRotation;
-  late PageController _pageController;
 
   @override
   void initState() {
@@ -77,7 +76,6 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
         curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
       ),
     );
-    _pageController = PageController();
     _checkMonthGreeting();
   }
 
@@ -103,7 +101,6 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     _slideAnim.dispose();
     _animController.dispose();
     _fabSpinController.dispose();
-    _pageController.dispose();
     _fabLongPressTimer?.cancel();
     _calendarReturnNotifier.dispose();
     _calendarRefreshNotifier.dispose();
@@ -179,13 +176,33 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     if (index == 4) {
       _profileRefreshNotifier.value++;
     }
-    final pageIndex = index > 2 ? index - 1 : index;
-    _pageController.animateToPage(
-      pageIndex,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-    );
     setState(() => _currentIndex = index);
+  }
+
+  Widget _buildTabPages() {
+    final pageIndex = _currentIndex > 2 ? _currentIndex - 1 : _currentIndex;
+    final pages = [
+      HomeScreen(),
+      CommunityScreen(blurred: _speedDialOpen),
+      CalendarScreen(
+        returnToTodayNotifier: _calendarReturnNotifier,
+        refreshNotifier: _calendarRefreshNotifier,
+      ),
+      ProfileScreen(refreshNotifier: _profileRefreshNotifier),
+    ];
+    return Stack(
+      children: [
+        for (int i = 0; i < pages.length; i++)
+          AnimatedOpacity(
+            opacity: pageIndex == i ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: IgnorePointer(
+              ignoring: pageIndex != i,
+              child: pages[i],
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -204,19 +221,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
             left: 0,
             right: 0,
             bottom: navBarHeight,
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                HomeScreen(),
-                CommunityScreen(blurred: _speedDialOpen),
-                CalendarScreen(
-                  returnToTodayNotifier: _calendarReturnNotifier,
-                  refreshNotifier: _calendarRefreshNotifier,
-                ),
-                ProfileScreen(refreshNotifier: _profileRefreshNotifier),
-              ],
-            ),
+            child: _buildTabPages(),
           ),
           // グラデーションフェード（コンテンツとナビバーの境目）
           Positioned(

@@ -147,17 +147,31 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/receipt-preview',
-      builder: (_, state) {
+      pageBuilder: (_, state) {
         final extra = state.extra;
-        if (extra is ({List<ReceiptAnalysis> analyses, int maxReceipts})) {
-          return AnalysisPreviewScreen(
-            analyses: extra.analyses,
-            maxReceipts: extra.maxReceipts,
-          );
-        }
-        return AnalysisPreviewScreen(
-          analyses: [extra as ReceiptAnalysis],
-          maxReceipts: 1,
+        final screen = extra is ({List<ReceiptAnalysis> analyses, int maxReceipts})
+            ? AnalysisPreviewScreen(
+                analyses: extra.analyses,
+                maxReceipts: extra.maxReceipts,
+              )
+            : AnalysisPreviewScreen(
+                analyses: [extra as ReceiptAnalysis],
+                maxReceipts: 1,
+              );
+        return CustomTransitionPage(
+          key: state.pageKey,
+          opaque: false,
+          barrierColor: Colors.transparent,
+          child: screen,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOut,
+              ),
+              child: child,
+            );
+          },
         );
       },
     ),

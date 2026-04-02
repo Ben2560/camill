@@ -8,6 +8,7 @@ class Bill {
   final BillStatus status;
   final DateTime createdAt;
   final String? category;
+  final DateTime? paidAt;
 
   Bill({
     required this.billId,
@@ -17,6 +18,7 @@ class Bill {
     required this.status,
     required this.createdAt,
     this.category,
+    this.paidAt,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) => Bill(
@@ -29,6 +31,9 @@ class Bill {
         status: _statusFromString(json['status'] as String? ?? 'unpaid'),
         createdAt: DateTime.parse(json['created_at'] as String),
         category: json['category'] as String?,
+        paidAt: json['paid_at'] != null
+            ? DateTime.parse(json['paid_at'] as String).toLocal()
+            : null,
       );
 
   static BillStatus _statusFromString(String s) {

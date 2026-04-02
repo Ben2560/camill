@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
@@ -78,10 +79,19 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
     final count = _visibleAnalyses.length;
     final showBanner = widget.analyses.length > widget.maxReceipts;
 
-    return Scaffold(
-      backgroundColor: colors.background,
+    return Stack(
+      children: [
+        // 背景ブラー
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            color: colors.background.withValues(alpha: 0.85),
+          ),
+        ),
+        Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: colors.background,
+        backgroundColor: Colors.transparent,
         title: Text(
           count > 1
               ? '解析結果 ${_currentPage + 1} / $count'
@@ -170,6 +180,8 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
           ),
         ],
       ),
+        ),
+      ],
     );
   }
 }
@@ -209,6 +221,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
   late bool _isBill;
   DateTime? _billDueDate;
   late String _billStatus; // 'paid' | 'unpaid'
+  DateTime? _billPaidDate; // 印鑑から読み取った支払済み日
 
   final _memoCtrl = TextEditingController();
   final _memoFocus = FocusNode();
@@ -260,6 +273,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
     _isBill = widget.analysis.isBill;
     _billDueDate = widget.analysis.billDueDate;
     _billStatus = widget.analysis.billStatus;
+    _billPaidDate = widget.analysis.billPaidDate;
     if (_isMedical) {
       if (_receiptCategory == null) {
         _receiptCategory = 'medical';
@@ -357,6 +371,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
           dueDate: _billDueDate?.toLocal().toIso8601String(),
           status: _billStatus,
           category: _receiptCategory ?? _autoCategory,
+          paidAt: _billStatus == 'paid'
+              ? (_billPaidDate ?? DateTime.now()).toIso8601String()
+              : null,
         );
         return true;
       }

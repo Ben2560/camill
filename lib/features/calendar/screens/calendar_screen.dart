@@ -334,6 +334,14 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   void _showReceiptDetail(RecentReceipt receipt) {
+    // 支払済み請求書は bill 詳細シートを表示
+    if (receipt.isBill && receipt.billId != null) {
+      final bill = _bills.where((b) => b.billId == receipt.billId).firstOrNull;
+      if (bill != null) {
+        _showBillDetailSheet(bill);
+        return;
+      }
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

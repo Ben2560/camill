@@ -135,6 +135,7 @@ class ReceiptAnalysis {
   final bool isBill; // 請求書フラグ
   final DateTime? billDueDate; // 請求書の支払期限
   final String billStatus; // 'paid' | 'unpaid'（印鑑・スタンプによる支払済み判定）
+  final DateTime? billPaidDate; // 印鑑・スタンプから読み取った支払済み日
 
   ReceiptAnalysis({
     required this.storeName,
@@ -154,6 +155,7 @@ class ReceiptAnalysis {
     this.isBill = false,
     this.billDueDate,
     this.billStatus = 'unpaid',
+    this.billPaidDate,
   });
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
@@ -184,6 +186,9 @@ class ReceiptAnalysis {
             ? DateTime.tryParse(json['bill_due_date'] as String)?.toLocal()
             : null,
         billStatus: json['bill_status'] as String? ?? 'unpaid',
+        billPaidDate: json['bill_paid_date'] != null
+            ? DateTime.tryParse(json['bill_paid_date'] as String)?.toLocal()
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -204,6 +209,7 @@ class ReceiptAnalysis {
         'is_bill': isBill,
         if (billDueDate != null) 'bill_due_date': billDueDate!.toIso8601String(),
         'bill_status': billStatus,
+        if (billPaidDate != null) 'bill_paid_date': billPaidDate!.toIso8601String(),
       };
 }
 

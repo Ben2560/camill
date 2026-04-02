@@ -146,12 +146,16 @@ class RecentReceipt {
   final String storeName;
   final int totalAmount;
   final String purchasedAt;
+  final bool isBill;
+  final String? billId;
 
   RecentReceipt({
     required this.receiptId,
     required this.storeName,
     required this.totalAmount,
     required this.purchasedAt,
+    this.isBill = false,
+    this.billId,
   });
 
   factory RecentReceipt.fromJson(Map<String, dynamic> json) => RecentReceipt(
@@ -159,6 +163,8 @@ class RecentReceipt {
         storeName: json['store_name'] as String,
         totalAmount: (json['total_amount'] as num).toInt(),
         purchasedAt: json['purchased_at'] as String,
+        isBill: json['is_bill'] as bool? ?? false,
+        billId: json['bill_id'] as String?,
       );
 }
 

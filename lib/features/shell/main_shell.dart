@@ -373,6 +373,16 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
                 analysisCount: _analysisCount,
                 analysisLimit: _analysisLimit,
                 isPremium: _isPremium,
+                onTypeSelected: (hint) {
+                  // ナビゲーション直後に戻ってきたとき亡霊が出ないよう即座にリセット
+                  _animController.reset();
+                  _fabSpinController.reset();
+                  setState(() {
+                    _speedDialOpen = false;
+                    _speedDialVisible = false;
+                  });
+                  context.push('/camera', extra: {'source': 'camera', 'hint': hint});
+                },
               ),
               const SizedBox(height: 10),
               _ActionCard(
@@ -560,8 +570,11 @@ class _ScanInfoCard extends StatelessWidget {
   final int? analysisCount;
   final int? analysisLimit;
   final bool isPremium;
+  final ValueChanged<String> onTypeSelected;
+
   const _ScanInfoCard({
     required this.colors,
+    required this.onTypeSelected,
     this.analysisCount,
     this.analysisLimit,
     this.isPremium = false,
@@ -570,9 +583,9 @@ class _ScanInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final types = [
-      (icon: Icons.receipt_long_outlined, label: 'レシート'),
-      (icon: Icons.medical_information_outlined, label: '医療明細'),
-      (icon: Icons.description_outlined, label: '請求書'),
+      (icon: Icons.receipt_long_outlined, label: 'レシート', hint: 'receipt'),
+      (icon: Icons.medical_information_outlined, label: '医療明細', hint: 'medical'),
+      (icon: Icons.description_outlined, label: '請求書', hint: 'bill'),
     ];
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
@@ -616,27 +629,31 @@ class _ScanInfoCard extends StatelessWidget {
             children: types
                 .map(
                   (t) => Expanded(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: colors.primary.withAlpha(20),
-                            borderRadius: BorderRadius.circular(12),
+                    child: GestureDetector(
+                      onTap: () => onTypeSelected(t.hint),
+                      behavior: HitTestBehavior.opaque,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: colors.primary.withAlpha(20),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(t.icon, color: colors.primary, size: 22),
                           ),
-                          child: Icon(t.icon, color: colors.primary, size: 22),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          t.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
+                          const SizedBox(height: 6),
+                          Text(
+                            t.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 )

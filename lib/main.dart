@@ -104,35 +104,40 @@ final _router = GoRouter(
       path: '/camera',
       pageBuilder: (context, state) {
         final extra = state.extra;
-        final isCard = extra == true || extra == 'camera' || extra is File;
-        final autoSource = extra == 'camera' ? ImageSource.camera : null;
-        final initialImage = extra is File ? extra : null;
-        if (isCard) {
-          return CustomTransitionPage(
-            key: state.pageKey,
-            opaque: false,
-            barrierColor: Colors.black.withAlpha(60),
-            child: CameraScreen(isCard: true, autoSource: autoSource, initialImage: initialImage),
-            transitionDuration: const Duration(milliseconds: 380),
-            reverseTransitionDuration: const Duration(milliseconds: 260),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 1),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                  reverseCurve: Curves.easeInCubic,
-                )),
-                child: child,
-              );
-            },
-          );
+        final String? documentHint;
+        final ImageSource? autoSource;
+        final File? initialImage;
+        if (extra is Map) {
+          autoSource = extra['source'] == 'camera' ? ImageSource.camera : null;
+          initialImage = extra['file'] as File?;
+          documentHint = extra['hint'] as String?;
+        } else {
+          autoSource = extra == 'camera' ? ImageSource.camera : null;
+          initialImage = extra is File ? extra : null;
+          documentHint = null;
         }
-        return MaterialPage(
+        final transparent = autoSource != null;
+        return CustomTransitionPage(
           key: state.pageKey,
-          child: const CameraScreen(isCard: false),
+          opaque: !transparent,
+          barrierColor: transparent ? Colors.transparent : Colors.black.withAlpha(60),
+          child: CameraScreen(autoSource: autoSource, initialImage: initialImage, documentHint: documentHint),
+          transitionDuration: transparent ? Duration.zero : const Duration(milliseconds: 380),
+          reverseTransitionDuration: transparent ? Duration.zero : const Duration(milliseconds: 260),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            if (transparent) return child;
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              )),
+              child: child,
+            );
+          },
         );
       },
     ),

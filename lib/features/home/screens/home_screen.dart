@@ -20,6 +20,7 @@ import '../../receipt/services/receipt_service.dart';
 import '../../../shared/models/bill_model.dart';
 import '../../bill/screens/bill_screen.dart';
 import '../../receipt/screens/receipt_list_screen.dart';
+import '../../../core/constants.dart';
 import '../../data/screens/data_screen.dart';
 import '../../reports/screens/report_screen.dart';
 import 'category_budget_screen.dart';
@@ -415,63 +416,84 @@ class _HomeScreenState extends State<HomeScreen> {
       subtitle += '（他${displayBills.length - 1}件）';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isUrgent
-            ? const Color(0xFFE57373).withAlpha(20)
-            : colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => _HomeBillDetailSheet(
+            bill: bill,
+            fmt: fmt,
+            colors: colors,
+            onPaid: () async {
+              try {
+                await _billService.payBill(bill.billId);
+                _loadUpcomingBills();
+                _loadRecentBills();
+              } catch (_) {}
+            },
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
           color: isUrgent
-              ? const Color(0xFFE57373).withAlpha(100)
-              : colors.surfaceBorder,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isUrgent ? const Color(0xFFE57373) : colors.primary)
-                .withAlpha(25),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+              ? const Color(0xFFE57373).withAlpha(20)
+              : colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isUrgent
+                ? const Color(0xFFE57373).withAlpha(100)
+                : colors.surfaceBorder,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isUrgent
-                ? Icons.warning_amber_rounded
-                : Icons.receipt_long_outlined,
-            color: isUrgent ? const Color(0xFFE57373) : colors.primary,
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  bill.title,
-                  style: camillBodyStyle(
-                    14,
-                    colors.textPrimary,
-                    weight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${fmt.format(bill.amount)}　$subtitle',
-                  style: camillBodyStyle(
-                    11,
-                    isUrgent ? const Color(0xFFE57373) : colors.textMuted,
-                  ),
-                ),
-              ],
+          boxShadow: [
+            BoxShadow(
+              color: (isUrgent ? const Color(0xFFE57373) : colors.primary)
+                  .withAlpha(25),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isUrgent
+                  ? Icons.warning_amber_rounded
+                  : Icons.receipt_long_outlined,
+              color: isUrgent ? const Color(0xFFE57373) : colors.primary,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    bill.title,
+                    style: camillBodyStyle(
+                      14,
+                      colors.textPrimary,
+                      weight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${fmt.format(bill.amount)}　$subtitle',
+                    style: camillBodyStyle(
+                      11,
+                      isUrgent ? const Color(0xFFE57373) : colors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3265,6 +3287,153 @@ class _DiscountCouponCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeBillDetailSheet extends StatelessWidget {
+  final Bill bill;
+  final NumberFormat fmt;
+  final CamillColors colors;
+  final VoidCallback onPaid;
+
+  const _HomeBillDetailSheet({
+    required this.bill,
+    required this.fmt,
+    required this.colors,
+    required this.onPaid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final catColor = AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
+    final catLabel = AppConstants.categoryLabels[bill.category] ?? 'その他';
+    final days = bill.daysUntilDue;
+    final urgent = bill.isUrgent;
+
+    return Container(
+      margin: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 60,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.surfaceBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE53935).withAlpha(20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.description_outlined, color: Color(0xFFE53935), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(bill.title, style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700)),
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: catColor.withAlpha(30),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(catLabel, style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('金額', style: camillBodyStyle(13, colors.textMuted)),
+                      Text(fmt.format(bill.amount), style: camillAmountStyle(20, colors.textPrimary)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (bill.dueDate != null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                        Row(
+                          children: [
+                            if (urgent)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 4),
+                                child: Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFE53935)),
+                              ),
+                            Text(
+                              '${bill.dueDate!.year}/${bill.dueDate!.month}/${bill.dueDate!.day}',
+                              style: camillBodyStyle(14, urgent ? const Color(0xFFE53935) : colors.textPrimary, weight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (days != null) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          days >= 0 ? '残り$days日' : '期限切れ',
+                          style: camillBodyStyle(12, urgent ? const Color(0xFFE53935) : colors.textMuted),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.success,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        onPaid();
+                      },
+                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                      label: Text('支払いました', style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -19,13 +19,15 @@ class ReceiptService {
     return result ?? await imageFile.readAsBytes();
   }
 
-  Future<List<ReceiptAnalysis>> analyzeReceipt(File imageFile) async {
+  Future<List<ReceiptAnalysis>> analyzeReceipt(File imageFile, {String? documentHint}) async {
     final compressed = await _compressImage(imageFile);
     final base64Image = base64Encode(compressed);
-    final data = await _api.post('/receipts/analyze', body: {
+    final body = <String, dynamic>{
       'image_base64': 'data:image/jpeg;base64,$base64Image',
       'image_type': 'jpeg',
-    });
+      'document_hint': documentHint,
+    };
+    final data = await _api.post('/receipts/analyze', body: body);
     List<ReceiptAnalysis> receipts;
     if (data.containsKey('receipts')) {
       receipts = (data['receipts'] as List<dynamic>)

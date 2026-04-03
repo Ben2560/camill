@@ -29,6 +29,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     'hobby':        (icon: Icons.sports_esports_outlined,  label: '趣味'),
     'medical':      (icon: Icons.local_hospital_outlined,  label: '医療・健康'),
     'education':    (icon: Icons.menu_book_outlined,       label: '教育・書籍'),
+    'utility':      (icon: Icons.bolt_outlined,            label: '光熱費'),
     'subscription': (icon: Icons.subscriptions_outlined,  label: 'サブスク'),
     'other':        (icon: Icons.more_horiz,               label: 'その他雑費'),
   };

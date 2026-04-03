@@ -86,7 +86,11 @@ class _CameraScreenState extends State<CameraScreen> {
       final analyses = await _receiptService.analyzeReceipt(imageFile, documentHint: widget.documentHint);
       final maxReceipts = _isPremium ? 5 : 1;
       if (mounted) {
-        context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
+        await context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
+        // 保存せずに戻ってきた場合（保存時は context.go('/') でカメラも破棄される）
+        if (mounted && widget.autoSource != null && context.canPop()) {
+          context.pop();
+        }
       }
     } catch (e) {
       // silently swallow

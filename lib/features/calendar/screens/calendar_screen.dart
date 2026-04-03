@@ -182,10 +182,37 @@ class _CalendarScreenState extends State<CalendarScreen>
         fmt: _fmt,
         colors: context.colors,
         onPaid: () async {
+          // 楽観的更新：API 完了前にローカル状態を即座に反映
+          final now = DateTime.now();
+          final todayKey = DateTime(now.year, now.month, now.day);
+          setState(() {
+            _bills = _bills
+                .map((b) => b.billId == bill.billId
+                    ? b.copyWith(status: BillStatus.paid, paidAt: now)
+                    : b)
+                .toList();
+            _dailyTotals[todayKey] =
+                (_dailyTotals[todayKey] ?? 0) + bill.amount;
+          });
           try {
             await _billService.payBill(bill.billId);
+            // API 確定後にサーバーデータで正確に上書き
             await _loadBills();
-          } catch (_) {}
+            _summaryCache.remove(DateFormat('yyyy-MM').format(_focusedDay));
+            _summaryCache.remove(DateFormat('yyyy-MM').format(now));
+            await _loadSummary(_focusedDay);
+            if (mounted) {
+              showTopNotification(context, '支払い済みにしました ✓');
+            }
+          } catch (_) {
+            // 失敗時はサーバーから再取得して元に戻す
+            await _loadBills();
+            _summaryCache.remove(DateFormat('yyyy-MM').format(_focusedDay));
+            await _loadSummary(_focusedDay);
+            if (mounted) {
+              showTopNotification(context, '更新に失敗しました');
+            }
+          }
         },
       ),
     );
@@ -2554,6 +2581,7 @@ class _BillDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final catColor = AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
     final catLabel = AppConstants.categoryLabels[bill.category] ?? 'その他';
+    final isPaid = bill.status == BillStatus.paid;
     final days = bill.daysUntilDue;
     final urgent = bill.isUrgent;
 
@@ -2595,10 +2623,16 @@ class _BillDetailSheet extends StatelessWidget {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE53935).withAlpha(20),
+                          color: isPaid
+                              ? colors.success.withAlpha(20)
+                              : const Color(0xFFE53935).withAlpha(20),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.description_outlined, color: Color(0xFFE53935), size: 22),
+                        child: Icon(
+                          isPaid ? Icons.check_circle_outline : Icons.description_outlined,
+                          color: isPaid ? colors.success : const Color(0xFFE53935),
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -2606,14 +2640,30 @@ class _BillDetailSheet extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(bill.title, style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700)),
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: catColor.withAlpha(30),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(catLabel, style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w600)),
+                            Row(
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: catColor.withAlpha(30),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(catLabel, style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w600)),
+                                ),
+                                if (isPaid) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: colors.success.withAlpha(25),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text('支払済み', style: TextStyle(fontSize: 11, color: colors.success, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -2630,56 +2680,103 @@ class _BillDetailSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // 支払期限
-                  if (bill.dueDate != null) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
-                        Row(
-                          children: [
-                            if (urgent)
-                              const Padding(
-                                padding: EdgeInsets.only(right: 4),
-                                child: Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFE53935)),
-                              ),
-                            Text(
-                              '${bill.dueDate!.year}/${bill.dueDate!.month}/${bill.dueDate!.day}',
-                              style: camillBodyStyle(14, urgent ? const Color(0xFFE53935) : colors.textPrimary, weight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    if (days != null) ...[
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          days >= 0 ? '残り$days日' : '期限切れ',
-                          style: camillBodyStyle(12, urgent ? const Color(0xFFE53935) : colors.textMuted),
-                        ),
+                  if (isPaid) ...[
+                    // 支払済み日
+                    if (bill.paidAt != null)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('支払日', style: camillBodyStyle(13, colors.textMuted)),
+                          Text(
+                            '${bill.paidAt!.year}/${bill.paidAt!.month.toString().padLeft(2, '0')}/${bill.paidAt!.day.toString().padLeft(2, '0')}',
+                            style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    if (bill.dueDate != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                          Text(
+                            '${bill.dueDate!.year}/${bill.dueDate!.month.toString().padLeft(2, '0')}/${bill.dueDate!.day.toString().padLeft(2, '0')}',
+                            style: camillBodyStyle(14, colors.textMuted),
+                          ),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 20),
-                  ],
-                  // 支払ボタン
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.success,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    // 支払済みバナー
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: colors.success.withAlpha(20),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: colors.success.withAlpha(60)),
                       ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        onPaid();
-                      },
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                      label: Text('支払いました', style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle, color: colors.success, size: 18),
+                          const SizedBox(width: 8),
+                          Text('支払い済みです', style: camillBodyStyle(15, colors.success, weight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    // 支払期限（未払い）
+                    if (bill.dueDate != null) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                          Row(
+                            children: [
+                              if (urgent)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 4),
+                                  child: Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFE53935)),
+                                ),
+                              Text(
+                                '${bill.dueDate!.year}/${bill.dueDate!.month.toString().padLeft(2, '0')}/${bill.dueDate!.day.toString().padLeft(2, '0')}',
+                                style: camillBodyStyle(14, urgent ? const Color(0xFFE53935) : colors.textPrimary, weight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      if (days != null) ...[
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            days >= 0 ? '残り$days日' : '期限切れ',
+                            style: camillBodyStyle(12, urgent ? const Color(0xFFE53935) : colors.textMuted),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                    ],
+                    // 支払ボタン
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: colors.success,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onPaid();
+                        },
+                        icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                        label: Text('支払いました', style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

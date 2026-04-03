@@ -47,6 +47,17 @@ class Bill {
     }
   }
 
+  Bill copyWith({BillStatus? status, DateTime? paidAt}) => Bill(
+        billId: billId,
+        title: title,
+        amount: amount,
+        dueDate: dueDate,
+        status: status ?? this.status,
+        createdAt: createdAt,
+        category: category,
+        paidAt: paidAt ?? this.paidAt,
+      );
+
   int? get daysUntilDue {
     if (dueDate == null) return null;
     return dueDate!.difference(DateTime.now()).inDays;

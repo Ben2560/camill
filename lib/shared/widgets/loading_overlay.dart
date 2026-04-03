@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../core/theme/camill_colors.dart';
 import 'pull_to_refresh.dart';
@@ -7,6 +8,7 @@ class LoadingOverlay extends StatefulWidget {
   final Widget child;
   final String? message;
   final String? subtitle;
+  final bool blur;
 
   const LoadingOverlay({
     super.key,
@@ -14,6 +16,7 @@ class LoadingOverlay extends StatefulWidget {
     required this.child,
     this.message,
     this.subtitle,
+    this.blur = false,
   });
 
   @override
@@ -50,14 +53,51 @@ class _LoadingOverlayState extends State<LoadingOverlay>
     super.dispose();
   }
 
+  Widget _buildOverlayContent(CamillColors colors) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PullRefreshDots(
+            controller: _dotsController,
+            color: colors.textMuted,
+            dotsVisible: 3,
+            isRefreshing: true,
+          ),
+          if (widget.message != null) ...[
+            const SizedBox(height: 20),
+            Text(
+              widget.message!,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+          ],
+          if (widget.subtitle != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              widget.subtitle!,
+              style: TextStyle(
+                fontSize: 13,
+                color: colors.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Stack(
       children: [
-        // コンテンツ：ロード完了時にフェードイン
+        // コンテンツ：blur時は常に表示、非blur時はロード中に非表示
         AnimatedOpacity(
-          opacity: widget.isLoading ? 0.0 : 1.0,
+          opacity: widget.blur || !widget.isLoading ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOut,
           child: widget.child,
@@ -68,58 +108,34 @@ class _LoadingOverlayState extends State<LoadingOverlay>
           child: AnimatedOpacity(
             opacity: widget.isLoading ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
-            child: Stack(
-              children: [
-                // 上部の極細プログレスバー
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: LinearProgressIndicator(
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation(
-                      colors.primary.withAlpha(100),
-                    ),
-                    minHeight: 2,
-                  ),
-                ),
-                // 中央の3ドット（＋メッセージ）
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      PullRefreshDots(
-                        controller: _dotsController,
-                        color: colors.textMuted,
-                        dotsVisible: 3,
-                        isRefreshing: true,
+            child: widget.blur
+                ? ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        color: Colors.black.withAlpha(60),
+                        child: _buildOverlayContent(colors),
                       ),
-                      if (widget.message != null) ...[
-                        const SizedBox(height: 20),
-                        Text(
-                          widget.message!,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
+                    ),
+                  )
+                : Stack(
+                    children: [
+                      // 上部の極細プログレスバー
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearProgressIndicator(
+                          backgroundColor: Colors.transparent,
+                          valueColor: AlwaysStoppedAnimation(
+                            colors.primary.withAlpha(100),
                           ),
+                          minHeight: 2,
                         ),
-                      ],
-                      if (widget.subtitle != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          widget.subtitle!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: colors.textMuted,
-                          ),
-                        ),
-                      ],
+                      ),
+                      _buildOverlayContent(colors),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ],

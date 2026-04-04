@@ -58,8 +58,13 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
 
   Future<void> _saveAll() async {
     setState(() => _saving = true);
-    for (final key in _pageKeys) {
-      final success = await key.currentState!._performSave();
+    for (int i = 0; i < _pageKeys.length; i++) {
+      // 未訪問ページは state が null のため、jumpToPage で強制ビルドしてから1フレーム待つ
+      if (_pageKeys[i].currentState == null) {
+        _pageController.jumpToPage(i);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      final success = await _pageKeys[i].currentState!._performSave();
       if (!success) {
         setState(() => _saving = false);
         return;
@@ -69,6 +74,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
       if (_visibleAnalyses.any((a) => a.isBill)) {
         CalendarScreen.billRefreshSignal.value++;
       }
+      CalendarScreen.receiptRefreshSignal.value++;
       context.go('/');
     }
   }
@@ -134,14 +140,16 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
               ),
             ),
           Expanded(
-            child: PageView.builder(
+            child: PageView(
               controller: _pageController,
-              itemCount: count,
               onPageChanged: (i) => setState(() => _currentPage = i),
-              itemBuilder: (context, i) => _ReceiptFormPage(
-                key: _pageKeys[i],
-                analysis: _visibleAnalyses[i],
-              ),
+              children: [
+                for (int i = 0; i < count; i++)
+                  _ReceiptFormPage(
+                    key: _pageKeys[i],
+                    analysis: _visibleAnalyses[i],
+                  ),
+              ],
             ),
           ),
           Padding(
@@ -196,7 +204,10 @@ class _ReceiptFormPage extends StatefulWidget {
   State<_ReceiptFormPage> createState() => _ReceiptFormPageState();
 }
 
-class _ReceiptFormPageState extends State<_ReceiptFormPage> {
+class _ReceiptFormPageState extends State<_ReceiptFormPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final _receiptService = ReceiptService();
   final _couponService = CouponService();
   final _communityService = CommunityService();
@@ -1535,6 +1546,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage> {
   // ── build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final colors = context.colors;
     final purchasedAt = _purchasedAt;
 

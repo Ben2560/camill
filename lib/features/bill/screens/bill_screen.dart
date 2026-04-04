@@ -225,7 +225,8 @@ class _BillScreenState extends State<BillScreen>
             onPointerMove: (e) {
               if (_isDismissing) return;
               final sc = _activeScrollController;
-              if (sc.hasClients && sc.position.pixels <= 0 && e.delta.dy > 0) {
+              final atTop = !sc.hasClients || sc.position.pixels <= 0;
+              if (atTop && e.delta.dy > 0) {
                 _pullDistance += e.delta.dy;
                 _dismissOffset.value = _pullDistance;
               } else if (e.delta.dy < 0 && _pullDistance > 0) {
@@ -404,7 +405,7 @@ class _BillList extends StatelessWidget {
     }
     return ListView.separated(
       controller: scrollController,
-      physics: const DismissScrollPhysics(),
+      physics: const DismissScrollPhysicsWithTopBounce(),
       padding: const EdgeInsets.all(16),
       itemCount: bills.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),

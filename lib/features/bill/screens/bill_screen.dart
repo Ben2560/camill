@@ -277,10 +277,11 @@ class _BillScreenState extends State<BillScreen>
     final amountCtrl = TextEditingController();
     DateTime? dueDate;
 
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: colors.surface,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -376,6 +377,10 @@ class _BillScreenState extends State<BillScreen>
         ),
       ),
     );
+    } finally {
+      titleCtrl.dispose();
+      amountCtrl.dispose();
+    }
   }
 }
 

@@ -384,9 +384,7 @@ class _CalendarScreenState extends State<CalendarScreen>
         receiptService: _receiptService,
         fmt: _fmt,
         onDeleted: () {
-          final key = DateFormat('yyyy-MM').format(_focusedDay);
-          _summaryCache.remove(key);
-          _loadSummary(_focusedDay);
+          CalendarScreen.receiptRefreshSignal.value++;
         },
         onEdit: (receiptListItem, {bool focusMemo = false}) =>
             context.push('/receipt-edit', extra: (receipt: receiptListItem, focusMemo: focusMemo)),
@@ -789,9 +787,10 @@ class _CalendarScreenState extends State<CalendarScreen>
         // 利用可能な高さから rowHeight を動的計算:
         //   曜日ヘッダー28px + 最大6行 + 詳細パネル最低65px が収まるよう調整
         //   セルコンテンツ（32px日付+14px金額=46px）を下回らないよう 46 でクランプ
+        //   ClipRect で端数ピクセルのオーバーフローを無音クリップ
         final rowH = ((constraints.maxHeight - 28.0 - 65.0) / 6)
             .clamp(46.0, 72.0);
-        return _buildMonthColumn(colors, rowH);
+        return ClipRect(child: _buildMonthColumn(colors, rowH));
       },
     );
   }
@@ -1403,9 +1402,10 @@ class _DetailPanel extends StatelessWidget {
         ),
         Divider(height: 1, color: colors.surfaceBorder),
         if (loading)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: CircularProgressIndicator(color: colors.primary),
+          Expanded(
+            child: Center(
+              child: CircularProgressIndicator(color: colors.primary),
+            ),
           )
         else
           Expanded(

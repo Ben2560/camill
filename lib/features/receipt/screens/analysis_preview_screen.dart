@@ -227,12 +227,14 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
   late List<bool> _couponIncluded;
   late List<bool> _shareToComm;
   late bool _isMedical;
+  late bool _isUncovered;
   late int _totalPoints;
   late double _burdenRate;
   late bool _isBill;
   DateTime? _billDueDate;
   late String _billStatus; // 'paid' | 'unpaid'
   DateTime? _billPaidDate; // 印鑑から読み取った支払済み日
+  late bool _billIsTaxExempt;
 
   final _memoCtrl = TextEditingController();
   final _memoFocus = FocusNode();
@@ -279,12 +281,14 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
     _taxAmount = widget.analysis.taxAmount ?? 0;
     _taxFromReceipt = widget.analysis.taxAmount != null;
     _isMedical = widget.analysis.isMedical;
+    _isUncovered = widget.analysis.isUncovered;
     _totalPoints = widget.analysis.totalPoints ?? 0;
     _burdenRate = widget.analysis.burdenRate ?? 0.0;
     _isBill = widget.analysis.isBill;
     _billDueDate = widget.analysis.billDueDate;
     _billStatus = widget.analysis.billStatus;
     _billPaidDate = widget.analysis.billPaidDate;
+    _billIsTaxExempt = widget.analysis.billIsTaxExempt;
     if (_isMedical) {
       if (_receiptCategory == null) {
         _receiptCategory = 'medical';
@@ -369,6 +373,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
       couponsDetected: includedCoupons,
       duplicateCheckHash: widget.analysis.duplicateCheckHash,
       isMedical: _isMedical,
+      isUncovered: _isUncovered,
       totalPoints: _totalPoints != 0 ? _totalPoints : null,
       burdenRate: _burdenRate != 0 ? _burdenRate : null,
       memo: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
@@ -382,6 +387,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
           dueDate: _billDueDate?.toLocal().toIso8601String(),
           status: _billStatus,
           category: _receiptCategory ?? _autoCategory,
+          isTaxExempt: _billIsTaxExempt,
           paidAt: _billStatus == 'paid'
               ? (_billPaidDate ?? DateTime.now()).toIso8601String()
               : null,
@@ -1783,51 +1789,67 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                 ],
                 Divider(color: colors.surfaceBorder),
                 if (_isMedical) ...[
-                  Row(
-                    children: [
-                      Text('合計',
-                          style: camillBodyStyle(13, colors.textMuted)),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$_totalPoints点',
-                        style: camillBodyStyle(15, colors.textPrimary,
-                            weight: FontWeight.w600),
+                  // 自由診療バッジ
+                  if (_isUncovered) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: colors.danger.withAlpha(18),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: colors.danger.withAlpha(80)),
                       ),
-                      const Spacer(),
-                      Text(
-                        '10割: ${_fmt.format(_totalPoints * 10)}',
-                        style: camillBodyStyle(12, colors.textMuted),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.money_off_outlined, size: 14, color: colors.danger),
+                          const SizedBox(width: 5),
+                          Text('自由診療（保険外）',
+                              style: camillBodyStyle(12, colors.danger, weight: FontWeight.w600)),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text('負担率',
-                          style: camillBodyStyle(13, colors.textMuted)),
-                      const Spacer(),
-                      Text(
-                        '${(_burdenRate * 10).round()}割負担',
-                        style: camillBodyStyle(13, colors.textSecondary,
-                            weight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '実負担額',
-                        style: camillBodyStyle(14, colors.textPrimary,
-                            weight: FontWeight.bold),
-                      ),
-                      Text(
-                        _fmt.format(_totalAmount),
-                        style: camillAmountStyle(18, colors.textPrimary),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('請求金額（保険外）',
+                            style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
+                        Text(_fmt.format(_totalAmount),
+                            style: camillAmountStyle(18, colors.danger)),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Text('合計', style: camillBodyStyle(13, colors.textMuted)),
+                        const SizedBox(width: 6),
+                        Text('$_totalPoints点',
+                            style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.w600)),
+                        const Spacer(),
+                        Text('10割: ${_fmt.format(_totalPoints * 10)}',
+                            style: camillBodyStyle(12, colors.textMuted)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text('負担率', style: camillBodyStyle(13, colors.textMuted)),
+                        const Spacer(),
+                        Text('${(_burdenRate * 10).round()}割負担',
+                            style: camillBodyStyle(13, colors.textSecondary, weight: FontWeight.w500)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('実負担額',
+                            style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
+                        Text(_fmt.format(_totalAmount),
+                            style: camillAmountStyle(18, colors.textPrimary)),
+                      ],
+                    ),
+                  ],
                 ] else
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

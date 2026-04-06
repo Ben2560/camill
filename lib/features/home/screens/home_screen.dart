@@ -19,6 +19,7 @@ import '../../coupon/services/coupon_service.dart';
 import '../../receipt/services/receipt_service.dart';
 import '../../../shared/models/bill_model.dart';
 import '../../bill/screens/bill_screen.dart';
+import '../../calendar/screens/calendar_screen.dart';
 import '../../receipt/screens/receipt_list_screen.dart';
 import '../../../core/constants.dart';
 import '../../data/screens/data_screen.dart';
@@ -870,6 +871,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   int? _weekExpense;
   int? _yearExpense;
+  int? _yearBillTotal;
   bool _weekLoading = false;
   bool _yearLoading = false;
   int _periodIndex = 1; // 0=週, 1=月, 2=年
@@ -933,6 +935,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         widget.navProgress.value = p;
       });
     _load();
+    CalendarScreen.receiptRefreshSignal.addListener(_onReceiptChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routerDelegate = GoRouter.of(context).routerDelegate;
       _routerDelegate.addListener(_onRouteChanged);
@@ -941,10 +944,16 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   @override
   void dispose() {
+    CalendarScreen.receiptRefreshSignal.removeListener(_onReceiptChanged);
     _routerDelegate.removeListener(_onRouteChanged);
     _bounceController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onReceiptChanged() {
+    if (!mounted) return;
+    _load(silent: true);
   }
 
   void _onRouteChanged() {
@@ -1096,9 +1105,23 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         0,
         (s, r) => s + ((r['total_expense'] as num?)?.toInt() ?? 0),
       );
-      if (mounted) setState(() => _yearExpense = total);
+      final billTotal = results.fold<int>(
+        0,
+        (s, r) => s + ((r['bill_total'] as num?)?.toInt() ?? 0),
+      );
+      if (mounted) {
+        setState(() {
+          _yearExpense = total;
+          _yearBillTotal = billTotal;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _yearExpense = null);
+      if (mounted) {
+        setState(() {
+          _yearExpense = null;
+          _yearBillTotal = null;
+        });
+      }
     } finally {
       if (mounted) setState(() => _yearLoading = false);
     }
@@ -2353,16 +2376,21 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       isLoading = _loading;
     }
 
-    // 医療費（非課税）を除外してから消費税推定
+    // 非課税分（医療費＋請求書）を除外してから消費税推定
     final int medicalExpense;
+    final int billExpense;
     if (_periodIndex == 0) {
       medicalExpense = _weekMedicalExpense ?? 0;
+      billExpense = 0; // 週次は receipts のみで計算済み（請求書含まず）
     } else if (_periodIndex == 1) {
       medicalExpense = _monthMedicalExpense ?? 0;
+      billExpense = _summary?.billTotal ?? 0;
     } else {
       medicalExpense = 0; // 年間は個別レシート未取得のため除外なし
+      billExpense = _yearBillTotal ?? 0;
     }
-    final taxableExpense = (expense - medicalExpense).clamp(0, expense);
+    final nonTaxable = medicalExpense + billExpense;
+    final taxableExpense = (expense - nonTaxable).clamp(0, expense);
     // 消費税推定（税込み金額から逆算: 税額 = 税込 × 10/110）
     final estimatedTax = (taxableExpense * 10 / 110).round();
 
@@ -2450,6 +2478,15 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               _TaxBreakdownRow(
                 label: '非課税（医療・介護・教育）',
                 amount: medicalExpense,
+                colors: colors,
+                fmt: _currencyFmt,
+              ),
+              const SizedBox(height: 4),
+            ],
+            if (billExpense > 0) ...[
+              _TaxBreakdownRow(
+                label: '非課税（公共料金・税金等）',
+                amount: billExpense,
                 colors: colors,
                 fmt: _currencyFmt,
               ),

@@ -19,6 +19,7 @@ class WeeklySummary {
   final String weekEnd;
   final int totalExpense;
   final int totalIncome;
+  final int billTotal;
   final List<CategorySummary> byCategory;
   final List<DailySummary> byDay;
 
@@ -27,6 +28,7 @@ class WeeklySummary {
     required this.weekEnd,
     required this.totalExpense,
     required this.totalIncome,
+    this.billTotal = 0,
     required this.byCategory,
     required this.byDay,
   });
@@ -36,6 +38,7 @@ class WeeklySummary {
         weekEnd: json['week_end'] as String,
         totalExpense: (json['total_expense'] as num).toInt(),
         totalIncome: (json['total_income'] as num? ?? 0).toInt(),
+        billTotal: (json['bill_total'] as num? ?? 0).toInt(),
         byCategory: (json['by_category'] as List<dynamic>)
             .map((e) => CategorySummary.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -63,6 +66,7 @@ class YearlySummary {
   final int year;
   final int totalExpense;
   final int totalIncome;
+  final int billTotal;
   final List<CategorySummary> byCategory;
   final List<MonthlyPoint> byMonth;
 
@@ -70,6 +74,7 @@ class YearlySummary {
     required this.year,
     required this.totalExpense,
     required this.totalIncome,
+    this.billTotal = 0,
     required this.byCategory,
     required this.byMonth,
   });
@@ -78,6 +83,7 @@ class YearlySummary {
         year: (json['year'] as num).toInt(),
         totalExpense: (json['total_expense'] as num).toInt(),
         totalIncome: (json['total_income'] as num? ?? 0).toInt(),
+        billTotal: (json['bill_total'] as num? ?? 0).toInt(),
         byCategory: (json['by_category'] as List<dynamic>)
             .map((e) => CategorySummary.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -173,6 +179,7 @@ class MonthlySummary {
   final int totalExpense;
   final int totalIncome;
   final int score;
+  final int billTotal;
   final List<CategorySummary> byCategory;
   final List<RecentReceipt> recentReceipts;
   final List<RecentReceipt> allReceipts;
@@ -182,6 +189,7 @@ class MonthlySummary {
     required this.totalExpense,
     required this.totalIncome,
     required this.score,
+    this.billTotal = 0,
     required this.byCategory,
     required this.recentReceipts,
     required this.allReceipts,
@@ -192,6 +200,7 @@ class MonthlySummary {
         totalExpense: (json['total_expense'] as num).toInt(),
         totalIncome: (json['total_income'] as num? ?? 0).toInt(),
         score: (json['score'] as num? ?? 0).toInt(),
+        billTotal: (json['bill_total'] as num? ?? 0).toInt(),
         byCategory: (json['by_category'] as List<dynamic>)
             .map((e) => CategorySummary.fromJson(e as Map<String, dynamic>))
             .toList(),

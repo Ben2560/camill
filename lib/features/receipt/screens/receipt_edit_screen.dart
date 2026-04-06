@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
@@ -7,6 +8,7 @@ import '../../../shared/models/receipt_model.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../calendar/screens/calendar_screen.dart';
 
 class ReceiptEditScreen extends StatefulWidget {
   final ReceiptListItem receipt;
@@ -47,7 +49,6 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
             .toList();
     _memoCtrl.addListener(_onMemoChanged);
     _memoFocusNode.addListener(_onMemoFocus);
-    // 既存メモがある場合は行数を反映
     _onMemoChanged();
     if (widget.focusMemo) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,7 +73,6 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
 
   void _onMemoFocus() {
     if (!_memoFocusNode.hasFocus) return;
-    // キーボードアニメーション完了後に末尾までスクロールしてメモ欄を表示
     Future.delayed(const Duration(milliseconds: 350), () {
       if (!mounted || !_scrollCtrl.hasClients) return;
       _scrollCtrl.animateTo(
@@ -111,6 +111,16 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
     }
   }
 
+  Future<void> _pickPayment() async {
+    final result = await showPaymentBottomSheet(context, _paymentMethod);
+    if (result != null) setState(() => _paymentMethod = result);
+  }
+
+  Future<void> _pickCategory() async {
+    final result = await showCategoryBottomSheet(context, _receiptCategory);
+    if (result != null) setState(() => _receiptCategory = result);
+  }
+
   void _addItem() => setState(() => _items.add(_ItemEntry()));
 
   void _removeItem(int index) {
@@ -146,8 +156,9 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
         'memo': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       });
 
+      CalendarScreen.receiptRefreshSignal.value++;
       if (mounted) {
-        Navigator.pop(context, true);
+        context.pop(true);
       }
     } catch (e) {
       // silently swallow
@@ -208,35 +219,51 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _paymentMethod,
-                decoration: InputDecoration(
-                  labelText: '支払方法',
-                  prefixIcon:
-                      Icon(Icons.payment_outlined, color: colors.textMuted),
+              // 支払方法
+              InkWell(
+                onTap: _pickPayment,
+                borderRadius: BorderRadius.circular(8),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: '支払方法',
+                    prefixIcon: Icon(Icons.payment_outlined, color: colors.textMuted),
+                    suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+                  ),
+                  child: Text(
+                    AppConstants.paymentLabels[_paymentMethod] ?? _paymentMethod,
+                    style: camillBodyStyle(14, colors.textPrimary),
+                  ),
                 ),
-                items: AppConstants.paymentLabels.entries
-                    .map((e) => DropdownMenuItem(
-                          value: e.key,
-                          child: Text(e.value),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _paymentMethod = v!),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _receiptCategory,
-                decoration: InputDecoration(
-                  labelText: 'レシートカテゴリ',
-                  prefixIcon: Icon(Icons.label_outline, color: colors.textMuted),
+              // レシートカテゴリ
+              InkWell(
+                onTap: _pickCategory,
+                borderRadius: BorderRadius.circular(8),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'レシートカテゴリ',
+                    prefixIcon: Icon(Icons.label_outline, color: colors.textMuted),
+                    suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: AppConstants.categoryColors[_receiptCategory] ?? colors.textMuted,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppConstants.categoryLabels[_receiptCategory] ?? _receiptCategory,
+                        style: camillBodyStyle(14, colors.textPrimary),
+                      ),
+                    ],
+                  ),
                 ),
-                items: AppConstants.categoryLabels.entries
-                    .map((e) => DropdownMenuItem(
-                          value: e.key,
-                          child: Text(e.value),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _receiptCategory = v!),
               ),
               const SizedBox(height: 24),
               Row(
@@ -340,6 +367,202 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
   }
 }
 
+// ────────────────────────────────────────────
+// BottomSheet ヘルパー
+// ────────────────────────────────────────────
+
+Future<String?> showCategoryBottomSheet(BuildContext context, String current) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _CategoryPickerSheet(current: current),
+  );
+}
+
+Future<String?> showPaymentBottomSheet(BuildContext context, String current) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _PaymentPickerSheet(current: current),
+  );
+}
+
+// ────────────────────────────────────────────
+// カテゴリ選択シート
+// ────────────────────────────────────────────
+
+class _CategoryPickerSheet extends StatelessWidget {
+  final String current;
+  const _CategoryPickerSheet({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final entries = AppConstants.categoryLabels.entries.toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ハンドルバー
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colors.surfaceBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('カテゴリを選択', style: camillHeadingStyle(16, colors.textPrimary)),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 2.4,
+            ),
+            itemCount: entries.length,
+            itemBuilder: (_, i) {
+              final key = entries[i].key;
+              final label = entries[i].value;
+              final color = AppConstants.categoryColors[key] ?? colors.textMuted;
+              final isSelected = key == current;
+              return GestureDetector(
+                onTap: () => Navigator.of(context).pop(key),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  decoration: BoxDecoration(
+                    color: isSelected ? color.withAlpha(50) : color.withAlpha(20),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected ? color : color.withAlpha(60),
+                      width: isSelected ? 1.8 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(label,
+                          style: camillBodyStyle(13, isSelected ? color : colors.textPrimary,
+                              weight: isSelected ? FontWeight.w700 : FontWeight.normal)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────
+// 支払方法選択シート
+// ────────────────────────────────────────────
+
+const _paymentIcons = {
+  'cash': Icons.payments_outlined,
+  'credit': Icons.credit_card_outlined,
+  'ic': Icons.contactless_outlined,
+  'qr': Icons.qr_code_outlined,
+  'pay_easy': Icons.account_balance_outlined,
+  'other': Icons.more_horiz,
+};
+
+class _PaymentPickerSheet extends StatelessWidget {
+  final String current;
+  const _PaymentPickerSheet({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final entries = AppConstants.paymentLabels.entries.toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colors.surfaceBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('支払方法を選択', style: camillHeadingStyle(16, colors.textPrimary)),
+          const SizedBox(height: 8),
+          ...entries.map((e) {
+            final isSelected = e.key == current;
+            return InkWell(
+              onTap: () => Navigator.of(context).pop(e.key),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isSelected ? colors.primaryLight : colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? colors.primary : colors.surfaceBorder,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _paymentIcons[e.key] ?? Icons.more_horiz,
+                      size: 20,
+                      color: isSelected ? colors.primary : colors.textSecondary,
+                    ),
+                    const SizedBox(width: 14),
+                    Text(
+                      e.value,
+                      style: camillBodyStyle(15, isSelected ? colors.primary : colors.textPrimary,
+                          weight: isSelected ? FontWeight.w700 : FontWeight.normal),
+                    ),
+                    const Spacer(),
+                    if (isSelected)
+                      Icon(Icons.check_circle, size: 18, color: colors.primary),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────
+// ItemEntry / ItemRow
+// ────────────────────────────────────────────
+
 class _ItemEntry {
   final nameCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
@@ -378,9 +601,20 @@ class _ItemRow extends StatelessWidget {
     required this.onChanged,
   });
 
+  Future<void> _pickItemCategory(BuildContext context) async {
+    final result = await showCategoryBottomSheet(context, entry.category);
+    if (result != null) {
+      entry.category = result;
+      onChanged();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final catColor = AppConstants.categoryColors[entry.category] ?? colors.textMuted;
+    final catLabel = AppConstants.categoryLabels[entry.category] ?? entry.category;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -436,23 +670,33 @@ class _ItemRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: entry.category,
-              isDense: true,
-              decoration:
-                  const InputDecoration(labelText: 'カテゴリ', isDense: true),
-              items: AppConstants.categoryLabels.entries
-                  .map((e) => DropdownMenuItem(
-                        value: e.key,
-                        child: Text(e.value,
-                            style: const TextStyle(fontSize: 14)),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                entry.category = v!;
-                onChanged();
-              },
+            const SizedBox(height: 10),
+            // カテゴリ選択タイル
+            InkWell(
+              onTap: () => _pickItemCategory(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: catColor.withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: catColor.withAlpha(70)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(catLabel,
+                        style: camillBodyStyle(13, catColor, weight: FontWeight.w600)),
+                    const Spacer(),
+                    Icon(Icons.chevron_right, size: 16, color: catColor.withAlpha(180)),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

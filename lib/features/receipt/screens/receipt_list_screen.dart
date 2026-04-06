@@ -10,6 +10,7 @@ import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
+import '../../calendar/screens/calendar_screen.dart';
 
 class ReceiptListScreen extends StatefulWidget {
   const ReceiptListScreen({super.key});
@@ -284,6 +285,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
     if (confirmed == true) {
       try {
         await _api.delete('/receipts/${receipt.receiptId}');
+        CalendarScreen.receiptRefreshSignal.value++;
         await _loadReceipts();
       } catch (e) {
         // silently swallow

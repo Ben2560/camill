@@ -129,6 +129,7 @@ class ReceiptAnalysis {
   final List<LinePromotion> linePromotions;
   final String duplicateCheckHash;
   final bool isMedical;
+  final bool isUncovered; // 自由診療（保険外）フラグ
   final int? totalPoints; // 医療レシートの場合の合計点数
   final double? burdenRate; // 負担率（例: 0.3）
   final String? memo; // メモ
@@ -136,6 +137,7 @@ class ReceiptAnalysis {
   final DateTime? billDueDate; // 請求書の支払期限
   final String billStatus; // 'paid' | 'unpaid'（印鑑・スタンプによる支払済み判定）
   final DateTime? billPaidDate; // 印鑑・スタンプから読み取った支払済み日
+  final bool billIsTaxExempt; // 請求書が消費税非課税か（住民税・国民健康保険等）
 
   ReceiptAnalysis({
     required this.storeName,
@@ -149,6 +151,7 @@ class ReceiptAnalysis {
     this.linePromotions = const [],
     required this.duplicateCheckHash,
     this.isMedical = false,
+    this.isUncovered = false,
     this.totalPoints,
     this.burdenRate,
     this.memo,
@@ -156,6 +159,7 @@ class ReceiptAnalysis {
     this.billDueDate,
     this.billStatus = 'unpaid',
     this.billPaidDate,
+    this.billIsTaxExempt = false,
   });
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
@@ -178,6 +182,7 @@ class ReceiptAnalysis {
             .toList(),
         duplicateCheckHash: json['duplicate_check_hash'] as String? ?? '',
         isMedical: json['is_medical'] as bool? ?? false,
+        isUncovered: json['is_uncovered'] as bool? ?? false,
         totalPoints: (json['total_points'] as num?)?.toInt(),
         burdenRate: (json['burden_rate'] as num?)?.toDouble(),
         memo: json['memo'] as String?,
@@ -189,6 +194,7 @@ class ReceiptAnalysis {
         billPaidDate: json['bill_paid_date'] != null
             ? DateTime.tryParse(json['bill_paid_date'] as String)?.toLocal()
             : null,
+        billIsTaxExempt: json['bill_is_tax_exempt'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -203,6 +209,7 @@ class ReceiptAnalysis {
         'line_promotions': linePromotions.map((e) => e.toJson()).toList(),
         'duplicate_check_hash': duplicateCheckHash,
         'is_medical': isMedical,
+        'is_uncovered': isUncovered,
         if (totalPoints != null) 'total_points': totalPoints,
         if (burdenRate != null) 'burden_rate': burdenRate,
         if (memo != null && memo!.isNotEmpty) 'memo': memo,
@@ -210,6 +217,7 @@ class ReceiptAnalysis {
         if (billDueDate != null) 'bill_due_date': billDueDate!.toIso8601String(),
         'bill_status': billStatus,
         if (billPaidDate != null) 'bill_paid_date': billPaidDate!.toIso8601String(),
+        'bill_is_tax_exempt': billIsTaxExempt,
       };
 }
 

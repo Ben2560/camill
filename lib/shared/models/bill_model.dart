@@ -8,6 +8,7 @@ class Bill {
   final BillStatus status;
   final DateTime createdAt;
   final String? category;
+  final bool isTaxExempt;
   final DateTime? paidAt;
 
   Bill({
@@ -18,6 +19,7 @@ class Bill {
     required this.status,
     required this.createdAt,
     this.category,
+    this.isTaxExempt = false,
     this.paidAt,
   });
 
@@ -31,6 +33,7 @@ class Bill {
         status: _statusFromString(json['status'] as String? ?? 'unpaid'),
         createdAt: DateTime.parse(json['created_at'] as String),
         category: json['category'] as String?,
+        isTaxExempt: json['is_tax_exempt'] as bool? ?? false,
         paidAt: json['paid_at'] != null
             ? DateTime.parse(json['paid_at'] as String).toLocal()
             : null,
@@ -55,6 +58,7 @@ class Bill {
         status: status ?? this.status,
         createdAt: createdAt,
         category: category,
+        isTaxExempt: isTaxExempt,
         paidAt: paidAt ?? this.paidAt,
       );
 

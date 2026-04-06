@@ -19,6 +19,7 @@ class BillService {
     String? dueDate,
     String status = 'unpaid',
     String? category,
+    bool isTaxExempt = false,
     String? paidAt,
   }) async {
     final data = await _api.postAny('/bills', body: {
@@ -27,6 +28,7 @@ class BillService {
       'due_date': dueDate,
       'status': status,
       'category': category,
+      'is_tax_exempt': isTaxExempt,
       'paid_at': paidAt,
     });
     return Bill.fromJson(data as Map<String, dynamic>);

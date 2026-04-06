@@ -7,7 +7,7 @@ class AppConstants {
   // Category labels (Japanese)
   static const Map<String, String> categoryLabels = {
     'food':         '食費',
-    'dining_out':   '食費',
+    'dining_out':   '外食費',
     'daily':        '日用品',
     'transport':    '交通費',
     'clothing':     '衣服',

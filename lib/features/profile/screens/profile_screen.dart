@@ -8,6 +8,7 @@ import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../auth/services/auth_service.dart';
+import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/budget_sheet.dart';
 import '../../../shared/widgets/top_notification.dart';
 
@@ -21,14 +22,25 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _authService = AuthService();
+  final _apiService = ApiService();
 
   static const _budgetKey = 'budget_monthly';
   int _budget = 80000;
+  String _plan = 'free';
+
+  static const _planLabels = {
+    'free': '無料プラン',
+    'pro': 'Proプラン',
+    'family': 'ファミリープラン',
+  };
+
+  String get _planLabel => _planLabels[_plan] ?? _plan;
 
   @override
   void initState() {
     super.initState();
     _loadBudget();
+    _loadBillingStatus();
     widget.refreshNotifier?.addListener(_loadBudget);
   }
 
@@ -36,6 +48,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void dispose() {
     widget.refreshNotifier?.removeListener(_loadBudget);
     super.dispose();
+  }
+
+  Future<void> _loadBillingStatus() async {
+    try {
+      final data = await _apiService.get('/billing/status');
+      if (!mounted) return;
+      setState(() => _plan = data['plan'] as String? ?? 'free');
+    } catch (_) {}
   }
 
   Future<void> _loadBudget() async {
@@ -211,7 +231,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           color: colors.primaryLight,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text('無料プラン',
+                        child: Text(_planLabel,
                             style: camillBodyStyle(12, colors.primary)),
                       ),
                     ],
@@ -240,7 +260,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _SettingsItem(
             icon: Icons.workspace_premium_outlined,
             title: 'プラン・課金管理',
-            subtitle: '無料プラン',
+            subtitle: _planLabel,
             colors: colors,
             onTap: () {},
           ),

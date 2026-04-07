@@ -52,6 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // 未払い請求書アラート
   final _billService = BillService();
   List<Bill> _upcomingBills = [];
+  final _billBannerController = PageController();
+  int _billBannerPage = 0;
   // 請求書一覧（直近5件・ハイライトウィジェット用）
   List<Bill> _recentBills = [];
 
@@ -101,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadTodayCoupons();
     _loadUpcomingBills();
     _loadRecentBills();
+    CalendarScreen.billRefreshSignal.addListener(_onBillChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routerDelegate = GoRouter.of(context).routerDelegate;
       _routerDelegate.addListener(_onRouteChanged);
@@ -109,10 +112,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    CalendarScreen.billRefreshSignal.removeListener(_onBillChanged);
     _routerDelegate.removeListener(_onRouteChanged);
     _pageController.dispose();
+    _billBannerController.dispose();
     _navProgress.dispose();
     super.dispose();
+  }
+
+  void _onBillChanged() {
+    if (!mounted) return;
+    _loadUpcomingBills();
+    _loadRecentBills();
   }
 
   void _onRouteChanged() {
@@ -144,11 +155,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       // 月リストが変わっていなければ PageView を再構築しない
-      final changed = months.length != _availableMonths.length ||
-          !months.asMap().entries.every((e) =>
-              e.key < _availableMonths.length &&
-              _availableMonths[e.key].year == e.value.year &&
-              _availableMonths[e.key].month == e.value.month);
+      final changed =
+          months.length != _availableMonths.length ||
+          !months.asMap().entries.every(
+            (e) =>
+                e.key < _availableMonths.length &&
+                _availableMonths[e.key].year == e.value.year &&
+                _availableMonths[e.key].month == e.value.month,
+          );
       if (!changed) return;
 
       _pageController.dispose();
@@ -183,9 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final bills = await _billService.fetchBills(status: 'unpaid');
       if (!mounted) return;
       setState(() {
-        _upcomingBills = bills
-            .where((b) => b.dueDate != null)
-            .toList()
+        _upcomingBills = bills.where((b) => b.dueDate != null).toList()
           ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
       });
     } catch (_) {}
@@ -399,104 +411,150 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBillAlertBanner(CamillColors colors) {
+    // 緊急を先頭に、残りは期限順で並べる
     final urgent = _upcomingBills.where((b) => b.isUrgent).toList();
-    final isUrgent = urgent.isNotEmpty;
-    final displayBills = isUrgent ? urgent : _upcomingBills;
-    final bill = displayBills.first;
-    final days = bill.daysUntilDue;
+    final nonUrgent = _upcomingBills.where((b) => !b.isUrgent).toList();
+    final displayBills = [...urgent, ...nonUrgent];
     final fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
+    final hasMultiple = displayBills.length > 1;
 
-    String subtitle;
-    if (days == 0) {
-      subtitle = '本日が支払い期限です';
-    } else if (days == 1) {
-      subtitle = '明日が支払い期限です';
-    } else {
-      subtitle = 'あと$days日';
-    }
-    if (displayBills.length > 1) {
-      subtitle += '（他${displayBills.length - 1}件）';
-    }
+    Widget buildCard(Bill bill) {
+      final isUrgent = bill.isUrgent;
+      final days = bill.daysUntilDue;
+      String subtitle;
+      if (days == 0) {
+        subtitle = '本日が支払い期限です';
+      } else if (days == 1) {
+        subtitle = '明日が支払い期限です';
+      } else {
+        subtitle = 'あと$days日';
+      }
 
-    return GestureDetector(
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          isScrollControlled: true,
-          builder: (_) => _HomeBillDetailSheet(
-            bill: bill,
-            fmt: fmt,
-            colors: colors,
-            onPaid: () async {
-              try {
-                await _billService.payBill(bill.billId);
-                _loadUpcomingBills();
-                _loadRecentBills();
-              } catch (_) {}
-            },
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isUrgent
-              ? const Color(0xFFE57373).withAlpha(20)
-              : colors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
+      return GestureDetector(
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (_) => _HomeBillDetailSheet(
+              bill: bill,
+              fmt: fmt,
+              colors: colors,
+              onPaid: () async {
+                try {
+                  await _billService.payBill(bill.billId);
+                  _loadUpcomingBills();
+                  _loadRecentBills();
+                } catch (_) {}
+              },
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
             color: isUrgent
-                ? const Color(0xFFE57373).withAlpha(100)
-                : colors.surfaceBorder,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: (isUrgent ? const Color(0xFFE57373) : colors.primary)
-                  .withAlpha(25),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+                ? const Color(0xFFE57373).withAlpha(20)
+                : colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isUrgent
+                  ? const Color(0xFFE57373).withAlpha(100)
+                  : colors.surfaceBorder,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isUrgent
-                  ? Icons.warning_amber_rounded
-                  : Icons.receipt_long_outlined,
-              color: isUrgent ? const Color(0xFFE57373) : colors.primary,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    bill.title,
-                    style: camillBodyStyle(
-                      14,
-                      colors.textPrimary,
-                      weight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${fmt.format(bill.amount)}　$subtitle',
-                    style: camillBodyStyle(
-                      11,
-                      isUrgent ? const Color(0xFFE57373) : colors.textMuted,
-                    ),
-                  ),
-                ],
+            boxShadow: [
+              BoxShadow(
+                color: (isUrgent ? const Color(0xFFE57373) : colors.primary)
+                    .withAlpha(25),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isUrgent
+                    ? Icons.warning_amber_rounded
+                    : Icons.receipt_long_outlined,
+                color: isUrgent ? const Color(0xFFE57373) : colors.primary,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bill.title,
+                      style: camillBodyStyle(
+                        14,
+                        colors.textPrimary,
+                        weight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${fmt.format(bill.amount)}　$subtitle',
+                      style: camillBodyStyle(
+                        11,
+                        isUrgent ? const Color(0xFFE57373) : colors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasMultiple)
+                Icon(Icons.chevron_right, size: 16, color: colors.textMuted),
+            ],
+          ),
         ),
-      ),
+      );
+    }
+
+    if (!hasMultiple) return buildCard(displayBills.first);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 60,
+          child: PageView.builder(
+            controller: _billBannerController,
+            itemCount: displayBills.length,
+            onPageChanged: (i) => setState(() => _billBannerPage = i),
+            itemBuilder: (_, i) => Padding(
+              padding: EdgeInsets.only(
+                right: i < displayBills.length - 1 ? 6 : 0,
+              ),
+              child: buildCard(displayBills[i]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(displayBills.length, (i) {
+            final active = i == _billBannerPage;
+            final isUrgent = displayBills[i].isUrgent;
+            final dotColor = isUrgent
+                ? const Color(0xFFE57373)
+                : colors.primary;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: active ? 16 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: active ? dotColor : dotColor.withAlpha(60),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 
@@ -625,7 +683,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             // 上位 13px: さらに σ=3 追加（合計 σ≈6）
             Positioned(
-              top: 0, left: 0, right: 0,
+              top: 0,
+              left: 0,
+              right: 0,
               height: 13,
               child: ClipRect(
                 child: BackdropFilter(
@@ -636,7 +696,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             // 上位 7px: さらに σ=3 追加（合計 σ≈9）
             Positioned(
-              top: 0, left: 0, right: 0,
+              top: 0,
+              left: 0,
+              right: 0,
               height: 7,
               child: ClipRect(
                 child: BackdropFilter(
@@ -651,10 +713,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    colors.background,
-                    colors.background.withAlpha(0),
-                  ],
+                  colors: [colors.background, colors.background.withAlpha(0)],
                   stops: const [0.0, 0.8],
                 ),
               ),
@@ -740,50 +799,53 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Stack(
                   children: [
                     PageView.builder(
-                        key: ValueKey(_monthsVersion),
-                        controller: _pageController,
-                        physics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                        itemCount: _availableMonths.length,
-                        onPageChanged: (_) => _navProgress.value = 0.0,
-                        itemBuilder: (context, page) => _HomeMonthPage(
-                          key: ValueKey(_availableMonths[page]),
-                          month: _monthForPage(page),
-                          budget: _budget,
-                          categoryBudgets: _categoryBudgets,
-                          homeWidgets: _homeWidgets,
-                          editMode: _editMode,
-                          weekStartsSunday: _weekStartsSunday,
-                          analysisLimit: _analysisLimit,
-                          navProgress: _navProgress,
-                          onBudgetChanged: (v) async {
-                            setState(() => _budget = v);
-                            await _saveBudget(v);
-                          },
-                          onCategoryBudgetsChanged: (m) async {
-                            setState(() => _categoryBudgets = m);
-                            await _saveCategoryBudgets(m);
-                          },
-                          onLayoutChanged: (l) {
-                            setState(() => _homeWidgets = l);
-                            _saveHomeLayout(l);
-                          },
-                          onEnterEditMode: () =>
-                              setState(() => _editMode = true),
-                          onExitEditMode: () {
-                            setState(() => _editMode = false);
-                            _saveHomeLayout(_homeWidgets);
-                          },
-                          couponBanner: _todayCoupons.isNotEmpty
-                              ? _buildTodayCouponBanner(colors)
-                              : null,
-                          billBanner: _upcomingBills.isNotEmpty
-                              ? _buildBillAlertBanner(colors)
-                              : null,
-                          recentBills: _recentBills,
-                        ),
+                      key: ValueKey(_monthsVersion),
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
                       ),
+                      itemCount: _availableMonths.length,
+                      onPageChanged: (_) => _navProgress.value = 0.0,
+                      itemBuilder: (context, page) => _HomeMonthPage(
+                        key: ValueKey(_availableMonths[page]),
+                        month: _monthForPage(page),
+                        budget: _budget,
+                        categoryBudgets: _categoryBudgets,
+                        homeWidgets: _homeWidgets,
+                        editMode: _editMode,
+                        weekStartsSunday: _weekStartsSunday,
+                        analysisLimit: _analysisLimit,
+                        navProgress: _navProgress,
+                        onBudgetChanged: (v) async {
+                          setState(() => _budget = v);
+                          await _saveBudget(v);
+                        },
+                        onCategoryBudgetsChanged: (m) async {
+                          setState(() => _categoryBudgets = m);
+                          await _saveCategoryBudgets(m);
+                        },
+                        onLayoutChanged: (l) {
+                          setState(() => _homeWidgets = l);
+                          _saveHomeLayout(l);
+                        },
+                        onEnterEditMode: () => setState(() => _editMode = true),
+                        onExitEditMode: () {
+                          setState(() => _editMode = false);
+                          _saveHomeLayout(_homeWidgets);
+                        },
+                        couponBanner:
+                            page == _availableMonths.length - 1 &&
+                                _todayCoupons.isNotEmpty
+                            ? _buildTodayCouponBanner(colors)
+                            : null,
+                        billBanner:
+                            page == _availableMonths.length - 1 &&
+                                _upcomingBills.isNotEmpty
+                            ? _buildBillAlertBanner(colors)
+                            : null,
+                        recentBills: _recentBills,
+                      ),
+                    ),
                     // ── ヘッダー境目グラデーションブラー ──────────────
                     Positioned(
                       top: 0,
@@ -880,7 +942,6 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   int? _monthMedicalExpense;
   int? _weekMedicalExpense;
 
-
   String? _selectedCategory;
 
   late final ScrollController _scrollController;
@@ -969,8 +1030,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     if (!silent) setState(() => _loading = true);
     try {
       final yearMonth = DateFormat('yyyy-MM').format(widget.month);
-      final prevMonth =
-          DateTime(widget.month.year, widget.month.month - 1);
+      final prevMonth = DateTime(widget.month.year, widget.month.month - 1);
       final prevYearMonth = DateFormat('yyyy-MM').format(prevMonth);
 
       final results = await Future.wait([
@@ -983,7 +1043,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         _prevExpense = (results[1]['total_expense'] as num?)?.toInt() ?? 0;
         if (!silent) {
           _loading = false;
-          if (!_isRefreshing) { _bounceController.stop(); _bounceController.reset(); }
+          if (!_isRefreshing) {
+            _bounceController.stop();
+            _bounceController.reset();
+          }
         }
       });
       _loadMonthMedicalExpense();
@@ -1002,7 +1065,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           );
           _prevExpense = null;
           _loading = false;
-          if (!_isRefreshing) { _bounceController.stop(); _bounceController.reset(); }
+          if (!_isRefreshing) {
+            _bounceController.stop();
+            _bounceController.reset();
+          }
         });
       }
     }
@@ -1010,7 +1076,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   void _startSilentRefresh() async {
     if (_isRefreshing) return;
-    setState(() { _isRefreshing = true; _dotsVisible = 3; _ignoreUntilTop = true; });
+    setState(() {
+      _isRefreshing = true;
+      _dotsVisible = 3;
+      _ignoreUntilTop = true;
+    });
     if (!_bounceController.isAnimating) _bounceController.repeat();
     await Future.wait<void>([
       _load(silent: true),
@@ -1019,14 +1089,23 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     if (!mounted) return;
     _bounceController.stop();
     _bounceController.reset();
-    setState(() { _isRefreshing = false; _dotsVisible = 0; _ignoreUntilTop = false; _reachedFullPull = false; });
+    setState(() {
+      _isRefreshing = false;
+      _dotsVisible = 0;
+      _ignoreUntilTop = false;
+      _reachedFullPull = false;
+    });
   }
 
   Future<void> _loadMonthMedicalExpense() async {
     try {
       final yearMonth = DateFormat('yyyy-MM').format(widget.month);
-      final data = await _api.get('/receipts', query: {'year_month': yearMonth});
-      final list = (data['receipts'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final data = await _api.get(
+        '/receipts',
+        query: {'year_month': yearMonth},
+      );
+      final list = (data['receipts'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
       final medical = list.fold<int>(0, (sum, r) {
         if (r['is_tax_exempt'] as bool? ?? false) {
           return sum + ((r['total_amount'] as num?)?.toInt() ?? 0);
@@ -1052,10 +1131,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           .cast<Map<String, dynamic>>();
 
       final now = DateTime.now();
-      final offsetDays =
-          widget.weekStartsSunday ? now.weekday % 7 : now.weekday - 1;
-      final weekStart =
-          DateTime(now.year, now.month, now.day - offsetDays);
+      final offsetDays = widget.weekStartsSunday
+          ? now.weekday % 7
+          : now.weekday - 1;
+      final weekStart = DateTime(now.year, now.month, now.day - offsetDays);
       final weekEnd = weekStart.add(const Duration(days: 7));
 
       int total = 0;
@@ -1580,231 +1659,237 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           openContainer();
         },
         child: CamillCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // タイトル行
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // タイトル行
               Row(
-                  children: [
-                    Icon(
-                      Icons.account_balance_wallet_outlined,
-                      size: 16,
-                      color: colors.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '収支',
-                      style: camillBodyStyle(
-                        14,
-                        colors.textPrimary,
-                        weight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 16,
-                      color: colors.textMuted,
-                    ),
-                  ],
-                ),
-              const Spacer(),
-              // カテゴリフィルタ（月モードのみ）
-              if (_periodIndex == 1) ...[
-                GestureDetector(
-                  onTap: () =>
-                      _showCategorySheet(colors, availableCats, catKey),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: colors.surfaceBorder),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          selectedLabel,
-                          style: camillBodyStyle(12, colors.textPrimary),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.arrow_drop_down,
-                          size: 16,
-                          color: colors.textMuted,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              // 期間フィルタ
-              GestureDetector(
-                onTap: () => _showPeriodSheet(colors),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: colors.surfaceBorder),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        ['週', '月', '年'][_periodIndex],
-                        style: camillBodyStyle(12, colors.textPrimary),
-                      ),
-                      const SizedBox(width: 2),
                       Icon(
-                        Icons.arrow_drop_down,
+                        Icons.account_balance_wallet_outlined,
+                        size: 16,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '収支',
+                        style: camillBodyStyle(
+                          14,
+                          colors.textPrimary,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right,
                         size: 16,
                         color: colors.textMuted,
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // 週・年ロード中
-          if ((_periodIndex == 0 && _weekLoading) ||
-              (_periodIndex == 2 && _yearLoading))
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.primary,
-                  ),
-                ),
-              ),
-            )
-          else
-            // 支出内容
-            Row(
-              children: [
-                SizedBox(
-                  width: 100,
-                  height: 100,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      PieChart(
-                        PieChartData(
-                          startDegreeOffset: -90,
-                          sectionsSpace: 0,
-                          centerSpaceRadius: 32,
-                          sections: budget > 0
-                              ? [
-                                  PieChartSectionData(
-                                    value: ratio,
-                                    color: ratio > 0.8
-                                        ? colors.danger
-                                        : colors.primary,
-                                    radius: 18,
-                                    showTitle: false,
-                                  ),
-                                  PieChartSectionData(
-                                    value: 1 - ratio,
-                                    color: colors.surfaceBorder,
-                                    radius: 18,
-                                    showTitle: false,
-                                  ),
-                                ]
-                              : [
-                                  PieChartSectionData(
-                                    value: 1,
-                                    color: colors.surfaceBorder,
-                                    radius: 18,
-                                    showTitle: false,
-                                  ),
-                                ],
+                  const Spacer(),
+                  // カテゴリフィルタ（月モードのみ）
+                  if (_periodIndex == 1) ...[
+                    GestureDetector(
+                      onTap: () =>
+                          _showCategorySheet(colors, availableCats, catKey),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: colors.surfaceBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              selectedLabel,
+                              style: camillBodyStyle(12, colors.textPrimary),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              size: 16,
+                              color: colors.textMuted,
+                            ),
+                          ],
                         ),
                       ),
-                      Column(
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  // 期間フィルタ
+                  GestureDetector(
+                    onTap: () => _showPeriodSheet(colors),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: colors.surfaceBorder),
+                      ),
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            budget > 0 ? '残り' : '予算',
-                            style: camillBodyStyle(8, colors.textMuted),
+                            ['週', '月', '年'][_periodIndex],
+                            style: camillBodyStyle(12, colors.textPrimary),
                           ),
-                          Text(
-                            budget > 0
-                                ? _currencyFmt
-                                      .format(remaining > 0 ? remaining : 0)
-                                      .replaceAll('¥', '')
-                                : '未設定',
-                            style: camillAmountStyle(
-                              budget > 0 ? 11 : 9,
-                              remaining > 0 ? colors.primary : colors.danger,
-                            ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            Icons.arrow_drop_down,
+                            size: 16,
+                            color: colors.textMuted,
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _currencyFmt.format(expense),
-                        style: camillAmountStyle(28, colors.textPrimary),
+                  const SizedBox(width: 6),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // 週・年ロード中
+              if ((_periodIndex == 0 && _weekLoading) ||
+                  (_periodIndex == 2 && _yearLoading))
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.primary,
                       ),
-                      Text(
-                        budget > 0
-                            ? '/ ${_currencyFmt.format(budget)}'
-                            : budgetLabel,
-                        style: camillBodyStyle(13, colors.textMuted),
-                      ),
-                      if (budget > 0) ...[
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: ratio,
-                            backgroundColor: colors.surfaceBorder,
-                            color: ratio > 0.8 ? colors.danger : colors.primary,
-                            minHeight: 8,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          remaining > 0
-                              ? '残り ${_currencyFmt.format(remaining)}'
-                              : '超過 ${_currencyFmt.format(-remaining)}',
-                          style: camillBodyStyle(
-                            12,
-                            remaining > 0 ? colors.textMuted : colors.danger,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
+                )
+              else
+                // 支出内容
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          PieChart(
+                            PieChartData(
+                              startDegreeOffset: -90,
+                              sectionsSpace: 0,
+                              centerSpaceRadius: 32,
+                              sections: budget > 0
+                                  ? [
+                                      PieChartSectionData(
+                                        value: ratio,
+                                        color: ratio > 0.8
+                                            ? colors.danger
+                                            : colors.primary,
+                                        radius: 18,
+                                        showTitle: false,
+                                      ),
+                                      PieChartSectionData(
+                                        value: 1 - ratio,
+                                        color: colors.surfaceBorder,
+                                        radius: 18,
+                                        showTitle: false,
+                                      ),
+                                    ]
+                                  : [
+                                      PieChartSectionData(
+                                        value: 1,
+                                        color: colors.surfaceBorder,
+                                        radius: 18,
+                                        showTitle: false,
+                                      ),
+                                    ],
+                            ),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                budget > 0 ? '残り' : '予算',
+                                style: camillBodyStyle(8, colors.textMuted),
+                              ),
+                              Text(
+                                budget > 0
+                                    ? _currencyFmt
+                                          .format(remaining > 0 ? remaining : 0)
+                                          .replaceAll('¥', '')
+                                    : '未設定',
+                                style: camillAmountStyle(
+                                  budget > 0 ? 11 : 9,
+                                  remaining > 0
+                                      ? colors.primary
+                                      : colors.danger,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _currencyFmt.format(expense),
+                            style: camillAmountStyle(28, colors.textPrimary),
+                          ),
+                          Text(
+                            budget > 0
+                                ? '/ ${_currencyFmt.format(budget)}'
+                                : budgetLabel,
+                            style: camillBodyStyle(13, colors.textMuted),
+                          ),
+                          if (budget > 0) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: ratio,
+                                backgroundColor: colors.surfaceBorder,
+                                color: ratio > 0.8
+                                    ? colors.danger
+                                    : colors.primary,
+                                minHeight: 8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              remaining > 0
+                                  ? '残り ${_currencyFmt.format(remaining)}'
+                                  : '超過 ${_currencyFmt.format(-remaining)}',
+                              style: camillBodyStyle(
+                                12,
+                                remaining > 0
+                                    ? colors.textMuted
+                                    : colors.danger,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-        ],
-      ),
-    ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1851,202 +1936,202 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       },
       openBuilder: (_, _) => const CategoryBudgetScreen(),
       closedBuilder: (_, _) => CamillCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.pie_chart_outline, size: 16, color: colors.primary),
-              const SizedBox(width: 6),
-              Text(
-                '使いみち ($periodLabel)',
-                style: camillBodyStyle(
-                  14,
-                  colors.textPrimary,
-                  weight: FontWeight.w700,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.pie_chart_outline, size: 16, color: colors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  '使いみち ($periodLabel)',
+                  style: camillBodyStyle(
+                    14,
+                    colors.textPrimary,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _currencyFmt.format(total),
+                  style: camillAmountStyle(14, colors.textMuted),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () async {
+                    if (_wasScrollingBeforeTap) {
+                      _wasScrollingBeforeTap = false;
+                      return;
+                    }
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CategoryBudgetScreen(),
+                      ),
+                    );
+                    final prefs = await SharedPreferences.getInstance();
+                    final newBudget = prefs.getInt('budget_monthly') ?? 0;
+                    if (mounted) widget.onBudgetChanged(newBudget);
+                    _loadCategoryBudgets();
+                    _load(silent: true);
+                  },
+                  child: Icon(Icons.tune, size: 18, color: colors.textMuted),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: Text(
+                    'まだデータがありません',
+                    style: camillBodyStyle(13, colors.textMuted),
+                  ),
                 ),
               ),
-              const Spacer(),
-              Text(
-                _currencyFmt.format(total),
-                style: camillAmountStyle(14, colors.textMuted),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () async {
-                  if (_wasScrollingBeforeTap) {
-                    _wasScrollingBeforeTap = false;
-                    return;
-                  }
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CategoryBudgetScreen(),
+            ...rows.map((r) {
+              final budget = widget.categoryBudgets[r.key] ?? 0;
+              final hasBudget = budget > 0;
+              final ratio = hasBudget
+                  ? (r.amount / budget).clamp(0.0, 1.0)
+                  : (total > 0 ? r.amount / total : 0.0);
+              final overBudget = hasBudget && r.amount > budget;
+              final barColor = overBudget
+                  ? const Color(0xFFFF3B30)
+                  : colors.primary;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: overBudget
+                            ? const Color(0x1AFF3B30)
+                            : colors.primaryLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        r.meta.icon,
+                        color: overBudget
+                            ? const Color(0xFFFF3B30)
+                            : colors.primary,
+                        size: 17,
+                      ),
                     ),
-                  );
-                  final prefs = await SharedPreferences.getInstance();
-                  final newBudget = prefs.getInt('budget_monthly') ?? 0;
-                  if (mounted) widget.onBudgetChanged(newBudget);
-                  _loadCategoryBudgets();
-                  _load(silent: true);
-                },
-                child: Icon(Icons.tune, size: 18, color: colors.textMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (rows.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: Text(
-                  'まだデータがありません',
-                  style: camillBodyStyle(13, colors.textMuted),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                r.meta.label,
+                                style: camillBodyStyle(13, colors.textPrimary),
+                              ),
+                              const Spacer(),
+                              if (hasBudget) ...[
+                                Text(
+                                  _currencyFmt.format(r.amount),
+                                  style: camillAmountStyle(
+                                    12,
+                                    overBudget
+                                        ? const Color(0xFFFF3B30)
+                                        : colors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  ' / ${_currencyFmt.format(budget)}',
+                                  style: camillBodyStyle(11, colors.textMuted),
+                                ),
+                              ] else
+                                Text(
+                                  _currencyFmt.format(r.amount),
+                                  style: camillAmountStyle(
+                                    13,
+                                    colors.textPrimary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: ratio,
+                              minHeight: 3,
+                              backgroundColor: colors.surfaceBorder,
+                              color: barColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            // 予算未設定カテゴリの合計「その他」行（常に一番下）
+            if (otherAmount > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        otherMeta.icon,
+                        color: colors.textMuted,
+                        size: 17,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'その他雑費',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
+                              const Spacer(),
+                              Text(
+                                _currencyFmt.format(otherAmount),
+                                style: camillAmountStyle(13, colors.textMuted),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: total > 0
+                                  ? (otherAmount / total).clamp(0.0, 1.0)
+                                  : 0.0,
+                              minHeight: 3,
+                              backgroundColor: colors.surfaceBorder,
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ...rows.map((r) {
-            final budget = widget.categoryBudgets[r.key] ?? 0;
-            final hasBudget = budget > 0;
-            final ratio = hasBudget
-                ? (r.amount / budget).clamp(0.0, 1.0)
-                : (total > 0 ? r.amount / total : 0.0);
-            final overBudget = hasBudget && r.amount > budget;
-            final barColor = overBudget
-                ? const Color(0xFFFF3B30)
-                : colors.primary;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: overBudget
-                          ? const Color(0x1AFF3B30)
-                          : colors.primaryLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      r.meta.icon,
-                      color: overBudget
-                          ? const Color(0xFFFF3B30)
-                          : colors.primary,
-                      size: 17,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              r.meta.label,
-                              style: camillBodyStyle(13, colors.textPrimary),
-                            ),
-                            const Spacer(),
-                            if (hasBudget) ...[
-                              Text(
-                                _currencyFmt.format(r.amount),
-                                style: camillAmountStyle(
-                                  12,
-                                  overBudget
-                                      ? const Color(0xFFFF3B30)
-                                      : colors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                ' / ${_currencyFmt.format(budget)}',
-                                style: camillBodyStyle(11, colors.textMuted),
-                              ),
-                            ] else
-                              Text(
-                                _currencyFmt.format(r.amount),
-                                style: camillAmountStyle(
-                                  13,
-                                  colors.textPrimary,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: ratio,
-                            minHeight: 3,
-                            backgroundColor: colors.surfaceBorder,
-                            color: barColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          // 予算未設定カテゴリの合計「その他」行（常に一番下）
-          if (otherAmount > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      otherMeta.icon,
-                      color: colors.textMuted,
-                      size: 17,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'その他雑費',
-                              style: camillBodyStyle(13, colors.textMuted),
-                            ),
-                            const Spacer(),
-                            Text(
-                              _currencyFmt.format(otherAmount),
-                              style: camillAmountStyle(13, colors.textMuted),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: total > 0
-                                ? (otherAmount / total).clamp(0.0, 1.0)
-                                : 0.0,
-                            minHeight: 3,
-                            backgroundColor: colors.surfaceBorder,
-                            color: colors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -2078,10 +2163,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       closedShape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
-      openBuilder: (_, _) => ReportScreen(
-        year: widget.month.year,
-        month: widget.month.month,
-      ),
+      openBuilder: (_, _) =>
+          ReportScreen(year: widget.month.year, month: widget.month.month),
       closedBuilder: (_, _) => CamillCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2297,67 +2380,71 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           openContainer();
         },
         child: CamillCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.receipt_outlined, size: 16, color: colors.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      '最近のレシート',
-                      style: camillBodyStyle(
-                        14,
-                        colors.textPrimary,
-                        weight: FontWeight.w700,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.receipt_outlined,
+                        size: 16,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '最近のレシート',
+                        style: camillBodyStyle(
+                          14,
+                          colors.textPrimary,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+                ],
+              ),
+              ...receipts.map(
+                (r) => Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: colors.primaryLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.receipt_outlined,
+                        color: colors.primary,
+                        size: 20,
                       ),
                     ),
-                  ],
-                ),
-                Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
-              ],
-            ),
-            ...receipts.map(
-              (r) => Material(
-                color: Colors.transparent,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.primaryLight,
-                      borderRadius: BorderRadius.circular(8),
+                    title: Text(
+                      r.storeName,
+                      style: camillBodyStyle(14, colors.textPrimary),
                     ),
-                    child: Icon(
-                      Icons.receipt_outlined,
-                      color: colors.primary,
-                      size: 20,
+                    subtitle: Text(
+                      DateFormat(
+                        'M月d日',
+                      ).format(DateTime.parse(r.purchasedAt).toLocal()),
+                      style: camillBodyStyle(12, colors.textMuted),
                     ),
-                  ),
-                  title: Text(
-                    r.storeName,
-                    style: camillBodyStyle(14, colors.textPrimary),
-                  ),
-                  subtitle: Text(
-                    DateFormat(
-                      'M月d日',
-                    ).format(DateTime.parse(r.purchasedAt).toLocal()),
-                    style: camillBodyStyle(12, colors.textMuted),
-                  ),
-                  trailing: Text(
-                    _currencyFmt.format(r.totalAmount),
-                    style: camillAmountStyle(14, colors.textPrimary),
+                    trailing: Text(
+                      _currencyFmt.format(r.totalAmount),
+                      style: camillAmountStyle(14, colors.textPrimary),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -2534,18 +2621,38 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.receipt_long_outlined, color: colors.primary, size: 16),
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          color: colors.primary,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
-                        Text('請求書', style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w700)),
+                        Text(
+                          '請求書',
+                          style: camillBodyStyle(
+                            14,
+                            colors.textPrimary,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
-                    Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: colors.textMuted,
+                    ),
                   ],
                 ),
               ),
               Divider(height: 1, color: colors.surfaceBorder),
               ...List.generate(bills.length, (i) {
-                return _buildBillRow(bills[i], colors, fmt, i == bills.length - 1);
+                return _buildBillRow(
+                  bills[i],
+                  colors,
+                  fmt,
+                  i == bills.length - 1,
+                );
               }),
             ],
           ),
@@ -2554,7 +2661,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     );
   }
 
-  Widget _buildBillRow(Bill bill, CamillColors colors, NumberFormat fmt, bool isLast) {
+  Widget _buildBillRow(
+    Bill bill,
+    CamillColors colors,
+    NumberFormat fmt,
+    bool isLast,
+  ) {
     final isPaid = bill.status == BillStatus.paid;
     final days = bill.daysUntilDue;
 
@@ -2583,8 +2695,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     final dotColor = isPaid
         ? const Color(0xFF4CAF50)
         : bill.isUrgent
-            ? const Color(0xFFE57373)
-            : colors.textMuted.withAlpha(150);
+        ? const Color(0xFFE57373)
+        : colors.textMuted.withAlpha(150);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(0, 12, 0, isLast ? 0 : 0),
@@ -2595,13 +2707,19 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               Container(
                 width: 6,
                 height: 6,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   bill.title,
-                  style: camillBodyStyle(13, isPaid ? colors.textMuted : colors.textPrimary),
+                  style: camillBodyStyle(
+                    13,
+                    isPaid ? colors.textMuted : colors.textPrimary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -2609,7 +2727,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               const SizedBox(width: 8),
               Text(
                 fmt.format(bill.amount),
-                style: camillBodyStyle(13, isPaid ? colors.textMuted : colors.textPrimary, weight: FontWeight.w600),
+                style: camillBodyStyle(
+                  13,
+                  isPaid ? colors.textMuted : colors.textPrimary,
+                  weight: FontWeight.w600,
+                ),
               ),
               const SizedBox(width: 8),
               Container(
@@ -2620,7 +2742,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                 ),
                 child: Text(
                   statusLabel,
-                  style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: statusColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -2657,9 +2783,17 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               }
               if (_ignoreUntilTop) return false;
               if (pixels < 0) {
-                final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
+                final newDots = pixels < -85
+                    ? 3
+                    : pixels < -55
+                    ? 2
+                    : pixels < -25
+                    ? 1
+                    : 0;
                 if (newDots == 3) _reachedFullPull = true;
-                if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
+                if (newDots != _dotsVisible) {
+                  setState(() => _dotsVisible = newDots);
+                }
                 // 指を離した（dragDetails == null）かつ閾値到達済み → リフレッシュ発火
                 if (_reachedFullPull && notification.dragDetails == null) {
                   _reachedFullPull = false;
@@ -2683,206 +2817,212 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           },
           child: Listener(
             onPointerDown: (_) {
-              _wasScrollingBeforeTap = _scrollController.hasClients &&
+              _wasScrollingBeforeTap =
+                  _scrollController.hasClients &&
                   _scrollController.position.isScrollingNotifier.value;
             },
             behavior: HitTestBehavior.translucent,
             child: CustomScrollView(
-            controller: _scrollController,
-            physics: const RefreshScrollPhysics(),
-            slivers: [
-          // リフレッシュ中に展開するスペーサー（コンテンツを 60px 押し下げる）
-          SliverToBoxAdapter(
-            child: AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-              child: SizedBox(height: (_isRefreshing || _loading) ? 60.0 : 0.0),
-            ),
-          ),
-          if (_summary != null) ...[
-            if (widget.billBanner != null) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: _buildSectionHeader('未払い請求書', colors),
+              controller: _scrollController,
+              physics: const RefreshScrollPhysics(),
+              slivers: [
+                // リフレッシュ中に展開するスペーサー（コンテンツを 60px 押し下げる）
+                SliverToBoxAdapter(
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                    child: SizedBox(
+                      height: (_isRefreshing || _loading) ? 60.0 : 0.0,
+                    ),
+                  ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: widget.billBanner,
-                ),
-              ),
-            ],
-            if (widget.couponBanner != null) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: _buildSectionHeader('今日使えるクーポン', colors),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: widget.couponBanner,
-                ),
-              ),
-            ],
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: 20,
-                  bottom: 12,
-                  left: 31.5,
-                  right: 16,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'ハイライト',
-                      style: camillBodyStyle(
-                        26,
-                        colors.textPrimary,
-                        weight: FontWeight.w800,
+                if (_summary != null) ...[
+                  if (widget.billBanner != null) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: _buildSectionHeader('未払い請求書', colors),
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      DateFormat('yyyy年M月').format(widget.month),
-                      style: camillBodyStyle(
-                        14,
-                        colors.textSecondary,
-                        weight: FontWeight.w500,
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        child: widget.billBanner,
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverReorderableList(
-                proxyDecorator: (child, index, animation) {
-                  return AnimatedBuilder(
-                    animation: animation,
-                    builder: (context, child) {
-                      final scale = 1.0 +
-                          0.04 *
-                              CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOut,
-                              ).value;
-                      return Transform.scale(
-                        scale: scale,
-                        child: Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
-                          elevation: 16 * animation.value,
-                          shadowColor: Colors.black45,
-                          child: Opacity(
-                            opacity: 0.92,
-                            child: child,
-                          ),
-                        ),
-                      );
-                    },
-                    child: child,
-                  );
-                },
-                itemCount: widget.homeWidgets.length,
-                itemBuilder: (context, index) {
-                  final id = widget.homeWidgets[index];
-                  final card = _buildWidgetById(id, colors);
-                  return Padding(
-                    key: ValueKey(id),
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Stack(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                          padding: widget.editMode
-                              ? const EdgeInsets.only(top: 13, left: 13)
-                              : EdgeInsets.zero,
-                          child: widget.editMode
-                              ? ReorderableDelayedDragStartListener(
-                                  index: index,
-                                  child: card,
-                                )
-                              : card,
-                        ),
-                        if (widget.editMode)
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            child: GestureDetector(
-                              onTap: () {
-                                final newList =
-                                    List<String>.from(widget.homeWidgets);
-                                newList.remove(id);
-                                widget.onLayoutChanged(newList);
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: Container(
-                                width: 26,
-                                height: 26,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFF3B30),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.remove,
-                                  color: Colors.white,
-                                  size: 15,
-                                ),
-                              ),
+                  if (widget.couponBanner != null) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: _buildSectionHeader('今日使えるクーポン', colors),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        child: widget.couponBanner,
+                      ),
+                    ),
+                  ],
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: 20,
+                        bottom: 12,
+                        left: 31.5,
+                        right: 16,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            'ハイライト',
+                            style: camillBodyStyle(
+                              26,
+                              colors.textPrimary,
+                              weight: FontWeight.w800,
                             ),
                           ),
-                      ],
+                          const Spacer(),
+                          Text(
+                            DateFormat('yyyy年M月').format(widget.month),
+                            style: camillBodyStyle(
+                              14,
+                              colors.textSecondary,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                },
-                onReorderStart: (_) => HapticFeedback.mediumImpact(),
-                onReorder: (oldIndex, newIndex) {
-                  HapticFeedback.selectionClick();
-                  final newList = List<String>.from(widget.homeWidgets);
-                  if (newIndex > oldIndex) newIndex--;
-                  final item = newList.removeAt(oldIndex);
-                  newList.insert(newIndex, item);
-                  widget.onLayoutChanged(newList);
-                },
-              ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverReorderableList(
+                      proxyDecorator: (child, index, animation) {
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, child) {
+                            final scale =
+                                1.0 +
+                                0.04 *
+                                    CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeOut,
+                                    ).value;
+                            return Transform.scale(
+                              scale: scale,
+                              child: Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(16),
+                                elevation: 16 * animation.value,
+                                shadowColor: Colors.black45,
+                                child: Opacity(opacity: 0.92, child: child),
+                              ),
+                            );
+                          },
+                          child: child,
+                        );
+                      },
+                      itemCount: widget.homeWidgets.length,
+                      itemBuilder: (context, index) {
+                        final id = widget.homeWidgets[index];
+                        final card = _buildWidgetById(id, colors);
+                        return Padding(
+                          key: ValueKey(id),
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Stack(
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOut,
+                                padding: widget.editMode
+                                    ? const EdgeInsets.only(top: 13, left: 13)
+                                    : EdgeInsets.zero,
+                                child: widget.editMode
+                                    ? ReorderableDelayedDragStartListener(
+                                        index: index,
+                                        child: card,
+                                      )
+                                    : card,
+                              ),
+                              if (widget.editMode)
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      final newList = List<String>.from(
+                                        widget.homeWidgets,
+                                      );
+                                      newList.remove(id);
+                                      widget.onLayoutChanged(newList);
+                                    },
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFFF3B30),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.remove,
+                                        color: Colors.white,
+                                        size: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                      onReorderStart: (_) => HapticFeedback.mediumImpact(),
+                      onReorder: (oldIndex, newIndex) {
+                        HapticFeedback.selectionClick();
+                        final newList = List<String>.from(widget.homeWidgets);
+                        if (newIndex > oldIndex) newIndex--;
+                        final item = newList.removeAt(oldIndex);
+                        newList.insert(newIndex, item);
+                        widget.onLayoutChanged(newList);
+                      },
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                      child: Column(
+                        children: [
+                          if (widget.editMode &&
+                              widget.homeWidgets.length <
+                                  _allWidgetIds.length) ...[
+                            _buildAddWidgetButton(colors),
+                            const SizedBox(height: 12),
+                          ],
+                          _buildEditButton(colors),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                child: Column(
-                  children: [
-                    if (widget.editMode &&
-                        widget.homeWidgets.length < _allWidgetIds.length) ...[
-                      _buildAddWidgetButton(colors),
-                      const SizedBox(height: 12),
-                    ],
-                    _buildEditButton(colors),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-          ),
           ),
         ),
         Positioned(
-          top: 0, left: 0, right: 0,
+          top: 0,
+          left: 0,
+          right: 0,
           child: IgnorePointer(
             child: Container(
               height: 32,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [colors.background, colors.background.withAlpha(0)],
                 ),
               ),
@@ -2890,7 +3030,9 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           ),
         ),
         Positioned(
-          top: 4, left: 0, right: 0,
+          top: 4,
+          left: 0,
+          right: 0,
           child: IgnorePointer(
             child: SizedBox(
               height: 28,
@@ -3209,7 +3351,9 @@ class _FreeCouponCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         coupon.validUntil != null
-                            ? (coupon.daysUntilExpiry == 0 ? '本日まで！' : '残り${coupon.daysUntilExpiry}日')
+                            ? (coupon.daysUntilExpiry == 0
+                                  ? '本日まで！'
+                                  : '残り${coupon.daysUntilExpiry}日')
                             : '',
                         style: camillBodyStyle(11, Colors.white70),
                       ),
@@ -3283,7 +3427,9 @@ class _DiscountCouponCard extends StatelessWidget {
                   )
                 else if (coupon.validUntil != null)
                   Text(
-                    coupon.daysUntilExpiry == 0 ? '本日まで！' : '残り${coupon.daysUntilExpiry}日',
+                    coupon.daysUntilExpiry == 0
+                        ? '本日まで！'
+                        : '残り${coupon.daysUntilExpiry}日',
                     style: camillBodyStyle(11, colors.textMuted),
                   ),
               ],
@@ -3346,15 +3492,14 @@ class _HomeBillDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final catColor = AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
+    final catColor =
+        AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
     final catLabel = AppConstants.categoryLabels[bill.category] ?? 'その他';
     final days = bill.daysUntilDue;
     final urgent = bill.isUrgent;
 
     return Container(
-      margin: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 60,
-      ),
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 60),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -3389,22 +3534,43 @@ class _HomeBillDetailSheet extends StatelessWidget {
                           color: const Color(0xFFE53935).withAlpha(20),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.description_outlined, color: Color(0xFFE53935), size: 22),
+                        child: const Icon(
+                          Icons.description_outlined,
+                          color: Color(0xFFE53935),
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(bill.title, style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700)),
+                            Text(
+                              bill.title,
+                              style: camillBodyStyle(
+                                17,
+                                colors.textPrimary,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
                             Container(
                               margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: catColor.withAlpha(30),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Text(catLabel, style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w600)),
+                              child: Text(
+                                catLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: catColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -3416,7 +3582,10 @@ class _HomeBillDetailSheet extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('金額', style: camillBodyStyle(13, colors.textMuted)),
-                      Text(fmt.format(bill.amount), style: camillAmountStyle(20, colors.textPrimary)),
+                      Text(
+                        fmt.format(bill.amount),
+                        style: camillAmountStyle(20, colors.textPrimary),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -3424,17 +3593,30 @@ class _HomeBillDetailSheet extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '支払期限',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                         Row(
                           children: [
                             if (urgent)
                               const Padding(
                                 padding: EdgeInsets.only(right: 4),
-                                child: Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFE53935)),
+                                child: Icon(
+                                  Icons.warning_amber_outlined,
+                                  size: 14,
+                                  color: Color(0xFFE53935),
+                                ),
                               ),
                             Text(
                               '${bill.dueDate!.year}/${bill.dueDate!.month}/${bill.dueDate!.day}',
-                              style: camillBodyStyle(14, urgent ? const Color(0xFFE53935) : colors.textPrimary, weight: FontWeight.w600),
+                              style: camillBodyStyle(
+                                14,
+                                urgent
+                                    ? const Color(0xFFE53935)
+                                    : colors.textPrimary,
+                                weight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -3446,7 +3628,10 @@ class _HomeBillDetailSheet extends StatelessWidget {
                         alignment: Alignment.centerRight,
                         child: Text(
                           days >= 0 ? '残り$days日' : '期限切れ',
-                          style: camillBodyStyle(12, urgent ? const Color(0xFFE53935) : colors.textMuted),
+                          style: camillBodyStyle(
+                            12,
+                            urgent ? const Color(0xFFE53935) : colors.textMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -3458,14 +3643,26 @@ class _HomeBillDetailSheet extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: colors.success,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
                         onPaid();
                       },
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                      label: Text('支払いました', style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600)),
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        '支払いました',
+                        style: camillBodyStyle(
+                          15,
+                          Colors.white,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],

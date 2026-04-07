@@ -28,6 +28,10 @@ import 'features/reports/screens/report_screen.dart';
 import 'features/subscriptions/screens/subscription_screen.dart';
 import 'features/community/screens/community_settings_screen.dart';
 import 'features/data/screens/data_screen.dart';
+import 'features/family/screens/family_management_screen.dart';
+import 'features/family/screens/family_invite_screen.dart';
+import 'features/family/screens/family_join_screen.dart';
+import 'shared/models/family_model.dart';
 import 'firebase_options.dart';
 import 'shared/models/receipt_model.dart';
 import 'shared/models/summary_model.dart';
@@ -245,6 +249,19 @@ final _router = GoRouter(
     GoRoute(
       path: '/community-settings',
       builder: (context, state) => const CommunitySettingsScreen(),
+    ),
+    GoRoute(
+      path: '/family',
+      builder: (context, state) => const FamilyManagementScreen(),
+    ),
+    GoRoute(
+      path: '/family/invite',
+      builder: (context, state) =>
+          FamilyInviteScreen(invite: state.extra as FamilyInvite),
+    ),
+    GoRoute(
+      path: '/family/join',
+      builder: (context, state) => const FamilyJoinScreen(),
     ),
   ],
 );

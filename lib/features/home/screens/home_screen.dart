@@ -42,8 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _monthsVersion = 0; // PageView 再構築用キー
   PageController _pageController = PageController();
 
-  // プラン情報（アップグレードモーダル用）
+  // プラン情報
   int _analysisLimit = 10;
+  String _plan = 'free';
 
   // 今日使えるクーポン
   final _couponService = CouponService();
@@ -285,6 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _analysisLimit = (data['analysis_limit'] as num?)?.toInt() ?? 10;
+        _plan = data['plan'] as String? ?? 'free';
       });
     } catch (_) {}
   }
@@ -844,6 +846,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? _buildBillAlertBanner(colors)
                             : null,
                         recentBills: _recentBills,
+                        plan: _plan,
                       ),
                     ),
                     // ── ヘッダー境目グラデーションブラー ──────────────
@@ -892,6 +895,7 @@ class _HomeMonthPage extends StatefulWidget {
   final Widget? couponBanner;
   final Widget? billBanner;
   final List<Bill> recentBills;
+  final String plan;
 
   const _HomeMonthPage({
     super.key,
@@ -911,6 +915,7 @@ class _HomeMonthPage extends StatefulWidget {
     this.couponBanner,
     this.billBanner,
     this.recentBills = const [],
+    this.plan = 'free',
   });
 
   @override
@@ -956,6 +961,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'recent',
     'tax',
     'bills',
+    'family_partner',
+    'family_savings',
   ];
   static const _widgetLabels = <String, ({String title, IconData icon})>{
     'budget': (title: '収支', icon: Icons.account_balance_wallet_outlined),
@@ -965,6 +972,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'recent': (title: '最近のレシート', icon: Icons.receipt_outlined),
     'tax': (title: '消費税', icon: Icons.account_balance_outlined),
     'bills': (title: '請求書', icon: Icons.receipt_long_outlined),
+    'family_partner': (title: 'パートナー支出', icon: Icons.people_outline),
+    'family_savings': (title: '子供の貯金', icon: Icons.savings_outlined),
   };
 
   static const _categoryMeta = <String, ({IconData icon, String label})>{
@@ -1245,6 +1254,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         return _buildTaxCard(colors);
       case 'bills':
         return _buildBillsCard(colors);
+      case 'family_partner':
+        return widget.plan == 'family' ? _buildFamilyPartnerCard(colors) : const SizedBox.shrink();
+      case 'family_savings':
+        return widget.plan == 'family' ? _buildFamilySavingsCard(colors) : const SizedBox.shrink();
       default:
         return const SizedBox.shrink();
     }
@@ -3048,6 +3061,106 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           ),
         ),
       ],
+    );
+  }
+
+  // ── ファミリーカード ──────────────────────────────────────────────────────
+
+  Widget _buildFamilyPartnerCard(CamillColors colors) {
+    return CamillCard(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.people_outline, color: colors.primary, size: 16),
+                  const SizedBox(width: 6),
+                  Text('パートナー支出',
+                      style: camillBodyStyle(14, colors.textPrimary,
+                          weight: FontWeight.w700)),
+                ],
+              ),
+              Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.primary.withAlpha(10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, size: 14, color: colors.textSecondary),
+                const SizedBox(width: 6),
+                Text('カテゴリ・金額のみ共有',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('パートナーから権限をもらうと\n今月の支出サマリーが表示されます',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFamilySavingsCard(CamillColors colors) {
+    return CamillCard(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.savings_outlined, color: colors.primary, size: 16),
+                  const SizedBox(width: 6),
+                  Text('子供の貯金',
+                      style: camillBodyStyle(14, colors.textPrimary,
+                          weight: FontWeight.w700)),
+                ],
+              ),
+              Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.primary.withAlpha(10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.child_care_outlined,
+                    size: 14, color: colors.textSecondary),
+                const SizedBox(width: 6),
+                Text('子供アカウントを追加してください',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => context.push('/family'),
+            child: Text('ファミリー管理 →',
+                style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 }

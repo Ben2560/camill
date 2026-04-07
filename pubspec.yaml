@@ -75,6 +75,10 @@ dependencies:
   geolocator: ^13.0.2
   permission_handler: ^11.3.0
 
+  # QR
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

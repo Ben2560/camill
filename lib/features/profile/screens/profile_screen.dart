@@ -268,7 +268,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             icon: Icons.group_outlined,
             title: 'ファミリー管理',
             colors: colors,
-            onTap: () {},
+            onTap: () => context.push('/family'),
           ),
           const SizedBox(height: 8),
           _SectionHeader(title: 'アプリ設定', colors: colors),

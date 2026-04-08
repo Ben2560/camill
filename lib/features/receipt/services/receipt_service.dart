@@ -27,7 +27,8 @@ class ReceiptService {
       'image_type': 'jpeg',
       'document_hint': documentHint,
     };
-    final data = await _api.post('/receipts/analyze', body: body);
+    final data = await _api.post('/receipts/analyze', body: body)
+        .timeout(const Duration(seconds: 120));
     List<ReceiptAnalysis> receipts;
     if (data.containsKey('receipts')) {
       receipts = (data['receipts'] as List<dynamic>)

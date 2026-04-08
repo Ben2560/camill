@@ -93,7 +93,10 @@ class _CameraScreenState extends State<CameraScreen> {
         }
       }
     } catch (e) {
-      // silently swallow
+      // autoSourceカメラ（透明）はエラー時に自分でpopして戻る
+      if (mounted && widget.autoSource != null && context.canPop()) {
+        context.pop();
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

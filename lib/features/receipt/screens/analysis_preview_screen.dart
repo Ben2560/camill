@@ -241,6 +241,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
   bool _memoEditing = false;
   int _memoMinLines = 6;
 
+  // 同一品目グループの展開状態
+  final Set<String> _expandedGroups = {};
+
   // 品目の支出額が最大のカテゴリを自動判定
   String? get _autoCategory {
     if (_items.isEmpty) return null;
@@ -335,6 +338,224 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
     if (needed > _memoMinLines) {
       setState(() => _memoMinLines = needed);
     }
+  }
+
+  String _itemGroupKey(ReceiptItem item) => '${item.itemName}|${item.amount}';
+
+  // 同一品目（名前・金額が同じ）をグループ化して表示するウィジェット列を返す
+  List<Widget> _buildGroupedItems(CamillColors colors) {
+    final Map<String, List<int>> groups = {};
+    final List<String> groupOrder = [];
+    for (int i = 0; i < _items.length; i++) {
+      final key = _itemGroupKey(_items[i]);
+      if (!groups.containsKey(key)) groupOrder.add(key);
+      groups.putIfAbsent(key, () => []).add(i);
+    }
+
+    final widgets = <Widget>[];
+    for (final key in groupOrder) {
+      final indices = groups[key]!;
+      if (indices.length == 1) {
+        // 1件：既存の動作そのまま
+        final i = indices.first;
+        widgets.add(_Swipeable(
+          onDelete: () => setState(() => _items.removeAt(i)),
+          background: colors.surface,
+          child: _EditableItemRow(
+            item: _items[i],
+            fmt: _fmt,
+            colors: colors,
+            isMedical: _isMedical,
+            onTap: () => _editItem(i),
+          ),
+        ));
+      } else {
+        // 複数同一品目：折りたたみグループ
+        final isExpanded = _expandedGroups.contains(key);
+        final item = _items[indices.first];
+        final count = indices.length;
+
+        widgets.add(Column(
+          key: ValueKey('group_$key'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // グループヘッダー（常時表示）
+            GestureDetector(
+              onTap: () => setState(() {
+                if (isExpanded) {
+                  _expandedGroups.remove(key);
+                } else {
+                  _expandedGroups.add(key);
+                }
+              }),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  item.itemName,
+                                  style: camillBodyStyle(14, colors.textPrimary,
+                                      weight: FontWeight.w500),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: colors.primary.withAlpha(20),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '×$count',
+                                  style: camillBodyStyle(11, colors.primary,
+                                      weight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            margin: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colors.primaryLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              AppConstants.categoryLabels[item.category] ??
+                                  item.category,
+                              style: camillBodyStyle(11, colors.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      _fmt.format(item.amount * count),
+                      style: camillBodyStyle(14, colors.textPrimary,
+                          weight: FontWeight.w500),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: colors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // 展開コンテンツ（AnimatedSizeでスムーズに開閉）
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              child: isExpanded
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 2),
+                        // 個数ステッパー（タップで増減、テキスト消去不要）
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: colors.primaryLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Text('個数',
+                                  style: camillBodyStyle(12, colors.primary)),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: count > 1
+                                    ? () {
+                                        setState(() {
+                                          _items.removeAt(indices.last);
+                                          if (count - 1 < 2) {
+                                            _expandedGroups.remove(key);
+                                          }
+                                        });
+                                      }
+                                    : null,
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: count > 1
+                                        ? colors.surface
+                                        : colors.surfaceBorder,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border:
+                                        Border.all(color: colors.surfaceBorder),
+                                  ),
+                                  child: Icon(Icons.remove,
+                                      size: 16,
+                                      color: count > 1
+                                          ? colors.textPrimary
+                                          : colors.textMuted),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14),
+                                child: Text(
+                                  '$count',
+                                  style: camillBodyStyle(16, colors.textPrimary,
+                                      weight: FontWeight.w700),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _items.add(
+                                        _items[indices.last].copyWith());
+                                  });
+                                },
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: colors.surface,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border:
+                                        Border.all(color: colors.surfaceBorder),
+                                  ),
+                                  child: Icon(Icons.add,
+                                      size: 16, color: colors.primary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // 個々の品目行（タップで編集シートを開く）
+                        ...indices.map((globalIdx) => _EditableItemRow(
+                              item: _items[globalIdx],
+                              fmt: _fmt,
+                              colors: colors,
+                              isMedical: _isMedical,
+                              onTap: () => _editItem(globalIdx),
+                            )),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ));
+      }
+    }
+    return widgets;
   }
 
   static bool _isConvenienceStore(String name) {
@@ -1145,12 +1366,13 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
     final colors = context.colors;
     const unknown = '不明';
     const unknownVariants = {'不明', '商品不明'};
-    final nameCtrl = TextEditingController(
-      text: unknownVariants.contains(item.itemName) ? '' : item.itemName,
-    );
-    final amtCtrl = TextEditingController(
-      text: item.amount > 0 ? item.amount.toString() : '',
-    );
+    // コントローラーは空にして、現在の値をプレースホルダー（薄い文字）で表示
+    // → タップ後すぐ入力できる（消去不要）
+    final nameCtrl = TextEditingController();
+    final nameHint =
+        unknownVariants.contains(item.itemName) ? unknown : item.itemName;
+    final amtCtrl = TextEditingController();
+    final amtHint = item.amount > 0 ? item.amount.toString() : '0';
     String selectedCategory = item.category;
 
     showModalBottomSheet(
@@ -1202,7 +1424,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                   label: '品目名',
                   child: _textInputField(
                     ctrl: nameCtrl,
-                    hint: unknown,
+                    hint: nameHint,
                     colors: colors,
                   ),
                 ),
@@ -1212,7 +1434,8 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _labeledField(
                   label: '金額',
-                  child: _numberInputField(ctrl: amtCtrl, colors: colors),
+                  child: _numberInputField(
+                      ctrl: amtCtrl, hint: amtHint, colors: colors),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1267,9 +1490,11 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                 colors: colors,
                 onPressed: () {
                   final name = nameCtrl.text.trim().isEmpty
-                      ? unknown
+                      ? nameHint
                       : nameCtrl.text.trim();
-                  final amt = int.tryParse(amtCtrl.text) ?? 0;
+                  final amt = amtCtrl.text.trim().isEmpty
+                      ? item.amount
+                      : (int.tryParse(amtCtrl.text) ?? item.amount);
                   onSave(
                     ReceiptItem(
                       itemName: name,
@@ -1474,6 +1699,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
     required TextEditingController ctrl,
     required CamillColors colors,
     String prefix = '¥',
+    String hint = '0',
   }) =>
       ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -1508,7 +1734,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                     ],
                     style: camillBodyStyle(15, colors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: '0',
+                      hintText: hint,
                       hintStyle: camillBodyStyle(15, colors.textMuted),
                       border: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -1728,22 +1954,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                       weight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                ..._items.asMap().entries.expand(
-                  (e) => [
-                    _Swipeable(
-                      onDelete: () =>
-                          setState(() => _items.removeAt(e.key)),
-                      background: colors.surface,
-                      child: _EditableItemRow(
-                        item: e.value,
-                        fmt: _fmt,
-                        colors: colors,
-                        isMedical: _isMedical,
-                        onTap: () => _editItem(e.key),
-                      ),
-                    ),
-                  ],
-                ),
+                ..._buildGroupedItems(colors),
                 GestureDetector(
                   onTap: _addItem,
                   child: Padding(

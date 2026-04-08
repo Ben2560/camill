@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/camill_colors.dart';
-import '../../../shared/models/family_model.dart';
 import '../services/family_service.dart';
 
 /// QRコードをスキャンしてファミリーに参加する画面
@@ -59,17 +58,10 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
     }
 
     try {
-      // トークンを使ってサーバーからfamily_idを解決してjoin
-      // バックエンドに /families/join?token=xxx のショートカットを追加するか、
-      // QRデータを "familyId:token" の形式にする設計が望ましい。
-      // ここでは "familyId|token" 形式を想定。
+      // QRデータは "family_id|raw_token" 形式
       final parts = token.split('|');
-      Family family;
-      if (parts.length == 2) {
-        family = await _service.joinFamily(parts[0], parts[1]);
-      } else {
-        throw Exception('Invalid QR format');
-      }
+      if (parts.length != 2) throw Exception('Invalid QR format');
+      final family = await _service.joinFamily(parts[0], parts[1]);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

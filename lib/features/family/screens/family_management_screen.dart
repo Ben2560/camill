@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -88,10 +89,11 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     );
     if (confirmed != true) return;
 
-    // 自分自身をメンバーから削除
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
     final me = _family!.members.firstWhere(
-      (m) => m.role == 'owner' || m.userId.isNotEmpty,
-      orElse: () => _family!.members.first,
+      (m) => m.userId == myUid,
+      orElse: () => throw Exception('自分のメンバー情報が見つかりません'),
     );
     try {
       await _service.leaveFamilyMember(_family!.familyId, me.userId);
@@ -123,7 +125,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
         ),
       );
     } finally {
-      controller.dispose();
+      WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
     }
   }
 

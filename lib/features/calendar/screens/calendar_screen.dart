@@ -111,8 +111,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   void _onRefresh() {
-    final key = DateFormat('yyyy-MM').format(_focusedDay);
-    _summaryCache.remove(key);
+    _summaryCache.clear();
     _loadSummary(_focusedDay);
     _loadBills();
   }
@@ -807,8 +806,19 @@ class _CalendarScreenState extends State<CalendarScreen>
           selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
           onDaySelected: (selected, focused) => _goToDay(selected),
           onPageChanged: (focusedDay) {
-            setState(() => _focusedDay = focusedDay);
-            _loadSummary(focusedDay);
+            final now = DateTime.now();
+            final isCurrentMonth = focusedDay.year == now.year && focusedDay.month == now.month;
+            final targetDay = isCurrentMonth
+                ? DateTime(now.year, now.month, now.day)
+                : focusedDay;
+            setState(() {
+              _focusedDay = targetDay;
+              _selectedDay = targetDay;
+            });
+            final localTarget = DateTime(targetDay.year, targetDay.month, targetDay.day);
+            final diff = localTarget.difference(_baseDate).inDays;
+            _dayPageController.jumpToPage(_kMiddlePage + diff);
+            _loadSummary(targetDay);
           },
           calendarStyle: CalendarStyle(
             todayDecoration: const BoxDecoration(),

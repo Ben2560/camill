@@ -23,6 +23,32 @@ class Wallet {
         name: json['name'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
       );
+
+  Map<String, dynamic> toJson() => {
+        'wallet_id': walletId,
+        'owner_uid': ownerUid,
+        if (guardianUid != null) 'guardian_uid': guardianUid,
+        'wallet_type': walletType,
+        'name': name,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  Wallet copyWith({
+    String? walletId,
+    String? ownerUid,
+    String? guardianUid,
+    String? walletType,
+    String? name,
+    DateTime? createdAt,
+  }) =>
+      Wallet(
+        walletId: walletId ?? this.walletId,
+        ownerUid: ownerUid ?? this.ownerUid,
+        guardianUid: guardianUid ?? this.guardianUid,
+        walletType: walletType ?? this.walletType,
+        name: name ?? this.name,
+        createdAt: createdAt ?? this.createdAt,
+      );
 }
 
 class WalletRule {
@@ -46,5 +72,28 @@ class WalletRule {
         matchValue: json['match_value'] as String,
         walletId: json['wallet_id'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'rule_id': ruleId,
+        'match_type': matchType,
+        'match_value': matchValue,
+        'wallet_id': walletId,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  WalletRule copyWith({
+    String? ruleId,
+    String? matchType,
+    String? matchValue,
+    String? walletId,
+    DateTime? createdAt,
+  }) =>
+      WalletRule(
+        ruleId: ruleId ?? this.ruleId,
+        matchType: matchType ?? this.matchType,
+        matchValue: matchValue ?? this.matchValue,
+        walletId: walletId ?? this.walletId,
+        createdAt: createdAt ?? this.createdAt,
       );
 }

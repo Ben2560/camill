@@ -73,16 +73,24 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
   Future<void> _leaveFamily() async {
     if (_family == null) return;
+
+    final isLastMember = _family!.members.length <= 1;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('ファミリーから離脱しますか？'),
-        content: const Text('この操作は取り消せません。'),
+        title: Text(isLastMember ? 'ファミリーを削除しますか？' : 'ファミリーから離脱しますか？'),
+        content: Text(isLastMember
+            ? 'あなたが最後のメンバーです。ファミリー自体が削除されます。この操作は取り消せません。'
+            : 'この操作は取り消せません。'),
         actions: [
           TextButton(onPressed: () => ctx.pop(false), child: const Text('キャンセル')),
           TextButton(
             onPressed: () => ctx.pop(true),
-            child: const Text('離脱する', style: TextStyle(color: Colors.red)),
+            child: Text(
+              isLastMember ? '削除する' : '離脱する',
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -91,42 +99,72 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     if (myUid == null) return;
-    final me = _family!.members.firstWhere(
-      (m) => m.userId == myUid,
-      orElse: () => throw Exception('自分のメンバー情報が見つかりません'),
-    );
+
     try {
-      await _service.leaveFamilyMember(_family!.familyId, me.userId);
+      if (isLastMember) {
+        await _service.deleteFamily(_family!.familyId);
+      } else {
+        final me = _family!.members.firstWhere(
+          (m) => m.userId == myUid,
+          orElse: () => throw Exception('自分のメンバー情報が見つかりません'),
+        );
+        await _service.leaveFamilyMember(_family!.familyId, me.userId);
+      }
       if (mounted) setState(() => _family = null);
     } catch (e) {
-      if (mounted) _showError('離脱に失敗しました');
+      if (mounted) _showError(isLastMember ? 'ファミリーの削除に失敗しました' : '離脱に失敗しました');
+    }
+  }
+
+  Future<void> _dissolveFamily() async {
+    if (_family == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ファミリーを解散しますか？'),
+        content: const Text('全メンバーがファミリーから外れます。この操作は取り消せません。'),
+        actions: [
+          TextButton(onPressed: () => ctx.pop(false), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () => ctx.pop(true),
+            child: const Text('解散する', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _service.deleteFamily(_family!.familyId);
+      if (mounted) setState(() => _family = null);
+    } catch (e) {
+      if (mounted) _showError('解散に失敗しました');
     }
   }
 
   Future<String?> _showNameDialog(String title, {String hint = ''}) async {
     final controller = TextEditingController();
-    try {
-      return await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(hintText: hint),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(onPressed: () => ctx.pop(), child: const Text('キャンセル')),
-            TextButton(
-              onPressed: () => ctx.pop(controller.text.trim()),
-              child: const Text('OK'),
-            ),
-          ],
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(hintText: hint),
+          autofocus: true,
         ),
-      );
-    } finally {
-      WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    }
+        actions: [
+          TextButton(onPressed: () => ctx.pop(), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () => ctx.pop(controller.text.trim()),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    // Dispose after the dialog closing animation completes
+    Future.delayed(const Duration(milliseconds: 300), controller.dispose);
+    return result;
   }
 
   void _showError(String msg) {
@@ -189,13 +227,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
   Widget _buildFamily(CamillColors colors) {
     final family = _family!;
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final isOwner = family.ownerUid == myUid;
+    final isFull = family.members.length >= family.maxMembers;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // インフォバナー
         if (_showInfoBanner) _buildInfoBanner(colors),
 
-        // ファミリー名
         _SectionCard(
           colors: colors,
           child: Row(
@@ -219,7 +259,6 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
         ),
         const SizedBox(height: 16),
 
-        // メンバーセクション
         Text('メンバー', style: TextStyle(color: colors.textSecondary,
             fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
@@ -230,27 +269,38 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
               ...family.members.map((m) => _buildMemberRow(m, colors)),
               const Divider(),
               ListTile(
-                leading: Icon(Icons.person_add_outlined, color: colors.primary),
+                leading: Icon(Icons.person_add_outlined,
+                    color: isFull ? colors.textSecondary : colors.primary),
                 title: Text('メンバーを招待',
-                    style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600)),
+                    style: TextStyle(
+                        color: isFull ? colors.textSecondary : colors.primary,
+                        fontWeight: FontWeight.w600)),
+                subtitle: isFull
+                    ? Text('定員に達しています',
+                        style: TextStyle(color: colors.textSecondary, fontSize: 12))
+                    : null,
                 contentPadding: EdgeInsets.zero,
-                onTap: () => _showInviteSheet(),
+                onTap: isFull ? null : () => _showInviteSheet(),
               ),
             ],
           ),
         ),
         const SizedBox(height: 32),
 
-        // 危険ゾーン
         ListTile(
-          leading: const Icon(Icons.exit_to_app, color: Colors.red),
-          title: const Text('ファミリーから離脱する',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+          leading: Icon(
+            isOwner ? Icons.delete_outline : Icons.exit_to_app,
+            color: Colors.red,
+          ),
+          title: Text(
+            isOwner ? 'ファミリーを解散する' : 'ファミリーから離脱する',
+            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+          ),
           shape: RoundedRectangleBorder(
             side: const BorderSide(color: Colors.red, width: 1),
             borderRadius: BorderRadius.circular(12),
           ),
-          onTap: _leaveFamily,
+          onTap: isOwner ? _dissolveFamily : _leaveFamily,
         ),
       ],
     );

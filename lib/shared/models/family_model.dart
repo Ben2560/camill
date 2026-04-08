@@ -17,6 +17,26 @@ class FamilyMember {
         role: json['role'] as String,
         joinedAt: DateTime.parse(json['joined_at'] as String),
       );
+
+  Map<String, dynamic> toJson() => {
+        'user_id': userId,
+        'display_name': displayName,
+        'role': role,
+        'joined_at': joinedAt.toIso8601String(),
+      };
+
+  FamilyMember copyWith({
+    String? userId,
+    String? displayName,
+    String? role,
+    DateTime? joinedAt,
+  }) =>
+      FamilyMember(
+        userId: userId ?? this.userId,
+        displayName: displayName ?? this.displayName,
+        role: role ?? this.role,
+        joinedAt: joinedAt ?? this.joinedAt,
+      );
 }
 
 class Family {
@@ -46,6 +66,32 @@ class Family {
             .toList(),
         createdAt: DateTime.parse(json['created_at'] as String),
       );
+
+  Map<String, dynamic> toJson() => {
+        'family_id': familyId,
+        'name': name,
+        'owner_uid': ownerUid,
+        'max_members': maxMembers,
+        'members': members.map((m) => m.toJson()).toList(),
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  Family copyWith({
+    String? familyId,
+    String? name,
+    String? ownerUid,
+    int? maxMembers,
+    List<FamilyMember>? members,
+    DateTime? createdAt,
+  }) =>
+      Family(
+        familyId: familyId ?? this.familyId,
+        name: name ?? this.name,
+        ownerUid: ownerUid ?? this.ownerUid,
+        maxMembers: maxMembers ?? this.maxMembers,
+        members: members ?? this.members,
+        createdAt: createdAt ?? this.createdAt,
+      );
 }
 
 class FamilyInvite {
@@ -63,6 +109,23 @@ class FamilyInvite {
         token: json['token'] as String,
         expiresAt: DateTime.parse(json['expires_at'] as String),
         role: json['role'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'token': token,
+        'expires_at': expiresAt.toIso8601String(),
+        'role': role,
+      };
+
+  FamilyInvite copyWith({
+    String? token,
+    DateTime? expiresAt,
+    String? role,
+  }) =>
+      FamilyInvite(
+        token: token ?? this.token,
+        expiresAt: expiresAt ?? this.expiresAt,
+        role: role ?? this.role,
       );
 }
 
@@ -88,5 +151,28 @@ class FamilyPermission {
         toUserId: json['to_user_id'] as String,
         viewLevel: json['view_level'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'permission_id': permissionId,
+        'from_user_id': fromUserId,
+        'to_user_id': toUserId,
+        'view_level': viewLevel,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  FamilyPermission copyWith({
+    String? permissionId,
+    String? fromUserId,
+    String? toUserId,
+    String? viewLevel,
+    DateTime? createdAt,
+  }) =>
+      FamilyPermission(
+        permissionId: permissionId ?? this.permissionId,
+        fromUserId: fromUserId ?? this.fromUserId,
+        toUserId: toUserId ?? this.toUserId,
+        viewLevel: viewLevel ?? this.viewLevel,
+        createdAt: createdAt ?? this.createdAt,
       );
 }

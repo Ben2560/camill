@@ -5,7 +5,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../services/family_service.dart';
 
-/// QRコードをスキャンしてファミリーに参加する画面
 class FamilyJoinScreen extends StatefulWidget {
   const FamilyJoinScreen({super.key});
 
@@ -32,9 +31,6 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
     setState(() => _processing = true);
     await _controller.stop();
 
-    // トークンからファミリーIDを別途取得する必要があるが、
-    // 仕様上トークン単体でjoin可能なエンドポイントが必要。
-    // ここでは確認ダイアログ → APIコールのフローを実装。
     if (!mounted) return;
 
     final confirmed = await showDialog<bool>(
@@ -96,7 +92,6 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
             controller: _controller,
             onDetect: _handleScan,
           ),
-          // スキャン枠
           Center(
             child: Container(
               width: 240,
@@ -112,15 +107,14 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
               color: Colors.black54,
               child: const Center(child: CircularProgressIndicator()),
             ),
-          // ガイドテキスト
           Positioned(
             bottom: 60,
             left: 0,
             right: 0,
-            child: Text(
+            child: const Text(
               '招待QRコードを枠内に合わせてください',
               textAlign: TextAlign.center,
-              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ),
         ],

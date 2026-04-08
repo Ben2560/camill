@@ -20,8 +20,8 @@ class WalletService {
   }) async {
     final data = await _api.postAny('/wallets', body: {
       'name': name,
-      'owner_uid': ownerUid,
-      'guardian_uid': guardianUid,
+      'owner_uid': ?ownerUid,
+      'guardian_uid': ?guardianUid,
     });
     return Wallet.fromJson(data as Map<String, dynamic>);
   }

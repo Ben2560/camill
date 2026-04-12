@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +11,6 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../shared/services/api_service.dart';
-import '../../../shared/widgets/budget_sheet.dart';
 import '../../../shared/widgets/top_notification.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -25,8 +26,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _apiService = ApiService();
 
   static const _budgetKey = 'budget_monthly';
+  static const _monthlyIncomeKey = 'income_monthly';
+  static const _paydayKey = 'income_payday';
+  static const _sideIncomeKey = 'income_side';
+  static const _avatarPathKey = 'profile_avatar_path';
+
   int _budget = 80000;
+  int _monthlyIncome = 0;
+  int _payday = 0;
+  int _sideIncome = 0;
   String _plan = 'free';
+  String? _avatarPath;
 
   static const _planLabels = {
     'free': '無料プラン',
@@ -40,6 +50,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _loadBudget();
+    _loadIncome();
+    _loadAvatar();
     _loadBillingStatus();
     widget.refreshNotifier?.addListener(_loadBudget);
   }
@@ -58,80 +70,65 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {}
   }
 
+  Future<void> _loadAvatar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_avatarPathKey);
+    if (!mounted) return;
+    if (stored == null) {
+      setState(() => _avatarPath = null);
+      return;
+    }
+    final fileName = stored.contains('/') ? stored.split('/').last : stored;
+    final dir = await getApplicationDocumentsDirectory();
+    final path = '${dir.path}/$fileName';
+    if (!mounted) return;
+    if (File(path).existsSync()) {
+      setState(() => _avatarPath = path);
+    } else {
+      setState(() => _avatarPath = null);
+    }
+  }
+
   Future<void> _loadBudget() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() => _budget = prefs.getInt(_budgetKey) ?? 80000);
   }
 
-  Future<void> _showBudgetSheet(CamillColors colors) async {
+  Future<void> _loadIncome() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => BudgetSheet(
-        initialBudget: _budget,
-        colors: colors,
-        onSave: (val) async {
-          await prefs.setInt(_budgetKey, val);
-          if (mounted) setState(() => _budget = val);
-        },
-      ),
-    );
+    setState(() {
+      _monthlyIncome = prefs.getInt(_monthlyIncomeKey) ?? 0;
+      _payday = prefs.getInt(_paydayKey) ?? 0;
+      _sideIncome = prefs.getInt(_sideIncomeKey) ?? 0;
+    });
   }
 
-  String get _displayName =>
+  String _formatAmount(int amount) {
+    if (amount == 0) return '未設定';
+    return '¥${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
+  }
+
+  String get _incomeSummary {
+    if (_monthlyIncome == 0 && _payday == 0 && _sideIncome == 0) return '未設定';
+    final parts = <String>[];
+    if (_monthlyIncome > 0) parts.add(_formatAmount(_monthlyIncome));
+    if (_payday > 0) parts.add('毎月$_payday日');
+    return parts.join(' · ');
+  }
+
+  Future<void> _openIncomeSettings() async {
+    await context.push('/income');
+    if (mounted) _loadIncome();
+  }
+
+String get _displayName =>
       FirebaseAuth.instance.currentUser?.displayName ?? 'ユーザー';
 
-  // ── 表示名変更 ──────────────────────────────────────────────────────────────
-  Future<void> _editName(CamillColors colors) async {
-    final controller = TextEditingController(text: _displayName);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surface,
-        title: Text('表示名の変更',
-            style: camillHeadingStyle(16, colors.textPrimary)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: camillBodyStyle(14, colors.textPrimary),
-          decoration: InputDecoration(
-            hintText: '表示名を入力',
-            hintStyle: camillBodyStyle(14, colors.textMuted),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('キャンセル',
-                style: camillBodyStyle(14, colors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text('保存',
-                style: camillBodyStyle(14, colors.primary,
-                    weight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-    // ダイアログの退場アニメーション完了後に dispose
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    if (result == null || result.isEmpty || !mounted) return;
-    try {
-      await _authService.updateDisplayName(result);
-      if (mounted) setState(() {});
-    } catch (_) {
-      if (mounted) {
-        showTopNotification(context, '更新に失敗しました');
-      }
-    }
+  Future<void> _openAccountSettings() async {
+    await context.push('/account');
+    if (mounted) { setState(() {}); _loadAvatar(); }
   }
 
   // ── URL起動 ─────────────────────────────────────────────────────────────────
@@ -211,10 +208,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: colors.primaryLight,
-                  child: Text(
-                    _displayName.isNotEmpty ? _displayName[0] : 'U',
-                    style: camillHeadingStyle(24, colors.primary),
-                  ),
+                  backgroundImage: _avatarPath != null
+                      ? FileImage(File(_avatarPath!))
+                      : null,
+                  child: _avatarPath == null
+                      ? Text(
+                          _displayName.isNotEmpty ? _displayName[0] : 'U',
+                          style: camillHeadingStyle(24, colors.primary),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -246,31 +248,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             icon: Icons.person_outline,
             title: '表示名',
             colors: colors,
-            onTap: () => _editName(colors),
+            onTap: _openAccountSettings,
+          ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: '収入・支出', colors: colors),
+          _SettingsItem(
+            icon: Icons.payments_outlined,
+            title: '収入の設定',
+            subtitle: _incomeSummary,
+            colors: colors,
+            onTap: _openIncomeSettings,
           ),
           _SettingsItem(
             icon: Icons.account_balance_wallet_outlined,
             title: '月の予算',
             subtitle: '¥${_budget.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
             colors: colors,
-            onTap: () => _showBudgetSheet(colors),
+            onTap: () async {
+              await context.push('/category-budget');
+              if (mounted) _loadBudget();
+            },
           ),
-          const SizedBox(height: 8),
-          _SectionHeader(title: 'プラン', colors: colors),
-          _SettingsItem(
-            icon: Icons.workspace_premium_outlined,
-            title: 'プラン・課金管理',
-            subtitle: _planLabel,
-            colors: colors,
-            onTap: () {},
-          ),
-          if (_plan == 'family')
-            _SettingsItem(
-              icon: Icons.group_outlined,
-              title: 'ファミリー管理',
-              colors: colors,
-              onTap: () => context.push('/family'),
-            ),
           const SizedBox(height: 8),
           _SectionHeader(title: 'アプリ設定', colors: colors),
           _SettingsItem(
@@ -280,6 +278,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             colors: colors,
             onTap: () => context.push('/settings'),
           ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'プラン', colors: colors),
+          _SettingsItem(
+            icon: Icons.workspace_premium_outlined,
+            title: 'プラン・課金管理',
+            subtitle: _planLabel,
+            colors: colors,
+            onTap: () async {
+              await context.push('/plan');
+              if (mounted) _loadBillingStatus();
+            },
+          ),
+          if (_plan == 'family')
+            _SettingsItem(
+              icon: Icons.group_outlined,
+              title: 'ファミリー管理',
+              colors: colors,
+              onTap: () => context.push('/family'),
+            ),
           const SizedBox(height: 8),
           _SectionHeader(title: 'その他', colors: colors),
           _SettingsItem(

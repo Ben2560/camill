@@ -10,6 +10,7 @@ class Bill {
   final String? category;
   final bool isTaxExempt;
   final DateTime? paidAt;
+  final String? memo;
 
   Bill({
     required this.billId,
@@ -21,6 +22,7 @@ class Bill {
     this.category,
     this.isTaxExempt = false,
     this.paidAt,
+    this.memo,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) => Bill(
@@ -37,6 +39,7 @@ class Bill {
         paidAt: json['paid_at'] != null
             ? DateTime.parse(json['paid_at'] as String).toLocal()
             : null,
+        memo: json['memo'] as String?,
       );
 
   static BillStatus _statusFromString(String s) {
@@ -50,7 +53,7 @@ class Bill {
     }
   }
 
-  Bill copyWith({BillStatus? status, DateTime? paidAt}) => Bill(
+  Bill copyWith({BillStatus? status, DateTime? paidAt, Object? memo = _sentinel}) => Bill(
         billId: billId,
         title: title,
         amount: amount,
@@ -60,7 +63,10 @@ class Bill {
         category: category,
         isTaxExempt: isTaxExempt,
         paidAt: paidAt ?? this.paidAt,
+        memo: memo == _sentinel ? this.memo : memo as String?,
       );
+
+  static const Object _sentinel = Object();
 
   int? get daysUntilDue {
     if (dueDate == null) return null;

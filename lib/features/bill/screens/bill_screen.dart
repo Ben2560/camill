@@ -275,6 +275,7 @@ class _BillScreenState extends State<BillScreen>
     final colors = context.colors;
     final titleCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
+    final memoCtrl = TextEditingController();
     DateTime? dueDate;
 
     try {
@@ -314,6 +315,16 @@ class _BillScreenState extends State<BillScreen>
                 style: camillBodyStyle(14, colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: '金額（円）',
+                  labelStyle: camillBodyStyle(13, colors.textMuted),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: memoCtrl,
+                style: camillBodyStyle(14, colors.textPrimary),
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'メモ（任意）',
                   labelStyle: camillBodyStyle(13, colors.textMuted),
                 ),
               ),
@@ -362,6 +373,7 @@ class _BillScreenState extends State<BillScreen>
                         title: titleCtrl.text,
                         amount: int.tryParse(amountCtrl.text) ?? 0,
                         dueDate: dueDate?.toIso8601String(),
+                        memo: memoCtrl.text.isEmpty ? null : memoCtrl.text,
                       );
                       await _loadBills(silent: true);
                     } catch (e) {
@@ -380,6 +392,7 @@ class _BillScreenState extends State<BillScreen>
     } finally {
       titleCtrl.dispose();
       amountCtrl.dispose();
+      memoCtrl.dispose();
     }
   }
 }

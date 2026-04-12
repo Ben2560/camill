@@ -31,6 +31,10 @@ import 'features/data/screens/data_screen.dart';
 import 'features/family/screens/family_management_screen.dart';
 import 'features/family/screens/family_invite_screen.dart';
 import 'features/family/screens/family_join_screen.dart';
+import 'features/profile/screens/income_settings_screen.dart';
+import 'features/profile/screens/account_settings_screen.dart';
+import 'features/profile/screens/plan_screen.dart';
+import 'features/home/screens/category_budget_screen.dart';
 import 'shared/models/family_model.dart';
 import 'firebase_options.dart';
 import 'shared/models/receipt_model.dart';
@@ -262,6 +266,22 @@ final _router = GoRouter(
     GoRoute(
       path: '/family/join',
       builder: (context, state) => const FamilyJoinScreen(),
+    ),
+    GoRoute(
+      path: '/income',
+      builder: (context, state) => const IncomeSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/account',
+      builder: (context, state) => const AccountSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/plan',
+      builder: (context, state) => const PlanScreen(),
+    ),
+    GoRoute(
+      path: '/category-budget',
+      builder: (context, state) => const CategoryBudgetScreen(dismissible: false),
     ),
   ],
 );

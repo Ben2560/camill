@@ -72,12 +72,42 @@ class AuthService {
     await _auth.currentUser?.updateDisplayName(displayName);
   }
 
+  // プロフィール（本名・電話番号）をバックエンドに更新
+  Future<void> updateProfile({
+    String? displayName,
+    String? realName,
+    String? phone,
+  }) async {
+    final body = <String, dynamic>{};
+    if (displayName != null) body['display_name'] = displayName;
+    if (realName != null) body['real_name'] = realName;
+    if (phone != null) body['phone'] = phone;
+    if (body.isEmpty) return;
+    await _api.patch('/auth/me', body: body);
+  }
+
+  // バックエンドからプロフィール取得
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final res = await _api.get('/auth/me');
+    return Map<String, dynamic>.from(res as Map);
+  }
+
   // パスワード再設定メール送信
   Future<void> sendPasswordResetEmail() async {
     final email = _auth.currentUser?.email;
     if (email != null) {
       await _auth.sendPasswordResetEmail(email: email);
     }
+  }
+
+  // メールアドレス変更（新アドレスに確認メール送信）
+  Future<void> verifyBeforeUpdateEmail(String newEmail) async {
+    await _auth.currentUser?.verifyBeforeUpdateEmail(newEmail);
+  }
+
+  // プロフィール画像URLを更新
+  Future<void> updatePhotoURL(String url) async {
+    await _auth.currentUser?.updatePhotoURL(url);
   }
 
   // アカウント削除（バックエンド + Firebase）

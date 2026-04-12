@@ -218,6 +218,15 @@ class _CalendarScreenState extends State<CalendarScreen>
             }
           }
         },
+        onMemoUpdated: (newMemo) {
+          setState(() {
+            _bills = _bills
+                .map((b) => b.billId == bill.billId
+                    ? b.copyWith(memo: newMemo)
+                    : b)
+                .toList();
+          });
+        },
       ),
     );
   }
@@ -396,6 +405,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     bool isToday = false,
     bool isSelected = false,
     bool isOutside = false,
+    double rowH = 52.0,
   }) {
     final colors = context.colors;
     final key = DateTime(day.year, day.month, day.day);
@@ -432,6 +442,16 @@ class _CalendarScreenState extends State<CalendarScreen>
 
     // table_calendar のセルは rowHeight 分の高さを与えるので
     // Stack(fit: StackFit.expand) で親の制約を完全に埋める
+    // rowH に比例したサイズ計算
+    // 日付円: rowH の 58%（最小24, 最大34）
+    final circleSize = (rowH * 0.58).clamp(24.0, 34.0);
+    // フォントサイズ: 円サイズの 43%（最小11, 最大14）
+    final dateFontSize = (circleSize * 0.43).clamp(11.0, 14.0);
+    // 金額バッジエリア: rowH の 24%（最小10, 最大14）
+    final badgeAreaH = (rowH * 0.24).clamp(10.0, 14.0);
+    // 金額フォント: バッジエリアの 75%（最小8, 最大10）
+    final badgeFontSize = (badgeAreaH * 0.75).clamp(8.0, 10.0);
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -440,14 +460,14 @@ class _CalendarScreenState extends State<CalendarScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: circleSize,
+              height: circleSize,
               decoration: decoration,
               alignment: Alignment.center,
               child: Text(
                 '${day.day}',
                 style: camillBodyStyle(
-                  14,
+                  dateFontSize,
                   textColor,
                   weight: isSelected || isToday
                       ? FontWeight.w700
@@ -456,25 +476,26 @@ class _CalendarScreenState extends State<CalendarScreen>
               ),
             ),
             SizedBox(
-              height: 14,
+              height: badgeAreaH,
               child: amount != null && !isOutside
                   ? Center(
                       child: Container(
-                        margin: const EdgeInsets.only(top: 2),
+                        margin: const EdgeInsets.only(top: 1),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
+                          horizontal: 3,
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
                           color: colors.primaryLight,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(3),
                         ),
                         child: Text(
                           '¥${_formatShort(amount)}',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: badgeFontSize,
                             color: colors.primary,
                             fontWeight: FontWeight.w600,
+                            height: 1.0,
                           ),
                         ),
                       ),
@@ -486,11 +507,11 @@ class _CalendarScreenState extends State<CalendarScreen>
         // ── 請求期限の赤ポチ ──
         if (hasBillDue)
           Positioned(
-            top: 6,
-            right: 6,
+            top: (rowH * 0.10).clamp(4.0, 8.0),
+            right: (rowH * 0.10).clamp(4.0, 8.0),
             child: Container(
-              width: 6,
-              height: 6,
+              width: (rowH * 0.12).clamp(5.0, 7.0),
+              height: (rowH * 0.12).clamp(5.0, 7.0),
               decoration: const BoxDecoration(
                 color: Color(0xFFE53935),
                 shape: BoxShape.circle,
@@ -784,11 +805,12 @@ class _CalendarScreenState extends State<CalendarScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         // 利用可能な高さから rowHeight を動的計算:
-        //   曜日ヘッダー28px + 最大6行 + 詳細パネル最低65px が収まるよう調整
-        //   セルコンテンツ（32px日付+14px金額=46px）を下回らないよう 46 でクランプ
-        //   ClipRect で端数ピクセルのオーバーフローを無音クリップ
-        final rowH = ((constraints.maxHeight - 28.0 - 65.0) / 6)
-            .clamp(46.0, 72.0);
+        //   曜日ヘッダー16px（table_calendar デフォルト）+ 最大6行 + 詳細パネル最低65px が収まるよう調整
+        //   セルコンテンツ（32px日付+14px金額=46px）が理想だが、画面が小さい場合は 40 まで許容
+        //   TableCalendar を SizedBox で囲み bounded constraints を与えることで
+        //   _pageHeight タイミング競合によるオーバーフローを防止
+        final rowH = ((constraints.maxHeight - 16.0 - 65.0) / 6)
+            .clamp(40.0, 72.0);
         return ClipRect(child: _buildMonthColumn(colors, rowH));
       },
     );
@@ -797,50 +819,56 @@ class _CalendarScreenState extends State<CalendarScreen>
   Widget _buildMonthColumn(CamillColors colors, double rowH) {
     return Column(
       children: [
-        TableCalendar(
-          headerVisible: false,
-          firstDay: DateTime(_kBaseYear, 1, 1),
-          lastDay: DateTime(_kBaseYear + _kYearCount - 1, 12, 31),
-          focusedDay: _focusedDay,
-          rowHeight: rowH,
-          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          onDaySelected: (selected, focused) => _goToDay(selected),
-          onPageChanged: (focusedDay) {
-            final now = DateTime.now();
-            final isCurrentMonth = focusedDay.year == now.year && focusedDay.month == now.month;
-            final targetDay = isCurrentMonth
-                ? DateTime(now.year, now.month, now.day)
-                : focusedDay;
-            setState(() {
-              _focusedDay = targetDay;
-              _selectedDay = targetDay;
-            });
-            final localTarget = DateTime(targetDay.year, targetDay.month, targetDay.day);
-            final diff = localTarget.difference(_baseDate).inDays;
-            _dayPageController.jumpToPage(_kMiddlePage + diff);
-            _loadSummary(targetDay);
-          },
-          calendarStyle: CalendarStyle(
-            todayDecoration: const BoxDecoration(),
-            selectedDecoration: const BoxDecoration(),
-            defaultTextStyle: const TextStyle(color: Colors.transparent),
-            weekendTextStyle: const TextStyle(color: Colors.transparent),
-            outsideTextStyle: const TextStyle(color: Colors.transparent),
-            cellMargin: EdgeInsets.zero,
-            cellPadding: EdgeInsets.zero,
-          ),
-          daysOfWeekStyle: DaysOfWeekStyle(
-            weekdayStyle: camillBodyStyle(12, colors.textMuted),
-            weekendStyle: camillBodyStyle(12, colors.textSecondary),
-          ),
-          calendarBuilders: CalendarBuilders(
-            defaultBuilder: (_, day, focused) => _buildCell(day),
-            todayBuilder: (_, day, focused) =>
-                _buildCell(day, isToday: true),
-            selectedBuilder: (_, day, focused) =>
-                _buildCell(day, isSelected: true),
-            outsideBuilder: (_, day, focused) =>
-                _buildCell(day, isOutside: true),
+        SizedBox(
+          // 16 = daysOfWeekHeight (table_calendar default)
+          // bounded constraints で _pageHeight タイミング競合によるオーバーフローを防止
+          height: rowH * 6 + 16.0,
+          child: TableCalendar(
+            headerVisible: false,
+            shouldFillViewport: true,
+            firstDay: DateTime(_kBaseYear, 1, 1),
+            lastDay: DateTime(_kBaseYear + _kYearCount - 1, 12, 31),
+            focusedDay: _focusedDay,
+            rowHeight: rowH,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selected, focused) => _goToDay(selected),
+            onPageChanged: (focusedDay) {
+              final now = DateTime.now();
+              final isCurrentMonth = focusedDay.year == now.year && focusedDay.month == now.month;
+              final targetDay = isCurrentMonth
+                  ? DateTime(now.year, now.month, now.day)
+                  : focusedDay;
+              setState(() {
+                _focusedDay = targetDay;
+                _selectedDay = targetDay;
+              });
+              final localTarget = DateTime(targetDay.year, targetDay.month, targetDay.day);
+              final diff = localTarget.difference(_baseDate).inDays;
+              _dayPageController.jumpToPage(_kMiddlePage + diff);
+              _loadSummary(targetDay);
+            },
+            calendarStyle: CalendarStyle(
+              todayDecoration: const BoxDecoration(),
+              selectedDecoration: const BoxDecoration(),
+              defaultTextStyle: const TextStyle(color: Colors.transparent),
+              weekendTextStyle: const TextStyle(color: Colors.transparent),
+              outsideTextStyle: const TextStyle(color: Colors.transparent),
+              cellMargin: EdgeInsets.zero,
+              cellPadding: EdgeInsets.zero,
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: camillBodyStyle(12, colors.textMuted),
+              weekendStyle: camillBodyStyle(12, colors.textSecondary),
+            ),
+            calendarBuilders: CalendarBuilders(
+              defaultBuilder: (_, day, focused) => _buildCell(day, rowH: rowH),
+              todayBuilder: (_, day, focused) =>
+                  _buildCell(day, isToday: true, rowH: rowH),
+              selectedBuilder: (_, day, focused) =>
+                  _buildCell(day, isSelected: true, rowH: rowH),
+              outsideBuilder: (_, day, focused) =>
+                  _buildCell(day, isOutside: true, rowH: rowH),
+            ),
           ),
         ),
         Expanded(
@@ -2579,21 +2607,97 @@ class _CouponActionSheetState extends State<_CouponActionSheet> {
 }
 
 // ── 請求書詳細ボトムシート ─────────────────────────────────────
-class _BillDetailSheet extends StatelessWidget {
+class _BillDetailSheet extends StatefulWidget {
   final Bill bill;
   final NumberFormat fmt;
   final CamillColors colors;
   final VoidCallback onPaid;
+  final void Function(String? memo) onMemoUpdated;
 
   const _BillDetailSheet({
     required this.bill,
     required this.fmt,
     required this.colors,
     required this.onPaid,
+    required this.onMemoUpdated,
   });
 
   @override
+  State<_BillDetailSheet> createState() => _BillDetailSheetState();
+}
+
+class _BillDetailSheetState extends State<_BillDetailSheet> {
+  final _service = BillService();
+  late String? _memo;
+
+  @override
+  void initState() {
+    super.initState();
+    _memo = widget.bill.memo;
+  }
+
+  Future<void> _editMemo() async {
+    final colors = widget.colors;
+    // async gap をまたぐ前に messenger を取得
+    final messenger = ScaffoldMessenger.of(context);
+    final ctrl = TextEditingController(text: _memo ?? '');
+
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text('メモを編集', style: camillHeadingStyle(16, colors.textPrimary)),
+          content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            maxLines: 4,
+            style: camillBodyStyle(14, colors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'メモを入力...',
+              hintStyle: camillBodyStyle(14, colors.textMuted),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('キャンセル', style: camillBodyStyle(14, colors.textMuted)),
+            ),
+            TextButton(
+              onPressed: () {
+                final text = ctrl.text;
+                Navigator.pop(ctx, text);
+              },
+              child: Text('保存', style: camillBodyStyle(14, colors.primary, weight: FontWeight.w700)),
+            ),
+          ],
+        );
+      },
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
+    if (result == null) return;
+
+    final newMemo = result.trim().isEmpty ? null : result.trim();
+    try {
+      await _service.updateMemo(widget.bill.billId, newMemo);
+      if (mounted) {
+        setState(() => _memo = newMemo);
+        widget.onMemoUpdated(newMemo);
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('保存に失敗しました: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bill = widget.bill;
+    final fmt = widget.fmt;
+    final colors = widget.colors;
     final catColor = AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
     final catLabel = AppConstants.categoryLabels[bill.category] ?? 'その他';
     final isPaid = bill.status == BillStatus.paid;
@@ -2695,6 +2799,32 @@ class _BillDetailSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _editMemo,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceBorder.withAlpha(60),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _memo != null && _memo!.isNotEmpty ? _memo! : 'メモを追加...',
+                              style: camillBodyStyle(
+                                13,
+                                _memo != null && _memo!.isNotEmpty ? colors.textSecondary : colors.textMuted,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.edit_outlined, size: 14, color: colors.textMuted),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   if (isPaid) ...[
                     // 支払済み日
                     if (bill.paidAt != null)
@@ -2785,7 +2915,7 @@ class _BillDetailSheet extends StatelessWidget {
                         ),
                         onPressed: () {
                           Navigator.of(context).pop();
-                          onPaid();
+                          widget.onPaid();
                         },
                         icon: const Icon(Icons.check_circle_outline, color: Colors.white),
                         label: Text('支払いました', style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600)),

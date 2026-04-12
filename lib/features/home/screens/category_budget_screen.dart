@@ -11,7 +11,8 @@ import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 
 class CategoryBudgetScreen extends StatefulWidget {
-  const CategoryBudgetScreen({super.key});
+  final bool dismissible;
+  const CategoryBudgetScreen({super.key, this.dismissible = true});
 
   @override
   State<CategoryBudgetScreen> createState() => _CategoryBudgetScreenState();
@@ -503,6 +504,69 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
 
     final totalAllocated = _budgets.values.fold(0, (s, v) => s + v);
 
+    final scaffold = Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        backgroundColor: colors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        title: Text('カテゴリ予算',
+            style: camillBodyStyle(17, colors.textPrimary,
+                weight: FontWeight.w600)),
+        leading: widget.dismissible
+            ? IconButton(
+                icon: Icon(Icons.close, color: colors.textSecondary),
+                onPressed: () => Navigator.of(context, rootNavigator: false).pop(),
+              )
+            : IconButton(
+                icon: Icon(Icons.arrow_back_ios_new, color: colors.textPrimary, size: 20),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+      ),
+      body: LoadingOverlay(
+        isLoading: _loading,
+        child: widget.dismissible
+            ? Listener(
+                onPointerMove: (e) {
+                  if (_isDismissing) return;
+                  if (_scrollController.hasClients &&
+                      _scrollController.position.pixels <= 0 &&
+                      e.delta.dy > 0) {
+                    _pullDistance += e.delta.dy;
+                    _dismissOffset.value = _pullDistance;
+                  } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                    _pullDistance = 0;
+                    _dismissOffset.value = 0;
+                  }
+                },
+                onPointerUp: (_) {
+                  if (_isDismissing) return;
+                  _endDismiss();
+                  _pullDistance = 0;
+                },
+                onPointerCancel: (_) {
+                  if (_isDismissing) return;
+                  _pullDistance = 0;
+                  _dismissOffset.value = 0;
+                },
+                child: ListView(
+                  controller: _scrollController,
+                  physics: const DismissScrollPhysicsWithTopBounce(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
+                  children: _buildListItems(colors, totalAllocated, setItems, unsetItems),
+                ),
+              )
+            : ListView(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
+                children: _buildListItems(colors, totalAllocated, setItems, unsetItems),
+              ),
+      ),
+    );
+
+    if (!widget.dismissible) return scaffold;
+
     return AnimatedBuilder(
       animation: Listenable.merge([_dismissOffset, _snapController]),
       builder: (ctx, child) {
@@ -535,51 +599,17 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
           ],
         );
       },
-      child: Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        title: Text('カテゴリ予算',
-            style: camillBodyStyle(17, colors.textPrimary,
-                weight: FontWeight.w600)),
-        leading: IconButton(
-          icon: Icon(Icons.close, color: colors.textSecondary),
-          onPressed: () => Navigator.of(context, rootNavigator: false).pop(),
-        ),
-      ),
-      body: LoadingOverlay(
-        isLoading: _loading,
-        child: Listener(
-        onPointerMove: (e) {
-          if (_isDismissing) return;
-          if (_scrollController.hasClients &&
-              _scrollController.position.pixels <= 0 &&
-              e.delta.dy > 0) {
-            _pullDistance += e.delta.dy;
-            _dismissOffset.value = _pullDistance;
-          } else if (e.delta.dy < 0 && _pullDistance > 0) {
-            _pullDistance = 0;
-            _dismissOffset.value = 0;
-          }
-        },
-        onPointerUp: (_) {
-          if (_isDismissing) return;
-          _endDismiss();
-          _pullDistance = 0;
-        },
-        onPointerCancel: (_) {
-          if (_isDismissing) return;
-          _pullDistance = 0;
-          _dismissOffset.value = 0;
-        },
-        child: ListView(
-        controller: _scrollController,
-        physics: const DismissScrollPhysicsWithTopBounce(),
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
-        children: [
+      child: scaffold,
+    );
+  }
+
+  List<Widget> _buildListItems(
+    CamillColors colors,
+    int totalAllocated,
+    List<MapEntry<String, ({IconData icon, String label})>> setItems,
+    List<MapEntry<String, ({IconData icon, String label})>> unsetItems,
+  ) {
+    return [
           // ── Monthly budget header ───────────────────────────
           Container(
             margin: const EdgeInsets.only(bottom: 20),
@@ -660,12 +690,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
             )
           else
             ...unsetItems.map((e) => _buildRow(e.key, e.value, colors)),
-        ],
-      ),      // ListView
-    ),        // Listener
-  ),          // LoadingOverlay
-),            // Scaffold
-);            // AnimatedBuilder
+    ];
   }
 
   Widget _sectionLabel(String text, CamillColors colors) {

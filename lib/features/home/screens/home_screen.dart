@@ -449,6 +449,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   _loadRecentBills();
                 } catch (_) {}
               },
+              onMemoUpdated: (newMemo) {
+                setState(() {
+                  _upcomingBills = _upcomingBills
+                      .map((b) => b.billId == bill.billId
+                          ? b.copyWith(memo: newMemo)
+                          : b)
+                      .toList();
+                  _recentBills = _recentBills
+                      .map((b) => b.billId == bill.billId
+                          ? b.copyWith(memo: newMemo)
+                          : b)
+                      .toList();
+                });
+              },
             ),
           );
         },
@@ -730,6 +744,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final statusBarH = MediaQuery.of(context).padding.top;
+    final screenW = MediaQuery.of(context).size.width;
+    double sp(double base) => (base * screenW / 390.0).clamp(base * 0.82, base * 1.22);
     return Scaffold(
       backgroundColor: colors.background,
       body: Stack(
@@ -757,7 +773,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'ホーム',
                               style: camillBodyStyle(
-                                30,
+                                sp(30),
                                 colors.textPrimary,
                                 weight: FontWeight.w800,
                               ),
@@ -1792,8 +1808,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                 Row(
                   children: [
                     SizedBox(
-                      width: 100,
-                      height: 100,
+                      width: _sp(100),
+                      height: _sp(100),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
@@ -1801,7 +1817,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                             PieChartData(
                               startDegreeOffset: -90,
                               sectionsSpace: 0,
-                              centerSpaceRadius: 32,
+                              centerSpaceRadius: _sp(32),
                               sections: budget > 0
                                   ? [
                                       PieChartSectionData(
@@ -1809,13 +1825,13 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                                         color: ratio > 0.8
                                             ? colors.danger
                                             : colors.primary,
-                                        radius: 18,
+                                        radius: _sp(18),
                                         showTitle: false,
                                       ),
                                       PieChartSectionData(
                                         value: 1 - ratio,
                                         color: colors.surfaceBorder,
-                                        radius: 18,
+                                        radius: _sp(18),
                                         showTitle: false,
                                       ),
                                     ]
@@ -1823,7 +1839,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                                       PieChartSectionData(
                                         value: 1,
                                         color: colors.surfaceBorder,
-                                        radius: 18,
+                                        radius: _sp(18),
                                         showTitle: false,
                                       ),
                                     ],
@@ -1861,7 +1877,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                         children: [
                           Text(
                             _currencyFmt.format(expense),
-                            style: camillAmountStyle(28, colors.textPrimary),
+                            style: camillAmountStyle(_sp(28), colors.textPrimary),
                           ),
                           Text(
                             budget > 0
@@ -2206,12 +2222,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('$score', style: camillAmountStyle(52, scoreColor)),
+                Text('$score', style: camillAmountStyle(_sp(52), scoreColor)),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     ' 点',
-                    style: camillBodyStyle(18, colors.textMuted),
+                    style: camillBodyStyle(_sp(18), colors.textMuted),
                   ),
                 ),
                 const Spacer(),
@@ -2778,6 +2794,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   @override
   bool get wantKeepAlive => true;
 
+  /// スクリーン幅に応じてサイズをスケーリング（390px基準）
+  double _sp(double base) {
+    final w = MediaQuery.of(context).size.width;
+    return (base * w / 390.0).clamp(base * 0.82, base * 1.22);
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -2892,7 +2914,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                           Text(
                             'ハイライト',
                             style: camillBodyStyle(
-                              26,
+                              _sp(26),
                               colors.textPrimary,
                               weight: FontWeight.w800,
                             ),
@@ -3590,21 +3612,96 @@ class _DiscountCouponCard extends StatelessWidget {
   }
 }
 
-class _HomeBillDetailSheet extends StatelessWidget {
+class _HomeBillDetailSheet extends StatefulWidget {
   final Bill bill;
   final NumberFormat fmt;
   final CamillColors colors;
   final VoidCallback onPaid;
+  final void Function(String? memo) onMemoUpdated;
 
   const _HomeBillDetailSheet({
     required this.bill,
     required this.fmt,
     required this.colors,
     required this.onPaid,
+    required this.onMemoUpdated,
   });
 
   @override
+  State<_HomeBillDetailSheet> createState() => _HomeBillDetailSheetState();
+}
+
+class _HomeBillDetailSheetState extends State<_HomeBillDetailSheet> {
+  final _service = BillService();
+  late String? _memo;
+
+  @override
+  void initState() {
+    super.initState();
+    _memo = widget.bill.memo;
+  }
+
+  Future<void> _editMemo() async {
+    final colors = widget.colors;
+    final messenger = ScaffoldMessenger.of(context);
+    final ctrl = TextEditingController(text: _memo ?? '');
+
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text('メモを編集', style: camillHeadingStyle(16, colors.textPrimary)),
+          content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            maxLines: 4,
+            style: camillBodyStyle(14, colors.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'メモを入力...',
+              hintStyle: camillBodyStyle(14, colors.textMuted),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('キャンセル', style: camillBodyStyle(14, colors.textMuted)),
+            ),
+            TextButton(
+              onPressed: () {
+                final text = ctrl.text;
+                Navigator.pop(ctx, text);
+              },
+              child: Text('保存', style: camillBodyStyle(14, colors.primary, weight: FontWeight.w700)),
+            ),
+          ],
+        );
+      },
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
+    if (result == null) return;
+
+    final newMemo = result.trim().isEmpty ? null : result.trim();
+    try {
+      await _service.updateMemo(widget.bill.billId, newMemo);
+      if (mounted) {
+        setState(() => _memo = newMemo);
+        widget.onMemoUpdated(newMemo);
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('保存に失敗しました: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bill = widget.bill;
+    final fmt = widget.fmt;
+    final colors = widget.colors;
     final catColor =
         AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
     final catLabel = AppConstants.categoryLabels[bill.category] ?? 'その他';
@@ -3702,6 +3799,32 @@ class _HomeBillDetailSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _editMemo,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceBorder.withAlpha(60),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _memo != null && _memo!.isNotEmpty ? _memo! : 'メモを追加...',
+                              style: camillBodyStyle(
+                                13,
+                                _memo != null && _memo!.isNotEmpty ? colors.textSecondary : colors.textMuted,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.edit_outlined, size: 14, color: colors.textMuted),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   if (bill.dueDate != null) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3762,7 +3885,7 @@ class _HomeBillDetailSheet extends StatelessWidget {
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
-                        onPaid();
+                        widget.onPaid();
                       },
                       icon: const Icon(
                         Icons.check_circle_outline,

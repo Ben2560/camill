@@ -21,6 +21,7 @@ class BillService {
     String? category,
     bool isTaxExempt = false,
     String? paidAt,
+    String? memo,
   }) async {
     final data = await _api.postAny('/bills', body: {
       'title': title,
@@ -30,6 +31,7 @@ class BillService {
       'category': category,
       'is_tax_exempt': isTaxExempt,
       'paid_at': paidAt,
+      'memo': memo,
     });
     return Bill.fromJson(data as Map<String, dynamic>);
   }
@@ -40,6 +42,10 @@ class BillService {
       'image_base64': imageBase64,
       'image_type': imageType,
     });
+  }
+
+  Future<void> updateMemo(String billId, String? memo) async {
+    await _api.patch('/bills/$billId', body: {'memo': memo});
   }
 
   Future<void> payBill(String billId) async {

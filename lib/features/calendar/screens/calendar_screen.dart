@@ -75,6 +75,9 @@ class _CalendarScreenState extends State<CalendarScreen>
   bool _pinchActive = false;
   final Map<String, MonthlySummary> _summaryCache = {};
 
+  // PageView 高速スワイプ時に setState/haptic が連打されないよう debounce
+  DateTime? _lastHapticDay;
+
   @override
   void initState() {
     super.initState();
@@ -131,8 +134,8 @@ class _CalendarScreenState extends State<CalendarScreen>
     // table_calendar は UTC で日付を返すのでローカルに正規化
     final d = DateTime(day.year, day.month, day.day);
     if (_selectedDay != null && isSameDay(d, _selectedDay!)) return;
-    // スライド方向を決定（タップした方向へ動く：後の曜日→右へ動く=左から、前の曜日→左へ動く=右から）
-    _slideBegin = (_selectedDay != null && d.weekday > _selectedDay!.weekday)
+    // スライド方向を決定（未来の日付→左から入る、過去の日付→右から入る）
+    _slideBegin = (_selectedDay != null && d.isAfter(_selectedDay!))
         ? const Offset(1.0, 0.0)
         : const Offset(-1.0, 0.0);
     final needsReload =
@@ -200,8 +203,7 @@ class _CalendarScreenState extends State<CalendarScreen>
           });
           try {
             await _billService.payBill(bill.billId);
-            // API 確定後にサーバーデータで正確に上書き
-            await _loadBills();
+            // 成功時：サマリーキャッシュだけクリアして再取得（bills はローカル更新済み）
             _summaryCache.remove(DateFormat('yyyy-MM').format(_focusedDay));
             _summaryCache.remove(DateFormat('yyyy-MM').format(now));
             await _loadSummary(_focusedDay);
@@ -209,7 +211,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               showTopNotification(context, '支払い済みにしました ✓');
             }
           } catch (_) {
-            // 失敗時はサーバーから再取得して元に戻す
+            // 失敗時はサーバーから全再取得して楽観的更新を巻き戻す
             await _loadBills();
             _summaryCache.remove(DateFormat('yyyy-MM').format(_focusedDay));
             await _loadSummary(_focusedDay);
@@ -236,13 +238,12 @@ class _CalendarScreenState extends State<CalendarScreen>
     final key = DateFormat('yyyy-MM').format(month);
 
     if (_summaryCache.containsKey(key)) {
+      // キャッシュヒット時は setState を最小限に（_loading が true の場合だけ更新）
       final summary = _summaryCache[key]!;
-      setState(() {
-        _summary = summary;
-        _summaryMonth = DateTime(month.year, month.month);
-        _dailyTotals = _buildDailyTotals(summary);
-        _loading = false;
-      });
+      _summary = summary;
+      _summaryMonth = DateTime(month.year, month.month);
+      _dailyTotals = _buildDailyTotals(summary);
+      if (_loading) setState(() => _loading = false);
       return;
     }
 
@@ -275,7 +276,10 @@ class _CalendarScreenState extends State<CalendarScreen>
       if (!_summaryCache.containsKey(key)) {
         _api.get('/summary/monthly', query: {'year_month': key}).then((data) {
           _summaryCache[key] = MonthlySummary.fromJson(data);
-        }).catchError((_) {});
+        }).catchError((e) {
+          // prefetch 失敗は無視（次回スクロール時に正規ロードが走る）
+          debugPrint('[Calendar] prefetch $key 失敗: $e');
+        });
       }
     }
   }
@@ -290,64 +294,42 @@ class _CalendarScreenState extends State<CalendarScreen>
     return totals;
   }
 
-  // その日に有効なクーポンとバーの左右キャップ情報を返す（最大2件）
-  List<({Coupon coupon, bool isStart, bool isEnd})> _couponBarsForDay(
-    DateTime day,
-  ) {
-    final result = <({Coupon coupon, bool isStart, bool isEnd})>[];
+  // その日に有効なクーポンを返す共通ロジック
+  List<({Coupon coupon, DateTime from, DateTime? until})> _validCouponsForDay(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
+    final result = <({Coupon coupon, DateTime from, DateTime? until})>[];
     for (final c in _coupons) {
-      // 使用済み・期限切れクーポンはバー表示しない
       if (c.isUsed || c.isExpired) continue;
-      // 有効期間が全く不明なクーポンはバー表示しない
       if (c.validFrom == null && c.validUntil == null) continue;
-      // validFrom が null の場合は createdAt を開始日として使う
       final rawFrom = c.validFrom ?? c.createdAt;
       final from = DateTime(rawFrom.year, rawFrom.month, rawFrom.day);
       final until = c.validUntil != null
           ? DateTime(c.validUntil!.year, c.validUntil!.month, c.validUntil!.day)
           : null;
-      final afterFrom = !d.isBefore(from);
-      final beforeUntil = until == null || !d.isAfter(until);
-      if (afterFrom && beforeUntil) {
-        if (c.availableDays != null && c.availableDays!.isNotEmpty) {
-          final dayIdx = d.weekday - 1; // 月=0 ... 日=6
-          if (!c.availableDays!.contains(dayIdx)) continue;
-        }
-        result.add((
-          coupon: c,
-          isStart: d == from,
-          isEnd: until != null && d == until,
-        ));
+      if (d.isBefore(from)) continue;
+      if (until != null && d.isAfter(until)) continue;
+      if (c.availableDays != null && c.availableDays!.isNotEmpty) {
+        final dayIdx = d.weekday - 1; // 月=0 ... 日=6
+        if (!c.availableDays!.contains(dayIdx)) continue;
       }
-      if (result.length >= 2) break;
+      result.add((coupon: c, from: from, until: until));
     }
     return result;
   }
 
-  // その日に使えるクーポン一覧
-  List<Coupon> _couponsForDay(DateTime day) {
+  // その日に有効なクーポンとバーの左右キャップ情報を返す（最大2件）
+  List<({Coupon coupon, bool isStart, bool isEnd})> _couponBarsForDay(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
-    return _coupons.where((c) {
-      if (c.isUsed || c.isExpired) return false;
-      // 有効期間が全く不明なクーポンは表示しない
-      if (c.validFrom == null && c.validUntil == null) return false;
-      // validFrom が null の場合は createdAt を開始日として使う
-      final rawFrom = c.validFrom ?? c.createdAt;
-      final from = DateTime(rawFrom.year, rawFrom.month, rawFrom.day);
-      final until = c.validUntil != null
-          ? DateTime(c.validUntil!.year, c.validUntil!.month, c.validUntil!.day)
-          : null;
-      final afterFrom = !d.isBefore(from);
-      final beforeUntil = until == null || !d.isAfter(until);
-      if (!afterFrom || !beforeUntil) return false;
-      if (c.availableDays != null && c.availableDays!.isNotEmpty) {
-        final dayIdx = d.weekday - 1; // 月=0 ... 日=6
-        if (!c.availableDays!.contains(dayIdx)) return false;
-      }
-      return true;
-    }).toList();
+    return _validCouponsForDay(day).take(2).map((e) => (
+      coupon: e.coupon,
+      isStart: d == e.from,
+      isEnd: e.until != null && d == e.until,
+    )).toList();
   }
+
+  // その日に使えるクーポン一覧
+  List<Coupon> _couponsForDay(DateTime day) =>
+      _validCouponsForDay(day).map((e) => e.coupon).toList();
 
   List<RecentReceipt> _receiptsForDay(DateTime day) {
     if (_summary == null) return [];
@@ -805,12 +787,13 @@ class _CalendarScreenState extends State<CalendarScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         // 利用可能な高さから rowHeight を動的計算:
-        //   曜日ヘッダー16px（table_calendar デフォルト）+ 最大6行 + 詳細パネル最低65px が収まるよう調整
-        //   セルコンテンツ（32px日付+14px金額=46px）が理想だが、画面が小さい場合は 40 まで許容
+        //   曜日ヘッダー16px（table_calendar デフォルト）+ 最大6行 + 詳細パネル確保分
+        //   小型端末（< 700px）では詳細パネルを 120px に緩め、大型端末では 180px 確保
         //   TableCalendar を SizedBox で囲み bounded constraints を与えることで
         //   _pageHeight タイミング競合によるオーバーフローを防止
-        final rowH = ((constraints.maxHeight - 16.0 - 65.0) / 6)
-            .clamp(40.0, 72.0);
+        final minDetailH = constraints.maxHeight < 700 ? 120.0 : 180.0;
+        final rowH = ((constraints.maxHeight - 16.0 - minDetailH) / 6)
+            .clamp(40.0, 60.0);
         return ClipRect(child: _buildMonthColumn(colors, rowH));
       },
     );
@@ -907,7 +890,11 @@ class _CalendarScreenState extends State<CalendarScreen>
                   _focusedDay = newDay;
                 });
                 if (needsReload) _loadSummary(newDay);
-                HapticFeedback.selectionClick();
+                // 高速スワイプで haptic が連打されないよう、日付が変わったときだけ発火
+                if (!isSameDay(_lastHapticDay, newDay)) {
+                  _lastHapticDay = newDay;
+                  HapticFeedback.selectionClick();
+                }
               },
               itemBuilder: (context, index) {
                 final day =
@@ -1356,18 +1343,17 @@ class _DetailPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final vPad = constraints.maxHeight < 80 ? 8.0 : 12.0;
-        return _buildColumn(context, vPad);
-      },
-    );
+    final screenH = MediaQuery.sizeOf(context).height;
+    final vPad = screenH < 650 ? 8.0 : 12.0;
+    return _buildColumn(context, vPad);
   }
 
   Widget _buildColumn(BuildContext context, double vPad) {
     final total = receipts.fold(0, (s, r) => s + r.totalAmount);
     final weekdays = ['日', '月', '火', '水', '木', '金', '土'];
     final weekdayLabel = weekdays[day.weekday % 7];
+    final screenW = MediaQuery.sizeOf(context).width;
+    final badgeSize = screenW < 390 ? 40.0 : 48.0;
 
     return Column(
       children: [
@@ -1377,8 +1363,8 @@ class _DetailPanel extends StatelessWidget {
             children: [
               // 日付バッジ
               Container(
-                width: 48,
-                height: 48,
+                width: badgeSize,
+                height: badgeSize,
                 decoration: BoxDecoration(
                   color: colors.primaryLight,
                   borderRadius: BorderRadius.circular(14),

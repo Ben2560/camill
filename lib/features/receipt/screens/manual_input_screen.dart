@@ -24,6 +24,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
   DateTime? _billDueDate;
   String _paymentMethod = 'cash';
   String? _receiptCategory;
+  String _billCategory = 'utility';
   String _docType = 'receipt'; // receipt | medical | bill
   int _burdenRate = 3; // 1割・2割・3割
   bool _isUncovered = false; // 保険適応外（自由診療）
@@ -52,6 +53,23 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
       _receiptCategory ?? 'food',
     );
     if (result != null) setState(() => _receiptCategory = result);
+  }
+
+  Future<void> _pickBillCategory() async {
+    const billCategories = [
+      'utility',
+      'subscription',
+      'transport',
+      'medical',
+      'education',
+      'other',
+    ];
+    final result = await showCategoryBottomSheet(
+      context,
+      _billCategory,
+      allowedCategories: billCategories,
+    );
+    if (result != null) setState(() => _billCategory = result);
   }
 
   Future<void> _pickDate() async {
@@ -110,6 +128,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
         purchasedAt: _purchasedAt.toIso8601String(),
         totalAmount: amount,
         paymentMethod: _paymentMethod,
+        category: _billCategory,
         items: [],
         couponsDetected: [],
         duplicateCheckHash: '',
@@ -194,6 +213,13 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                 duration: const Duration(milliseconds: 280),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.topCenter,
+                  children: <Widget>[
+                    ...previousChildren,
+                    ?currentChild,
+                  ],
+                ),
                 transitionBuilder: (child, animation) => FadeTransition(
                   opacity: animation,
                   child: SlideTransition(
@@ -394,6 +420,36 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
             ),
             validator: (v) => (v == null || v.isEmpty) ? '金額を入力してください' : null,
             onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: _pickBillCategory,
+            borderRadius: BorderRadius.circular(8),
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'カテゴリ',
+                prefixIcon: Icon(Icons.label_outline, color: colors.textMuted),
+                suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: AppConstants.categoryColors[_billCategory] ??
+                          colors.textMuted,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppConstants.categoryLabels[_billCategory] ?? _billCategory,
+                    style: camillBodyStyle(14, colors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           InkWell(

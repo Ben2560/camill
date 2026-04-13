@@ -371,12 +371,19 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
 // BottomSheet ヘルパー
 // ────────────────────────────────────────────
 
-Future<String?> showCategoryBottomSheet(BuildContext context, String current) {
+Future<String?> showCategoryBottomSheet(
+  BuildContext context,
+  String current, {
+  List<String>? allowedCategories,
+}) {
   return showModalBottomSheet<String>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => _CategoryPickerSheet(current: current),
+    builder: (_) => _CategoryPickerSheet(
+      current: current,
+      allowedCategories: allowedCategories,
+    ),
   );
 }
 
@@ -394,12 +401,18 @@ Future<String?> showPaymentBottomSheet(BuildContext context, String current) {
 
 class _CategoryPickerSheet extends StatelessWidget {
   final String current;
-  const _CategoryPickerSheet({required this.current});
+  final List<String>? allowedCategories;
+  const _CategoryPickerSheet({required this.current, this.allowedCategories});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final entries = AppConstants.categoryLabels.entries.toList();
+    final allowed = allowedCategories;
+    final entries = allowed == null
+        ? AppConstants.categoryLabels.entries.toList()
+        : AppConstants.categoryLabels.entries
+            .where((e) => allowed.contains(e.key))
+            .toList();
 
     return Container(
       decoration: BoxDecoration(

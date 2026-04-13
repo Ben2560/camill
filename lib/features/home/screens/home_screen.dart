@@ -74,9 +74,20 @@ class _HomeScreenState extends State<HomeScreen> {
     'recent',
     'tax',
     'bills',
+    'family_partner',
+    'family_savings',
+  ];
+  static const _defaultWidgetIds = [
+    'budget',
+    'category',
+    'score',
+    'compare',
+    'recent',
+    'tax',
+    'bills',
   ];
   static const _layoutKey = 'home_layout';
-  List<String> _homeWidgets = List.from(_allWidgetIds);
+  List<String> _homeWidgets = List.from(_defaultWidgetIds);
   bool _editMode = false;
 
   bool _weekStartsSunday = true; // true=日曜始まり, false=月曜始まり
@@ -86,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _navProgress = ValueNotifier<double>(0.0);
 
   // レシート保存後の自動リフレッシュ用
-  late final GoRouterDelegate _routerDelegate;
+  GoRouterDelegate? _routerDelegate;
   String? _prevRoutePath;
 
   @override
@@ -106,15 +117,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadRecentBills();
     CalendarScreen.billRefreshSignal.addListener(_onBillChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _routerDelegate = GoRouter.of(context).routerDelegate;
-      _routerDelegate.addListener(_onRouteChanged);
+      _routerDelegate?.addListener(_onRouteChanged);
     });
   }
 
   @override
   void dispose() {
     CalendarScreen.billRefreshSignal.removeListener(_onBillChanged);
-    _routerDelegate.removeListener(_onRouteChanged);
+    _routerDelegate?.removeListener(_onRouteChanged);
     _pageController.dispose();
     _billBannerController.dispose();
     _navProgress.dispose();
@@ -129,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onRouteChanged() {
     if (!mounted) return;
-    final path = _routerDelegate.currentConfiguration.uri.path;
+    final path = _routerDelegate?.currentConfiguration.uri.path;
     if (path == '/' && _prevRoutePath != null && _prevRoutePath != '/') {
       _loadAvailableMonths();
       _loadUpcomingBills();
@@ -745,7 +757,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final colors = context.colors;
     final statusBarH = MediaQuery.of(context).padding.top;
     final screenW = MediaQuery.of(context).size.width;
-    double sp(double base) => (base * screenW / 390.0).clamp(base * 0.82, base * 1.22);
+    final maxScale = screenW > 600 ? 1.5 : 1.22;
+    double sp(double base) => (base * screenW / 390.0).clamp(base * 0.82, base * maxScale);
     return Scaffold(
       backgroundColor: colors.background,
       body: Stack(
@@ -966,10 +979,15 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   String? _selectedCategory;
 
   late final ScrollController _scrollController;
-  late final GoRouterDelegate _routerDelegate;
+  GoRouterDelegate? _routerDelegate;
   bool _wasScrollingBeforeTap = false;
 
-  static const _allWidgetIds = [
+  // pull-to-refresh のドット表示閾値（overscroll px）
+  static const _kPullDot1 = 25.0;
+  static const _kPullDot2 = 55.0;
+  static const _kPullFull = 85.0;
+
+  static const _baseWidgetIds = [
     'budget',
     'category',
     'score',
@@ -977,9 +995,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'recent',
     'tax',
     'bills',
-    'family_partner',
-    'family_savings',
   ];
+  List<String> get _allWidgetIds => [
+        ..._baseWidgetIds,
+        if (widget.plan == 'family') 'family_partner',
+        if (widget.plan == 'family') 'family_savings',
+      ];
   static const _widgetLabels = <String, ({String title, IconData icon})>{
     'budget': (title: '収支', icon: Icons.account_balance_wallet_outlined),
     'category': (title: '使いみち', icon: Icons.pie_chart_outline),
@@ -1023,15 +1044,16 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     _load();
     CalendarScreen.receiptRefreshSignal.addListener(_onReceiptChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _routerDelegate = GoRouter.of(context).routerDelegate;
-      _routerDelegate.addListener(_onRouteChanged);
+      _routerDelegate?.addListener(_onRouteChanged);
     });
   }
 
   @override
   void dispose() {
     CalendarScreen.receiptRefreshSignal.removeListener(_onReceiptChanged);
-    _routerDelegate.removeListener(_onRouteChanged);
+    _routerDelegate?.removeListener(_onRouteChanged);
     _bounceController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -1044,7 +1066,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   void _onRouteChanged() {
     if (!mounted) return;
-    final path = _routerDelegate.currentConfiguration.uri.path;
+    final path = _routerDelegate?.currentConfiguration.uri.path;
     if (path == '/') {
       _load(silent: true);
     }
@@ -1409,11 +1431,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     );
   }
 
-  void _showCategorySheet(
-    CamillColors colors,
-    List<MapEntry<String, ({String label, IconData icon})>> availableCats,
-    String? catKey,
-  ) {
+  // ボトムシートの共通構造（ハンドル＋タイトル＋アイテムリスト）
+  void _showRadioSheet({
+    required CamillColors colors,
+    required String title,
+    required List<Widget> items,
+  }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: colors.background,
@@ -1438,46 +1461,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
               child: Text(
-                'カテゴリ',
-                style: camillBodyStyle(
-                  17,
-                  colors.textPrimary,
-                  weight: FontWeight.w700,
-                ),
+                title,
+                style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 8),
-            ListTile(
-              title: Text('合計', style: camillBodyStyle(15, colors.textPrimary)),
-              leading: Icon(
-                catKey == null
-                    ? Icons.check_circle
-                    : Icons.radio_button_unchecked,
-                color: catKey == null ? colors.primary : colors.textMuted,
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() => _selectedCategory = null);
-              },
-            ),
-            ...availableCats.map(
-              (e) => ListTile(
-                title: Text(
-                  e.value.label,
-                  style: camillBodyStyle(15, colors.textPrimary),
-                ),
-                leading: Icon(
-                  catKey == e.key
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  color: catKey == e.key ? colors.primary : colors.textMuted,
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedCategory = e.key);
-                },
-              ),
-            ),
+            ...items,
             const SizedBox(height: 8),
           ],
         ),
@@ -1485,66 +1474,58 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     );
   }
 
-  void _showPeriodSheet(CamillColors colors) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.surfaceBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-              child: Text(
-                '期間',
-                style: camillBodyStyle(
-                  17,
-                  colors.textPrimary,
-                  weight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...['週', '月', '年'].asMap().entries.map(
-              (e) => ListTile(
-                title: Text(
-                  e.value,
-                  style: camillBodyStyle(15, colors.textPrimary),
-                ),
-                leading: Icon(
-                  _periodIndex == e.key
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  color: _periodIndex == e.key
-                      ? colors.primary
-                      : colors.textMuted,
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _periodIndex = e.key);
-                  if (e.key == 0) _loadWeekExpense();
-                  if (e.key == 2) _loadYearExpense();
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+  void _showCategorySheet(
+    CamillColors colors,
+    List<MapEntry<String, ({String label, IconData icon})>> availableCats,
+    String? catKey,
+  ) {
+    _showRadioSheet(
+      colors: colors,
+      title: 'カテゴリ',
+      items: [
+        ListTile(
+          title: Text('合計', style: camillBodyStyle(15, colors.textPrimary)),
+          leading: Icon(
+            catKey == null ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: catKey == null ? colors.primary : colors.textMuted,
+          ),
+          onTap: () {
+            Navigator.pop(context);
+            setState(() => _selectedCategory = null);
+          },
         ),
-      ),
+        ...availableCats.map((e) => ListTile(
+          title: Text(e.value.label, style: camillBodyStyle(15, colors.textPrimary)),
+          leading: Icon(
+            catKey == e.key ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: catKey == e.key ? colors.primary : colors.textMuted,
+          ),
+          onTap: () {
+            Navigator.pop(context);
+            setState(() => _selectedCategory = e.key);
+          },
+        )),
+      ],
+    );
+  }
+
+  void _showPeriodSheet(CamillColors colors) {
+    _showRadioSheet(
+      colors: colors,
+      title: '期間',
+      items: ['週', '月', '年'].asMap().entries.map((e) => ListTile(
+        title: Text(e.value, style: camillBodyStyle(15, colors.textPrimary)),
+        leading: Icon(
+          _periodIndex == e.key ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: _periodIndex == e.key ? colors.primary : colors.textMuted,
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          setState(() => _periodIndex = e.key);
+          if (e.key == 0) _loadWeekExpense();
+          if (e.key == 2) _loadYearExpense();
+        },
+      )).toList(),
     );
   }
 
@@ -2795,9 +2776,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   bool get wantKeepAlive => true;
 
   /// スクリーン幅に応じてサイズをスケーリング（390px基準）
+  /// 600px超（iPad等）では最大1.5倍まで拡大を許容
   double _sp(double base) {
     final w = MediaQuery.of(context).size.width;
-    return (base * w / 390.0).clamp(base * 0.82, base * 1.22);
+    final maxScale = w > 600 ? 1.5 : 1.22;
+    return (base * w / 390.0).clamp(base * 0.82, base * maxScale);
   }
 
   @override
@@ -2818,11 +2801,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               }
               if (_ignoreUntilTop) return false;
               if (pixels < 0) {
-                final newDots = pixels < -85
+                final newDots = pixels < -_kPullFull
                     ? 3
-                    : pixels < -55
+                    : pixels < -_kPullDot2
                     ? 2
-                    : pixels < -25
+                    : pixels < -_kPullDot1
                     ? 1
                     : 0;
                 if (newDots == 3) _reachedFullPull = true;
@@ -2902,12 +2885,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                   ],
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.only(
-                        top: 20,
-                        bottom: 12,
-                        left: 31.5,
-                        right: 16,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -3016,7 +2994,6 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                       },
                       onReorderStart: (_) => HapticFeedback.mediumImpact(),
                       onReorder: (oldIndex, newIndex) {
-                        HapticFeedback.selectionClick();
                         final newList = List<String>.from(widget.homeWidgets);
                         if (newIndex > oldIndex) newIndex--;
                         final item = newList.removeAt(oldIndex);

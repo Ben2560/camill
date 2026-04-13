@@ -76,6 +76,16 @@ class _CameraScreenState extends State<CameraScreen> {
     await _analyzeImage(file);
   }
 
+  String _errorMessage(Object e) {
+    final s = e.toString();
+    if (s.contains('429') || s.contains('上限')) return '今月の解析上限に達しました。プランをアップグレードするか来月までお待ちください。';
+    if (s.contains('timeout') || s.contains('TimeoutException')) return '解析がタイムアウトしました。通信環境を確認してもう一度お試しください。';
+    if (s.contains('SocketException') || s.contains('network') || s.contains('接続')) return 'ネットワークに接続できませんでした。通信環境を確認してください。';
+    if (s.contains('401') || s.contains('403')) return 'ログインの有効期限が切れました。再ログインしてください。';
+    if (s.contains('500') || s.contains('502') || s.contains('503')) return 'サーバーでエラーが発生しました。しばらく待ってから再試行してください。';
+    return '解析に失敗しました: $s';
+  }
+
   Future<void> _analyzeImage(File imageFile) async {
     if (!mounted) return;
     setState(() {
@@ -93,9 +103,21 @@ class _CameraScreenState extends State<CameraScreen> {
         }
       }
     } catch (e) {
-      // autoSourceカメラ（透明）はエラー時に自分でpopして戻る
-      if (mounted && widget.autoSource != null && context.canPop()) {
-        context.pop();
+      // エラーメッセージを表示してからpop
+      if (mounted) {
+        final msg = _errorMessage(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // autoSourceカメラ（透明）はエラー後に自分でpopして戻る
+        if (widget.autoSource != null && context.canPop()) {
+          context.pop();
+        }
       }
     } finally {
       if (mounted) setState(() => _loading = false);

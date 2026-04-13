@@ -158,7 +158,7 @@ class _CalendarScreenState extends State<CalendarScreen>
       if (mounted) setState(() => _coupons = coupons);
     } catch (e) {
       // ignore: avoid_print
-      print('[Calendar] クーポン取得失敗: $e');
+      debugPrint('[Calendar] クーポン取得失敗: $e');
     }
   }
 
@@ -542,22 +542,27 @@ class _CalendarScreenState extends State<CalendarScreen>
     return amount.toString();
   }
 
-  void _enterYearView() {
-    if (_isYearView) return;
+  void _rebuildYearScrollController(double targetOffset) {
+    _yearScrollController.removeListener(_onYearScroll);
+    _yearScrollController.dispose();
+    _yearScrollController = ScrollController(initialScrollOffset: targetOffset);
+    _yearScrollController.addListener(_onYearScroll);
+  }
 
+  double _calcYearItemExtent() {
     final screenW = MediaQuery.sizeOf(context).width;
     final cellW = (screenW - 20 - 16) / 3;
     final cellH = cellW / 0.85;
     final gridH = 4 * cellH + 3 * 8.0;
-    _yearItemExtent = 28.0 + gridH + 16.0;
-    final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+    return 28.0 + gridH + 16.0;
+  }
 
-    _yearScrollController.removeListener(_onYearScroll);
-    _yearScrollController.dispose();
-    _yearScrollController = ScrollController(
-      initialScrollOffset: targetOffset,
-    );
-    _yearScrollController.addListener(_onYearScroll);
+  void _enterYearView() {
+    if (_isYearView) return;
+
+    _yearItemExtent = _calcYearItemExtent();
+    final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+    _rebuildYearScrollController(targetOffset);
 
     setState(() {
       _yearViewYear = _focusedDay.year;
@@ -703,18 +708,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                         if (_isYearView || _transitionController.isAnimating) return;
                         // アニメーション開始前に ScrollController を準備
                         // （p > 0.15 で _buildYearView が使われるため）
-                        final screenW = MediaQuery.sizeOf(context).width;
-                        final cellW = (screenW - 20 - 16) / 3;
-                        final cellH = cellW / 0.85;
-                        final gridH = 4 * cellH + 3 * 8.0;
-                        _yearItemExtent = 28.0 + gridH + 16.0;
+                        _yearItemExtent = _calcYearItemExtent();
                         final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
-                        _yearScrollController.removeListener(_onYearScroll);
-                        _yearScrollController.dispose();
-                        _yearScrollController = ScrollController(
-                          initialScrollOffset: targetOffset,
-                        );
-                        _yearScrollController.addListener(_onYearScroll);
+                        _rebuildYearScrollController(targetOffset);
                         _transitionController.animateTo(
                           1.0,
                           duration: const Duration(milliseconds: 300),

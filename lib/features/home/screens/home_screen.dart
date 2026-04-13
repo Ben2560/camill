@@ -239,26 +239,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _budget = prefs.getInt(_budgetKey) ?? 80000);
   }
 
-  static const _categoryMeta = <String, ({IconData icon, String label})>{
-    'food': (icon: Icons.rice_bowl_outlined, label: '食費'),
-    'dining_out': (icon: Icons.restaurant_outlined, label: '外食費'),
-    'daily': (icon: Icons.shopping_basket_outlined, label: '日用品'),
-    'transport': (icon: Icons.train_outlined, label: '交通費'),
-    'clothing': (icon: Icons.checkroom_outlined, label: '衣服'),
-    'social': (icon: Icons.people_outline, label: '交際費'),
-    'hobby': (icon: Icons.sports_esports_outlined, label: '趣味'),
-    'medical': (icon: Icons.local_hospital_outlined, label: '医療・健康'),
-    'education': (icon: Icons.menu_book_outlined, label: '教育・書籍'),
-    'utility': (icon: Icons.bolt_outlined, label: '光熱費'),
-    'subscription': (icon: Icons.subscriptions_outlined, label: 'サブスク'),
-    'other': (icon: Icons.more_horiz, label: 'その他雑費'),
-  };
-
   Future<void> _loadCategoryBudgets() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     final budgets = <String, int>{};
-    for (final key in _categoryMeta.keys) {
+    for (final key in _HomeMonthPageState._categoryMeta.keys) {
       budgets[key] = prefs.getInt('category_budget_$key') ?? 0;
     }
     setState(() => _categoryBudgets = budgets);

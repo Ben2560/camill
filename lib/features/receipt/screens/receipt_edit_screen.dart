@@ -160,8 +160,15 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
       if (mounted) {
         context.pop(true);
       }
-    } catch (e) {
-      // silently swallow
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('保存に失敗しました。通信環境を確認してください。'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

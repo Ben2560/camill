@@ -331,11 +331,7 @@ class _AnalysisBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final atLimit = count >= limit;
     final nearLimit = count >= (limit * 0.8).floor();
-    final badgeColor = atLimit
-        ? colors.danger
-        : nearLimit
-        ? colors.danger
-        : colors.textMuted;
+    final badgeColor = (atLimit || nearLimit) ? colors.danger : colors.textMuted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(

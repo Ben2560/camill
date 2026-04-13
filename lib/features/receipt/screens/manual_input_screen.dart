@@ -105,6 +105,15 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
   bool get _hasAnyItemPoints =>
       _items.any((e) => (int.tryParse(e.priceCtrl.text) ?? 0) > 0);
 
+  int _calcMedicalTotal(List<ReceiptItem> items) {
+    if (!_hasAnyItemPoints) {
+      return int.tryParse(_medicalAmountCtrl.text.replaceAll(',', '')) ?? 0;
+    }
+    final totalPoints = items.fold(0, (s, i) => s + i.amount);
+    if (_isUncovered) return totalPoints;
+    return ((totalPoints * 10 * _burdenRate) / 10.0 / 10).round() * 10;
+  }
+
   void _addItem() => setState(() => _items.add(_ItemEntry()));
 
   void _removeItem(int index) {
@@ -151,16 +160,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
       }).toList();
 
       final total = _docType == 'medical'
-          ? (_hasAnyItemPoints
-                ? (_isUncovered
-                      ? items.fold(0, (s, i) => s + i.amount)
-                      : ((items.fold(0, (s, i) => s + i.amount) * _burdenRate)
-                                        .toDouble() /
-                                    10)
-                                .round() *
-                            10)
-                : (int.tryParse(_medicalAmountCtrl.text.replaceAll(',', '')) ??
-                      0))
+          ? _calcMedicalTotal(items)
           : items.fold(0, (s, i) => s + i.amount);
       analysis = ReceiptAnalysis(
         storeName: _storeCtrl.text,
@@ -172,6 +172,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
         couponsDetected: [],
         duplicateCheckHash: '',
         isMedical: _docType == 'medical',
+        isUncovered: _docType == 'medical' && _isUncovered,
       );
     }
 
@@ -190,6 +191,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.background,
+        scrolledUnderElevation: 0,
         title: Text('手動入力', style: camillHeadingStyle(17, colors.textPrimary)),
         iconTheme: IconThemeData(color: colors.textSecondary),
       ),

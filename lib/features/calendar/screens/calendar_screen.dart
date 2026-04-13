@@ -2799,14 +2799,17 @@ class _BillDetailSheetState extends State<_BillDetailSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  Text('メモ', style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600)),
+                  const SizedBox(height: 6),
                   GestureDetector(
                     onTap: _editMemo,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: colors.surfaceBorder.withAlpha(60),
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: colors.surfaceBorder),
                       ),
                       child: Row(
                         children: [

@@ -6,12 +6,21 @@ import '../../../shared/services/api_service.dart';
 class PurchaseService {
   // App Store Connect に登録するプロダクトID
   static const proMonthlyId = 'camill_pro_monthly';
+  static const proAnnualId = 'camill_pro_annual';
   static const familyMonthlyId = 'camill_family_monthly';
-  static const _productIds = {proMonthlyId, familyMonthlyId};
+  static const familyAnnualId = 'camill_family_annual';
+  static const _productIds = {
+    proMonthlyId,
+    proAnnualId,
+    familyMonthlyId,
+    familyAnnualId,
+  };
 
   static const planByProduct = {
     proMonthlyId: 'pro',
+    proAnnualId: 'pro_annual',
     familyMonthlyId: 'family',
+    familyAnnualId: 'family_annual',
   };
 
   final _iap = InAppPurchase.instance;

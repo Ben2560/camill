@@ -36,6 +36,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _payday = 0;
   int _sideIncome = 0;
   String _plan = 'free';
+  bool _isDeveloper = false;
   String? _avatarPath;
 
   static const _planLabels = {
@@ -44,7 +45,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     'family': 'ファミリープラン',
   };
 
-  String get _planLabel => _planLabels[_plan] ?? _plan;
+  String get _planLabel =>
+      _isDeveloper ? 'デベロッパーモード' : (_planLabels[_plan] ?? _plan);
 
   @override
   void initState() {
@@ -66,7 +68,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final data = await _apiService.get('/billing/status');
       if (!mounted) return;
-      setState(() => _plan = data['plan'] as String? ?? 'free');
+      setState(() {
+        _plan = data['plan'] as String? ?? 'free';
+        _isDeveloper = data['is_developer'] as bool? ?? false;
+      });
     } catch (_) {}
   }
 
@@ -230,11 +235,18 @@ String get _displayName =>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: colors.primaryLight,
+                          color: _isDeveloper
+                              ? Colors.purple.withAlpha(20)
+                              : colors.primaryLight,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(_planLabel,
-                            style: camillBodyStyle(12, colors.primary)),
+                        child: Text(
+                          _planLabel,
+                          style: camillBodyStyle(
+                            12,
+                            _isDeveloper ? Colors.purple : colors.primary,
+                          ),
+                        ),
                       ),
                     ],
                   ),

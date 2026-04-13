@@ -32,6 +32,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   int? _analysisCount;
   int? _analysisLimit;
   bool _isPremium = false;
+  bool _isDeveloper = false;
   final _apiService = ApiService();
   final _calendarReturnNotifier = ValueNotifier<int>(0);
   final _calendarRefreshNotifier = ValueNotifier<int>(0);
@@ -117,6 +118,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
             (data['analysis_count_this_month'] as num?)?.toInt() ?? 0;
         _analysisLimit = (data['analysis_limit'] as num?)?.toInt() ?? 10;
         _isPremium = data['is_premium'] as bool? ?? false;
+        _isDeveloper = data['is_developer'] as bool? ?? false;
       });
     } catch (_) {}
   }
@@ -378,6 +380,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
                 analysisCount: _analysisCount,
                 analysisLimit: _analysisLimit,
                 isPremium: _isPremium,
+                isDeveloper: _isDeveloper,
                 onTypeSelected: (hint) {
                   // ナビゲーション直後に戻ってきたとき亡霊が出ないよう即座にリセット
                   _animController.reset();
@@ -575,6 +578,7 @@ class _ScanInfoCard extends StatelessWidget {
   final int? analysisCount;
   final int? analysisLimit;
   final bool isPremium;
+  final bool isDeveloper;
   final ValueChanged<String> onTypeSelected;
 
   const _ScanInfoCard({
@@ -583,6 +587,7 @@ class _ScanInfoCard extends StatelessWidget {
     this.analysisCount,
     this.analysisLimit,
     this.isPremium = false,
+    this.isDeveloper = false,
   });
 
   @override
@@ -626,6 +631,7 @@ class _ScanInfoCard extends StatelessWidget {
                 analysisCount: analysisCount,
                 analysisLimit: analysisLimit,
                 isPremium: isPremium,
+                isDeveloper: isDeveloper,
               ),
             ],
           ),
@@ -757,16 +763,43 @@ class _UsageBadge extends StatelessWidget {
   final int? analysisCount;
   final int? analysisLimit;
   final bool isPremium;
+  final bool isDeveloper;
 
   const _UsageBadge({
     required this.colors,
     this.analysisCount,
     this.analysisLimit,
     this.isPremium = false,
+    this.isDeveloper = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isDeveloper) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.purple.withAlpha(20),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.purple.withAlpha(80)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.developer_mode, size: 12, color: Colors.purple),
+            SizedBox(width: 4),
+            Text(
+              'デベロッパーモードで使用中',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.purple,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     if (analysisCount == null || analysisLimit == null) {
       return const SizedBox.shrink();
     }

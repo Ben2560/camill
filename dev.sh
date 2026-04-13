@@ -4,7 +4,6 @@
 CURRENT_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
 CONSTANTS_FILES=(
   "/Users/tsutomuwatanabe/camill/lib/core/constants.dart"
-  "/Users/tsutomuwatanabe/camill_admin/lib/core/constants.dart"
 )
 
 IP_CHANGED=false
@@ -50,6 +49,14 @@ if [ -n "$CURRENT_IOS" ]; then
   fi
 else
   echo "⚠️  Could not retrieve iOS device version (device not connected?)"
+fi
+
+# Kill any existing API server on port 8000
+EXISTING_PID=$(lsof -ti :8000)
+if [ -n "$EXISTING_PID" ]; then
+  echo "🛑 Killing existing process on port 8000 (PID: $EXISTING_PID)..."
+  kill $EXISTING_PID
+  sleep 1
 fi
 
 # Start API server in background

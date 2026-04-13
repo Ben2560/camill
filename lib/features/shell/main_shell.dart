@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/camill_colors.dart';
 import '../../core/theme/camill_theme.dart';
 import '../../shared/services/api_service.dart';
+import '../../shared/services/notification_service.dart';
 import '../../shared/widgets/month_greeting_overlay.dart';
+import '../../shared/widgets/top_notification.dart';
 import '../home/screens/home_screen.dart';
 import '../community/screens/community_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
@@ -45,6 +47,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   late Animation<double> _fabScale;
   late AnimationController _fabSpinController;
   late Animation<double> _fabRotation;
+  StreamSubscription<dynamic>? _fcmMessageSub;
+  StreamSubscription<String>? _fcmRouteSub;
 
   @override
   void initState() {
@@ -78,6 +82,33 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
       ),
     );
     _checkMonthGreeting();
+    _initNotifications();
+  }
+
+  void _initNotifications() {
+    final ns = NotificationService();
+
+    // FCMトークンを登録（パーミッション要求も含む）
+    ns.registerToken();
+
+    // フォアグラウンドで届いた通知はトースト表示
+    _fcmMessageSub = ns.onForegroundMessage.stream.listen((message) {
+      if (!mounted) return;
+      final title = message.notification?.title ?? '';
+      final body = message.notification?.body ?? '';
+      final text = [title, body].where((s) => s.isNotEmpty).join('\n');
+      if (text.isNotEmpty) showTopNotification(context, text);
+    });
+
+    // 通知タップで指定ルートに遷移
+    _fcmRouteSub = ns.onRoutePush.stream.listen((route) {
+      if (mounted) context.go(route);
+    });
+
+    // アプリが終了状態から通知タップで起動したケースを確認
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ns.checkInitialMessage();
+    });
   }
 
   Future<void> _checkMonthGreeting() async {
@@ -98,6 +129,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _fcmMessageSub?.cancel();
+    _fcmRouteSub?.cancel();
     _fadeAnim.dispose();
     _slideAnim.dispose();
     _animController.dispose();

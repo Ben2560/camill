@@ -39,11 +39,20 @@ import 'shared/models/family_model.dart';
 import 'firebase_options.dart';
 import 'shared/models/receipt_model.dart';
 import 'shared/models/summary_model.dart';
+import 'shared/services/notification_inbox.dart';
+import 'shared/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 保存済み通知インボックスを読み込む
+  await NotificationInbox().load();
+
+  // FCMバックグラウンドハンドラーとフォアグラウンド通知設定を初期化
+  // await しない（起動ブロックを避ける）
+  NotificationService.init();
 
   // テーマを起動前に読み込んでフラッシュを防ぐ
   final prefs = await SharedPreferences.getInstance();

@@ -27,6 +27,7 @@ class _CameraScreenState extends State<CameraScreen> {
   int _analysisCount = 0;
   int _analysisLimit = 10;
   File? _pendingImage; // 確認待ちの画像（非nullのとき確認画面を表示）
+  String _loadingSubtitle = 'しばらくお待ちください…';
 
   @override
   void initState() {
@@ -86,41 +87,65 @@ class _CameraScreenState extends State<CameraScreen> {
     return '解析に失敗しました: $s';
   }
 
+  /// 自動リトライすべきエラーかどうかを判定。
+  /// 上限超過・認証エラーはリトライしても意味がないので除外。
+  bool _isRetryable(Object e) {
+    final s = e.toString();
+    if (s.contains('429') || s.contains('上限')) return false;
+    if (s.contains('401') || s.contains('403')) return false;
+    return true;
+  }
+
   Future<void> _analyzeImage(File imageFile) async {
     if (!mounted) return;
     setState(() {
       _pendingImage = null;
       _loading = true;
+      _loadingSubtitle = 'しばらくお待ちください…';
     });
-    try {
-      final analyses = await _receiptService.analyzeReceipt(imageFile, documentHint: widget.documentHint);
-      final maxReceipts = _isPremium ? 5 : 1;
-      if (mounted) {
-        await context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
-        // 保存せずに戻ってきた場合（保存時は context.go('/') でカメラも破棄される）
-        if (mounted && widget.autoSource != null && context.canPop()) {
-          context.pop();
+
+    const maxAttempts = 3;
+    Object? lastError;
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final analyses = await _receiptService.analyzeReceipt(imageFile, documentHint: widget.documentHint);
+        // 解析成功
+        if (mounted) setState(() => _loading = false);
+        final maxReceipts = _isPremium ? 5 : 1;
+        if (mounted) {
+          await context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
+          // 保存せずに戻ってきた場合（保存時は context.go('/') でカメラも破棄される）
+          if (mounted && widget.autoSource != null && context.canPop()) {
+            context.pop();
+          }
         }
+        return;
+      } catch (e) {
+        lastError = e;
+        final canRetry = _isRetryable(e) && attempt < maxAttempts;
+        if (!canRetry) break;
+        // リトライ前にメッセージを更新してバックオフ待機
+        if (mounted) setState(() => _loadingSubtitle = 'もうしばらくお待ちください…');
+        await Future.delayed(Duration(seconds: attempt * 2));
       }
-    } catch (e) {
-      // エラーメッセージを表示してからpop
-      if (mounted) {
-        final msg = _errorMessage(e);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: Colors.red.shade700,
-            duration: const Duration(seconds: 5),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        // autoSourceカメラ（透明）はエラー後に自分でpopして戻る
-        if (widget.autoSource != null && context.canPop()) {
-          context.pop();
-        }
+    }
+
+    // 全試行失敗
+    if (mounted) {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage(lastError!)),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      // autoSourceカメラ（透明）はエラー後に自分でpopして戻る
+      if (widget.autoSource != null && context.canPop()) {
+        context.pop();
       }
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -139,7 +164,7 @@ class _CameraScreenState extends State<CameraScreen> {
       body: LoadingOverlay(
         isLoading: _loading,
         message: '解析中',
-        subtitle: 'しばらくお待ちください…',
+        subtitle: _loadingSubtitle,
         blur: true,
         child: _pendingImage != null
             ? _buildConfirmView(colors)

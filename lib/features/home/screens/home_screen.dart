@@ -185,7 +185,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _pageController = PageController(initialPage: months.length - 1);
         _monthsVersion++;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('_loadAvailableMonths error: $e');
       // API未実装・エラー時は今月のみ（初期状態のまま）
     }
   }
@@ -201,8 +202,8 @@ class _HomeScreenState extends State<HomeScreen> {
             .where((c) => !c.isExpired && !c.isUsed && c.isUsableToday)
             .toList();
       });
-    } catch (_) {
-      // ホーム画面なのでエラーは無視
+    } catch (e) {
+      debugPrint('_loadTodayCoupons error: $e');
     }
   }
 
@@ -214,7 +215,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _upcomingBills = bills.where((b) => b.dueDate != null).toList()
           ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_loadUpcomingBills error: $e');
+    }
   }
 
   Future<void> _loadRecentBills() async {
@@ -225,7 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _recentBills = bills.take(5).toList();
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_loadRecentBills error: $e');
+    }
   }
 
   Future<void> _loadWeekStartPref() async {
@@ -286,7 +291,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _analysisLimit = (data['analysis_limit'] as num?)?.toInt() ?? 10;
         _plan = data['plan'] as String? ?? 'free';
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_loadBillingStatus error: $e');
+    }
   }
 
   // ── 今日使えるクーポンバナー（固定ヘッダー用） ──────────────────────────────
@@ -332,7 +339,9 @@ class _HomeScreenState extends State<HomeScreen> {
           try {
             await _couponService.useCoupon(coupon.couponId);
             _loadTodayCoupons();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('useCoupon error: $e');
+          }
         },
         onViewAll: () {
           Navigator.pop(context);
@@ -402,7 +411,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (_todayCoupons.first.validUntil != null) ...[
+                  if (_todayCoupons.length == 1
+                      ? _todayCoupons.first.validUntil != null
+                      : true) ...[
                     const SizedBox(height: 2),
                     Text(
                       _todayCoupons.length == 1
@@ -459,7 +470,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   await _billService.payBill(bill.billId);
                   _loadUpcomingBills();
                   _loadRecentBills();
-                } catch (_) {}
+                } catch (e) {
+                  debugPrint('payBill error: $e');
+                }
               },
               onMemoUpdated: (newMemo) {
                 setState(() {
@@ -1013,6 +1026,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   int? _monthMedicalExpense;
   int? _weekMedicalExpense;
 
+  // ファミリープラン用
+  Map<String, dynamic>? _partnerSummary;   // null = 権限未付与
+  List<Map<String, dynamic>> _childrenData = [];
+  bool _familyLoaded = false;
+
   String? _selectedCategory;
 
   late final ScrollController _scrollController;
@@ -1134,7 +1152,9 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         }
       });
       _loadMonthMedicalExpense();
-    } catch (_) {
+      if (widget.plan == 'family') _loadFamilySummaries();
+    } catch (e) {
+      debugPrint('_load error: $e');
       if (!mounted) return;
       if (!silent) {
         setState(() {
@@ -1197,8 +1217,28 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         return sum;
       });
       if (mounted) setState(() => _monthMedicalExpense = medical);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('_loadMonthMedicalExpense error: $e');
       if (mounted) setState(() => _monthMedicalExpense = null);
+    }
+  }
+
+  Future<void> _loadFamilySummaries() async {
+    try {
+      final results = await Future.wait([
+        _api.getAny('/families/summary/partner'),
+        _api.getAny('/families/summary/children'),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _partnerSummary = results[0] as Map<String, dynamic>?;
+        _childrenData = ((results[1] as List<dynamic>?) ?? [])
+            .cast<Map<String, dynamic>>();
+        _familyLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('_loadFamilySummaries error: $e');
+      if (mounted) setState(() => _familyLoaded = true);
     }
   }
 
@@ -1242,7 +1282,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           _weekMedicalExpense = medical;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('_loadWeekExpense error: $e');
       if (mounted) {
         setState(() {
           _weekExpense = null;
@@ -1278,7 +1319,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
           _yearBillTotal = billTotal;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('_loadYearExpense error: $e');
       if (mounted) {
         setState(() {
           _yearExpense = null;
@@ -1609,7 +1651,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                   backgroundColor: colors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.push('/plan');
+                },
                 child: Text(
                   '1ヶ月無料で試す',
                   style: camillBodyStyle(
@@ -2809,7 +2854,6 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   }
 
   @override
-  @override
   bool get wantKeepAlive => true;
 
   /// スクリーン幅に応じてサイズをスケーリング（390px基準）
@@ -3101,30 +3145,29 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   }
 
   // ── ファミリーカード ──────────────────────────────────────────────────────
-
   Widget _buildFamilyPartnerCard(CamillColors colors) {
-    return CamillCard(
-      child: Column(
+    final summary = _partnerSummary;
+
+    Widget content;
+    if (!_familyLoaded) {
+      // ローディング中
+      content = const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    } else if (summary == null) {
+      // 権限未付与
+      content = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.people_outline, color: colors.primary, size: 16),
-                  const SizedBox(width: 6),
-                  Text('パートナー支出',
-                      style: camillBodyStyle(14, colors.textPrimary,
-                          weight: FontWeight.w700)),
-                ],
-              ),
-              Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
-            ],
-          ),
-          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: colors.primary.withAlpha(10),
               borderRadius: BorderRadius.circular(12),
@@ -3144,23 +3187,73 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               style: TextStyle(color: colors.textSecondary, fontSize: 12),
               textAlign: TextAlign.center),
         ],
-      ),
-    );
-  }
+      );
+    } else {
+      // データあり
+      final partnerName = summary['partner_name'] as String? ?? 'パートナー';
+      final total = (summary['total_expense'] as num?)?.toInt() ?? 0;
+      final catTotals =
+          (summary['category_totals'] as Map<String, dynamic>?) ?? {};
 
-  Widget _buildFamilySavingsCard(CamillColors colors) {
+      // 上位3カテゴリを金額降順で表示
+      final topCats = catTotals.entries.toList()
+        ..sort((a, b) => (b.value as int).compareTo(a.value as int));
+
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(partnerName,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+              Text(_currencyFmt.format(total),
+                  style: camillBodyStyle(18, colors.textPrimary,
+                      weight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...topCats.take(3).map((e) {
+            final meta = _categoryMeta[e.key];
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Icon(meta?.icon ?? Icons.more_horiz,
+                      size: 13, color: colors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(meta?.label ?? e.key,
+                        style:
+                            TextStyle(color: colors.textSecondary, fontSize: 12)),
+                  ),
+                  Text(_currencyFmt.format(e.value as int),
+                      style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            );
+          }),
+        ],
+      );
+    }
+
     return CamillCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  Icon(Icons.savings_outlined, color: colors.primary, size: 16),
+                  Icon(Icons.people_outline, color: colors.primary, size: 16),
                   const SizedBox(width: 6),
-                  Text('子供の貯金',
+                  Text('パートナー支出',
                       style: camillBodyStyle(14, colors.textPrimary,
                           weight: FontWeight.w700)),
                 ],
@@ -3169,8 +3262,32 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
             ],
           ),
           const SizedBox(height: 12),
+          content,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFamilySavingsCard(CamillColors colors) {
+    Widget content;
+    if (!_familyLoaded) {
+      content = const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    } else if (_childrenData.isEmpty) {
+      // 子供アカウントなし
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: colors.primary.withAlpha(10),
               borderRadius: BorderRadius.circular(12),
@@ -3195,6 +3312,71 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
           ),
+        ],
+      );
+    } else {
+      // 子供ごとの今月支出を表示
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _childrenData.map((child) {
+          final name = child['child_name'] as String? ?? '子供';
+          final total = (child['total_expense'] as num?)?.toInt() ?? 0;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              children: [
+                const Icon(Icons.child_care_outlined, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(name,
+                      style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(_currencyFmt.format(total),
+                        style: camillBodyStyle(14, colors.textPrimary,
+                            weight: FontWeight.w700)),
+                    Text('今月の支出',
+                        style:
+                            TextStyle(color: colors.textSecondary, fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    return CamillCard(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.savings_outlined, color: colors.primary, size: 16),
+                  const SizedBox(width: 6),
+                  Text('子供の支出',
+                      style: camillBodyStyle(14, colors.textPrimary,
+                          weight: FontWeight.w700)),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => context.push('/family'),
+                child: Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          content,
         ],
       ),
     );

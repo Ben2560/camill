@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../../shared/services/api_service.dart';
 
 class AuthService {
@@ -116,7 +117,9 @@ class AuthService {
     if (user == null) return;
     try {
       await _api.delete('/auth/me');
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('deleteAccount API call failed: $e');
+    }
     await user.delete();
   }
 

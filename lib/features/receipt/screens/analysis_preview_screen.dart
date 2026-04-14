@@ -656,7 +656,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                 rDate.day == purchasedAt.day;
           }).firstOrNull;
           existingId = match?.receiptId;
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('receipt duplicate check failed: $e');
+        }
         if (existingId != null) {
           return await _confirmOverwrite(existingId, updated, includedCoupons);
         } else {
@@ -760,7 +762,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                   .any((c) => c.description == existing.description)) {
             try {
               await _couponService.deleteCoupon(existing.couponId);
-            } catch (_) {}
+            } catch (e) {
+              debugPrint('coupon deletion failed: $e');
+            }
           }
         }
       }

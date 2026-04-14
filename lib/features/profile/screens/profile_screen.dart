@@ -72,7 +72,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _plan = data['plan'] as String? ?? 'free';
         _isDeveloper = data['is_developer'] as bool? ?? false;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('billing status load failed: $e');
+    }
   }
 
   Future<void> _loadAvatar() async {

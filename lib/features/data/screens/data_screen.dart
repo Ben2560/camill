@@ -9,6 +9,7 @@ import '../../../core/constants.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../receipt/services/receipt_service.dart';
+import '../../community/screens/community_screen.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 
@@ -17,50 +18,7 @@ class DataScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final statusBarH = MediaQuery.of(context).padding.top;
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, statusBarH + 15, 8, 4),
-            child: Text(
-              'コミュニティ',
-              style: camillBodyStyle(
-                30,
-                colors.textPrimary,
-                weight: FontWeight.w800,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.construction_outlined,
-                    size: 56,
-                    color: colors.textMuted,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'ただいま準備中…',
-                    style: camillBodyStyle(
-                      16,
-                      colors.textMuted,
-                      weight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const CommunityScreen();
   }
 }
 
@@ -322,7 +280,9 @@ class _MonthViewState extends State<_MonthView> {
         _pageController = PageController(initialPage: months.length - 1);
         _monthsVersion++;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_loadAvailableMonths failed: $e');
+    }
   }
 
   @override

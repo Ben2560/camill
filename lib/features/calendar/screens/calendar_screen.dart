@@ -166,7 +166,9 @@ class _CalendarScreenState extends State<CalendarScreen>
     try {
       final bills = await _billService.fetchBills();
       if (mounted) setState(() => _bills = bills);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_loadBills failed: $e');
+    }
   }
 
   List<Bill> _billsDueOnDay(DateTime day) {

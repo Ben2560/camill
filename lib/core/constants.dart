@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppConstants {
-  // FastAPI base URL (localhost for development)
-  static const String apiBaseUrl = 'http://192.168.2.101:8000/v1';
+  // FastAPI base URL
+  // 開発時: デフォルトのローカルIPを使用
+  // 本番ビルド時: --dart-define=API_BASE_URL=https://api.example.com/v1 で上書き
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.2.101:8000/v1',
+  );
 
   // Category labels (Japanese)
   static const Map<String, String> categoryLabels = {

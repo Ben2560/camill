@@ -73,7 +73,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       if (!mounted) return;
       _realNameCtrl.text = data['real_name'] as String? ?? '';
       _phoneCtrl.text = data['phone'] as String? ?? '';
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('fetchProfile failed: $e');
+    }
     if (mounted) setState(() => _loadingProfile = false);
   }
 

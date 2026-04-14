@@ -52,7 +52,9 @@ class _CameraScreenState extends State<CameraScreen> {
         _analysisLimit = (data['analysis_limit'] as num?)?.toInt() ?? 10;
         _isPremium = data['is_premium'] as bool? ?? false;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('billing status load failed: $e');
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {

@@ -50,7 +50,9 @@ class _NotificationSettingsScreenState
         _coupon3days = data['coupon_3days'] as bool? ?? true;
         _billReminder = data['bill_reminder'] as bool? ?? true;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('notification settings load failed: $e');
+    }
     setState(() => _loading = false);
   }
 

@@ -153,7 +153,9 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
         _isPremium = data['is_premium'] as bool? ?? false;
         _isDeveloper = data['is_developer'] as bool? ?? false;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('billing status load failed: $e');
+    }
   }
 
   void _toggleSpeedDial() {

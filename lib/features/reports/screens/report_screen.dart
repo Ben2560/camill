@@ -122,7 +122,9 @@ class _ReportScreenState extends State<ReportScreen>
         _pageController = PageController(initialPage: idx);
         _monthsVersion++;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('_loadAvailableMonths failed: $e');
+    }
   }
 
   @override

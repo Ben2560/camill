@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
@@ -16,6 +17,7 @@ class _SupportScreenState extends State<SupportScreen> {
 
   List<Map<String, dynamic>> _inquiries = [];
   bool _loading = true;
+  Timer? _pollTimer;
 
   static const _categoryLabels = {
     'billing': '課金・プラン',
@@ -28,11 +30,22 @@ class _SupportScreenState extends State<SupportScreen> {
   void initState() {
     super.initState();
     _load();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _load(silent: true),
+    );
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _loading = true);
     try {
-      final data = await _api.get('/users/inquiries');
+      final data = await _api.getAny('/users/inquiries');
       if (!mounted) return;
       setState(() {
         _inquiries = List<Map<String, dynamic>>.from(data as List);
@@ -70,11 +83,15 @@ class _SupportScreenState extends State<SupportScreen> {
             style: camillHeadingStyle(17, colors.textPrimary)),
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _inquiries.isEmpty
-              ? _buildEmpty(colors)
-              : _buildList(colors),
+      body: RefreshIndicator(
+        onRefresh: () => _load(),
+        color: colors.primary,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _inquiries.isEmpty
+                ? _buildEmpty(colors)
+                : _buildList(colors),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openNewInquiry,
         backgroundColor: colors.primary,
@@ -86,20 +103,22 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Widget _buildEmpty(CamillColors colors) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.support_agent_outlined, size: 64, color: colors.textMuted),
-          const SizedBox(height: 16),
-          Text('お問い合わせ履歴はありません',
-              style: camillBodyStyle(15, colors.textSecondary)),
-          const SizedBox(height: 6),
-          Text('下のボタンから問い合わせを送信できます',
-              style: camillBodyStyle(13, colors.textMuted)),
-          const SizedBox(height: 80),
-        ],
-      ),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+        Column(
+          children: [
+            Icon(Icons.support_agent_outlined, size: 64, color: colors.textMuted),
+            const SizedBox(height: 16),
+            Text('お問い合わせ履歴はありません',
+                style: camillBodyStyle(15, colors.textSecondary)),
+            const SizedBox(height: 6),
+            Text('下のボタンから問い合わせを送信できます',
+                style: camillBodyStyle(13, colors.textMuted)),
+          ],
+        ),
+      ],
     );
   }
 
@@ -315,6 +334,7 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
   final _api = ApiService();
   final _subjectCtrl = TextEditingController();
   final _bodyCtrl = TextEditingController();
+  final _bodyFocus = FocusNode();
   String _category = 'other';
   bool _sending = false;
 
@@ -329,6 +349,7 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
   void dispose() {
     _subjectCtrl.dispose();
     _bodyCtrl.dispose();
+    _bodyFocus.dispose();
     super.dispose();
   }
 
@@ -427,6 +448,8 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
           TextField(
             controller: _subjectCtrl,
             maxLength: 100,
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => _bodyFocus.requestFocus(),
             style: camillBodyStyle(14, colors.textPrimary),
             decoration: InputDecoration(
               hintText: '例: スキャン上限について',
@@ -454,6 +477,7 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
           const SizedBox(height: 6),
           TextField(
             controller: _bodyCtrl,
+            focusNode: _bodyFocus,
             maxLines: 5,
             maxLength: 1000,
             style: camillBodyStyle(14, colors.textPrimary),

@@ -311,6 +311,12 @@ String get _displayName =>
               colors: colors,
               onTap: () => context.push('/family'),
             ),
+          _SettingsItem(
+            icon: Icons.support_agent_outlined,
+            title: 'お問い合わせ',
+            colors: colors,
+            onTap: () => context.push('/support'),
+          ),
           const SizedBox(height: 8),
           _SectionHeader(title: 'その他', colors: colors),
           _SettingsItem(

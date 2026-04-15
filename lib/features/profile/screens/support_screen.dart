@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/services/api_service.dart';
@@ -14,17 +15,9 @@ class SupportScreen extends StatefulWidget {
 
 class _SupportScreenState extends State<SupportScreen> {
   final _api = ApiService();
-
   List<Map<String, dynamic>> _inquiries = [];
   bool _loading = true;
   Timer? _pollTimer;
-
-  static const _categoryLabels = {
-    'billing': '課金・プラン',
-    'usage': '使い方',
-    'bug': 'バグ・不具合',
-    'other': 'その他',
-  };
 
   @override
   void initState() {
@@ -64,8 +57,16 @@ class _SupportScreenState extends State<SupportScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _NewInquirySheet(
-        onSubmitted: () {
-          _load();
+        onSubmitted: (newInquiry) async {
+          await _load();
+          if (!mounted) return;
+          final id = newInquiry['inquiry_id'] as String?;
+          if (id == null) return;
+          final found = _inquiries.firstWhere(
+            (e) => e['inquiry_id'] == id,
+            orElse: () => newInquiry,
+          );
+          context.push('/support/$id', extra: found);
         },
       ),
     );
@@ -82,6 +83,13 @@ class _SupportScreenState extends State<SupportScreen> {
         title: Text('お問い合わせ',
             style: camillHeadingStyle(17, colors.textPrimary)),
         iconTheme: IconThemeData(color: colors.textPrimary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _openNewInquiry,
+            tooltip: '新しい問い合わせ',
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => _load(),
@@ -92,13 +100,6 @@ class _SupportScreenState extends State<SupportScreen> {
                 ? _buildEmpty(colors)
                 : _buildList(colors),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openNewInquiry,
-        backgroundColor: colors.primary,
-        icon: const Icon(Icons.edit_outlined, color: Colors.white),
-        label: Text('新しい問い合わせ',
-            style: camillBodyStyle(14, Colors.white, weight: FontWeight.w600)),
-      ),
     );
   }
 
@@ -106,16 +107,37 @@ class _SupportScreenState extends State<SupportScreen> {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
         Column(
           children: [
-            Icon(Icons.support_agent_outlined, size: 64, color: colors.textMuted),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: colors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.support_agent_outlined,
+                  size: 36, color: colors.primary),
+            ),
             const SizedBox(height: 16),
             Text('お問い合わせ履歴はありません',
                 style: camillBodyStyle(15, colors.textSecondary)),
             const SizedBox(height: 6),
-            Text('下のボタンから問い合わせを送信できます',
+            Text('右上のボタンから問い合わせを送信できます',
                 style: camillBodyStyle(13, colors.textMuted)),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: _openNewInquiry,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('問い合わせを送る'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.primary,
+                side: BorderSide(color: colors.primary),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+              ),
+            ),
           ],
         ),
       ],
@@ -123,196 +145,131 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Widget _buildList(CamillColors colors) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+    return ListView.builder(
       itemCount: _inquiries.length,
-      separatorBuilder: (context, i) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => _InquiryCard(
-        inquiry: _inquiries[i],
-        categoryLabels: _categoryLabels,
-        colors: colors,
-      ),
-    );
-  }
-}
+      itemBuilder: (_, i) {
+        final inq = _inquiries[i];
+        final messages = (inq['messages'] as List?) ?? [];
+        final lastMsg = messages.isNotEmpty
+            ? messages.last as Map<String, dynamic>
+            : null;
+        final lastBody = lastMsg?['body'] as String? ??
+            inq['body'] as String? ??
+            '';
+        final lastTime = _formatTime(
+          lastMsg?['created_at'] as String? ??
+              inq['created_at'] as String?,
+        );
+        final status = inq['status'] as String? ?? 'pending';
+        final hasNewReply = status == 'replied';
 
-// ── 問い合わせカード ─────────────────────────────────────────────────────────
-
-class _InquiryCard extends StatefulWidget {
-  final Map<String, dynamic> inquiry;
-  final Map<String, String> categoryLabels;
-  final CamillColors colors;
-
-  const _InquiryCard({
-    required this.inquiry,
-    required this.categoryLabels,
-    required this.colors,
-  });
-
-  @override
-  State<_InquiryCard> createState() => _InquiryCardState();
-}
-
-class _InquiryCardState extends State<_InquiryCard> {
-  bool _expanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // 返信があれば最初から展開
-    _expanded = widget.inquiry['status'] == 'replied';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final inq = widget.inquiry;
-    final colors = widget.colors;
-    final status = inq['status'] as String? ?? 'pending';
-    final hasReply = status == 'replied' && inq['reply_text'] != null;
-    final categoryKey = inq['category'] as String? ?? 'other';
-    final categoryLabel =
-        widget.categoryLabels[categoryKey] ?? categoryKey;
-
-    final (statusLabel, statusColor) = switch (status) {
-      'replied' => ('返信あり', colors.success),
-      'closed' => ('完了', colors.textMuted),
-      _ => ('返信待ち', colors.accent),
-    };
-
-    final createdAt = _formatDate(inq['created_at'] as String?);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.surfaceBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ヘッダー
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colors.primaryLight,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(categoryLabel,
-                                  style: camillBodyStyle(
-                                      11, colors.primary)),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: statusColor.withAlpha(25),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(statusLabel,
-                                  style: camillBodyStyle(
-                                      11, statusColor,
-                                      weight: FontWeight.w600)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          inq['subject'] as String? ?? '',
-                          style: camillBodyStyle(14, colors.textPrimary,
-                              weight: FontWeight.w600),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(createdAt,
-                            style: camillBodyStyle(11, colors.textMuted)),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: colors.textMuted,
-                  ),
-                ],
+        return Column(
+          children: [
+            InkWell(
+              onTap: () => context.push(
+                '/support/${inq['inquiry_id']}',
+                extra: inq,
               ),
-            ),
-          ),
-          // 展開コンテンツ
-          if (_expanded) ...[
-            Divider(height: 1, color: colors.surfaceBorder),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text('送信内容',
-                  style: camillBodyStyle(11, colors.textMuted,
-                      weight: FontWeight.w600)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Text(inq['body'] as String? ?? '',
-                  style: camillBodyStyle(13, colors.textSecondary)),
-            ),
-            if (hasReply) ...[
-              Divider(height: 1, color: colors.surfaceBorder),
-              Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colors.success.withAlpha(15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: colors.success.withAlpha(60)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.support_agent_outlined,
-                            size: 14, color: colors.success),
-                        const SizedBox(width: 4),
-                        Text('サポートからの返信',
-                            style: camillBodyStyle(11, colors.success,
-                                weight: FontWeight.w600)),
-                        const Spacer(),
-                        Text(_formatDate(inq['replied_at'] as String?),
-                            style: camillBodyStyle(10, colors.textMuted)),
-                      ],
+                    // アバター
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: colors.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.support_agent_outlined,
+                          size: 26, color: colors.primary),
                     ),
-                    const SizedBox(height: 6),
-                    Text(inq['reply_text'] as String? ?? '',
-                        style: camillBodyStyle(13, colors.textPrimary)),
+                    const SizedBox(width: 12),
+                    // コンテンツ
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  inq['subject'] as String? ?? '',
+                                  style: camillBodyStyle(
+                                      15, colors.textPrimary,
+                                      weight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(lastTime,
+                                  style:
+                                      camillBodyStyle(12, colors.textMuted)),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  lastBody,
+                                  style: camillBodyStyle(
+                                      13, colors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (hasNewReply) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: colors.success,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text('返信',
+                                      style: camillBodyStyle(
+                                          11, Colors.white,
+                                          weight: FontWeight.w600)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
+            // LINE風区切り線（左インデント）
+            Padding(
+              padding: const EdgeInsets.only(left: 80),
+              child: Divider(height: 1, color: colors.surfaceBorder),
+            ),
           ],
-        ],
-      ),
+        );
+      },
     );
   }
 
-  String _formatDate(String? iso) {
+  String _formatTime(String? iso) {
     if (iso == null) return '';
     try {
       final dt = DateTime.parse(iso).toLocal();
-      return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')}';
+      final now = DateTime.now();
+      if (dt.year == now.year &&
+          dt.month == now.month &&
+          dt.day == now.day) {
+        return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+      return '${dt.month}/${dt.day}';
     } catch (_) {
       return '';
     }
@@ -322,7 +279,7 @@ class _InquiryCardState extends State<_InquiryCard> {
 // ── 新規問い合わせシート ─────────────────────────────────────────────────────
 
 class _NewInquirySheet extends StatefulWidget {
-  final VoidCallback onSubmitted;
+  final Future<void> Function(Map<String, dynamic>) onSubmitted;
 
   const _NewInquirySheet({required this.onSubmitted});
 
@@ -362,15 +319,15 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
     }
     setState(() => _sending = true);
     try {
-      await _api.post('/users/inquiries', body: {
+      final result = await _api.post('/users/inquiries', body: {
         'category': _category,
         'subject': subject,
         'body': body,
       });
       if (!mounted) return;
       Navigator.of(context).pop();
-      widget.onSubmitted();
-      showTopNotification(context, 'お問い合わせを送信しました。返信をお待ちください。');
+      showTopNotification(context, 'お問い合わせを送信しました');
+      await widget.onSubmitted(Map<String, dynamic>.from(result as Map));
     } catch (e) {
       if (!mounted) return;
       showTopNotification(context, '送信に失敗しました。時間をおいて再度お試しください。');
@@ -395,7 +352,6 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ドラッグハンドル
           Center(
             child: Container(
               width: 36,
@@ -410,7 +366,6 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
           Text('新しい問い合わせ',
               style: camillHeadingStyle(17, colors.textPrimary)),
           const SizedBox(height: 16),
-          // カテゴリ
           Text('カテゴリ',
               style: camillBodyStyle(12, colors.textMuted,
                   weight: FontWeight.w600)),
@@ -425,7 +380,9 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                     style: camillBodyStyle(
                       13,
                       selected ? colors.primary : colors.textSecondary,
-                      weight: selected ? FontWeight.w600 : FontWeight.normal,
+                      weight: selected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     )),
                 selected: selected,
                 selectedColor: colors.primaryLight,
@@ -440,7 +397,6 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          // 件名
           Text('件名',
               style: camillBodyStyle(12, colors.textMuted,
                   weight: FontWeight.w600)),
@@ -464,13 +420,12 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: colors.surfaceBorder),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
               counterStyle: camillBodyStyle(11, colors.textMuted),
             ),
           ),
           const SizedBox(height: 12),
-          // 内容
           Text('内容',
               style: camillBodyStyle(12, colors.textMuted,
                   weight: FontWeight.w600)),
@@ -494,8 +449,8 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: colors.surfaceBorder),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
               counterStyle: camillBodyStyle(11, colors.textMuted),
             ),
           ),

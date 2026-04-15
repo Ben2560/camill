@@ -6,7 +6,7 @@ class AppConstants {
   // 本番ビルド時: --dart-define=API_BASE_URL=https://api.example.com/v1 で上書き
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.2.101:8000/v1',
+    defaultValue: 'http://172.20.10.10:8000/v1',
   );
 
   // Category labels (Japanese)

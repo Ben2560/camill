@@ -35,6 +35,7 @@ import 'features/profile/screens/income_settings_screen.dart';
 import 'features/profile/screens/account_settings_screen.dart';
 import 'features/profile/screens/plan_screen.dart';
 import 'features/profile/screens/support_screen.dart';
+import 'features/profile/screens/support_detail_screen.dart';
 import 'features/home/screens/category_budget_screen.dart';
 import 'shared/models/family_model.dart';
 import 'firebase_options.dart';
@@ -296,6 +297,18 @@ final _router = GoRouter(
     GoRoute(
       path: '/support',
       builder: (context, state) => const SupportScreen(),
+    ),
+    GoRoute(
+      path: '/support/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        final inquiry =
+            (state.extra as Map<String, dynamic>?) ?? {'inquiry_id': id};
+        return SupportDetailScreen(
+          inquiryId: id,
+          initialInquiry: inquiry,
+        );
+      },
     ),
   ],
 );

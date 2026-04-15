@@ -1743,7 +1743,8 @@ class _ReceiptDetailSheetState extends State<_ReceiptDetailSheet> {
         final memoH = r.memo != null && r.memo!.isNotEmpty
             ? 60.0 + memoLines * 20.0  // カードベース＋テキスト行
             : 60.0;                     // 「メモを追加」カード
-        final totalH = 244.0 + r.items.length * 50.0 + memoH;
+        final savingsH = r.savingsAmount > 0 ? 46.0 : 0.0;
+        final totalH = 244.0 + r.items.length * 50.0 + memoH + savingsH;
         final fraction = (totalH / screenH).clamp(0.40, 0.93);
         setState(() {
           _receipt = r;
@@ -1965,6 +1966,26 @@ class _ReceiptDetailSheetState extends State<_ReceiptDetailSheet> {
                     Text(widget.fmt.format(r.totalAmount), style: camillAmountStyle(18, colors.textPrimary)),
                   ],
                 ),
+                if (r.savingsAmount > 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.success.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.savings_outlined, size: 16, color: colors.success),
+                        const SizedBox(width: 6),
+                        Text('節約', style: camillBodyStyle(12, colors.success, weight: FontWeight.w600)),
+                        const Spacer(),
+                        Text(widget.fmt.format(r.savingsAmount), style: camillAmountStyle(14, colors.success)),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           );

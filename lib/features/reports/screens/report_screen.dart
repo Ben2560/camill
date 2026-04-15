@@ -294,9 +294,17 @@ class _ReportPageState extends State<_ReportPage> {
                 children: [
                   _buildSummaryCard(colors),
                   const SizedBox(height: 12),
-                  _buildCouponCard(colors),
+                  _buildSavingsCard(colors),
+                  const SizedBox(height: 12),
+                  _buildScanCard(colors),
                   const SizedBox(height: 12),
                   _buildCategoryRanking(colors),
+                  const SizedBox(height: 12),
+                  _buildTopStoresCard(colors),
+                  if (_isAiAvailable()) ...[
+                    const SizedBox(height: 12),
+                    _buildAiCard(colors),
+                  ],
                   const SizedBox(height: 80),
                 ],
               ),
@@ -376,9 +384,10 @@ class _ReportPageState extends State<_ReportPage> {
     );
   }
 
-  Widget _buildCouponCard(CamillColors colors) {
+  Widget _buildSavingsCard(CamillColors colors) {
     final r = _report!;
-    final savings = (r['coupon_savings'] as num?)?.toInt() ?? 0;
+    final discountSavings = (r['discount_savings'] as num?)?.toInt() ?? 0;
+    final couponSavings = (r['coupon_savings'] as num?)?.toInt() ?? 0;
     final count = (r['coupon_count'] as num?)?.toInt() ?? 0;
     final loss = (r['unused_coupon_loss'] as num?)?.toInt() ?? 0;
 
@@ -386,7 +395,7 @@ class _ReportPageState extends State<_ReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('クーポン実績',
+          Text('割引・クーポン実績',
               style: camillBodyStyle(14, colors.textPrimary,
                   weight: FontWeight.bold)),
           const SizedBox(height: 12),
@@ -394,9 +403,17 @@ class _ReportPageState extends State<_ReportPage> {
             children: [
               Expanded(
                 child: _StatBox(
-                  label: '節約',
-                  value: _currencyFmt.format(savings),
+                  label: '割引節約',
+                  value: _currencyFmt.format(discountSavings),
                   color: colors.success,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatBox(
+                  label: 'クーポン節約',
+                  value: _currencyFmt.format(couponSavings),
+                  color: colors.primary,
                 ),
               ),
               const SizedBox(width: 8),
@@ -407,16 +424,189 @@ class _ReportPageState extends State<_ReportPage> {
                   color: colors.primary,
                 ),
               ),
+            ],
+          ),
+          if (loss > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: colors.danger.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 14, color: colors.danger),
+                  const SizedBox(width: 6),
+                  Text('未使用クーポン損失',
+                      style: camillBodyStyle(12, colors.danger)),
+                  const Spacer(),
+                  Text(_currencyFmt.format(loss),
+                      style: camillAmountStyle(13, colors.danger)),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanCard(CamillColors colors) {
+    final r = _report!;
+    final count = (r['receipt_count'] as num?)?.toInt() ?? 0;
+    final avg = (r['avg_per_day'] as num?)?.toInt() ?? 0;
+    final max = (r['max_single_amount'] as num?)?.toInt() ?? 0;
+
+    return CamillCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('スキャン実績',
+              style: camillBodyStyle(14, colors.textPrimary,
+                  weight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _StatBox(
+                  label: '登録枚数',
+                  value: '$count枚',
+                  color: colors.primary,
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatBox(
-                  label: '未使用損失',
-                  value: _currencyFmt.format(loss),
-                  color: loss > 0 ? colors.danger : colors.textMuted,
+                  label: '1日平均',
+                  value: _currencyFmt.format(avg),
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatBox(
+                  label: '最大単価',
+                  value: _currencyFmt.format(max),
+                  color: colors.textSecondary,
                 ),
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopStoresCard(CamillColors colors) {
+    final r = _report!;
+    final stores = (r['top_stores'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    if (stores.isEmpty) return const SizedBox.shrink();
+
+    return CamillCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('よく使ったお店',
+              style: camillBodyStyle(14, colors.textPrimary,
+                  weight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          ...stores.asMap().entries.map((e) {
+            final i = e.key;
+            final s = e.value;
+            final name = s['store_name'] as String? ?? '';
+            final amount = (s['amount'] as num?)?.toInt() ?? 0;
+            final visits = (s['visit_count'] as num?)?.toInt() ?? 0;
+            final rankColors = [colors.primary, colors.textSecondary, colors.textMuted];
+            final color = rankColors[i < 3 ? i : 2];
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('${i + 1}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: color)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(name,
+                        style: camillBodyStyle(13, colors.textPrimary),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  Text('$visits回',
+                      style: camillBodyStyle(12, colors.textMuted)),
+                  const SizedBox(width: 10),
+                  Text(_currencyFmt.format(amount),
+                      style: camillAmountStyle(14, colors.textPrimary)),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  bool _isAiAvailable() {
+    final r = _report!;
+    final comment = r['ai_comment'] as String? ?? '';
+    return comment.isNotEmpty;
+  }
+
+  Widget _buildAiCard(CamillColors colors) {
+    final r = _report!;
+    final comment = r['ai_comment'] as String? ?? '';
+    final goal = r['next_month_advice'] as String? ?? '';
+
+    return CamillCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 16, color: colors.primary),
+              const SizedBox(width: 6),
+              Text('AIアドバイス',
+                  style: camillBodyStyle(14, colors.textPrimary,
+                      weight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(comment, style: camillBodyStyle(13, colors.textPrimary)),
+          if (goal.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: colors.primaryLight,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.flag_outlined, size: 14, color: colors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(goal,
+                        style: camillBodyStyle(12, colors.primary)),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

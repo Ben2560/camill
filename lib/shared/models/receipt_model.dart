@@ -138,6 +138,7 @@ class ReceiptAnalysis {
   final String billStatus; // 'paid' | 'unpaid'（印鑑・スタンプによる支払済み判定）
   final DateTime? billPaidDate; // 印鑑・スタンプから読み取った支払済み日
   final bool billIsTaxExempt; // 請求書が消費税非課税か（住民税・国民健康保険等）
+  final int savingsAmount; // 今回の会計で適用された割引合計額
 
   ReceiptAnalysis({
     required this.storeName,
@@ -160,6 +161,7 @@ class ReceiptAnalysis {
     this.billStatus = 'unpaid',
     this.billPaidDate,
     this.billIsTaxExempt = false,
+    this.savingsAmount = 0,
   });
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
@@ -195,6 +197,7 @@ class ReceiptAnalysis {
             ? DateTime.tryParse(json['bill_paid_date'] as String)?.toLocal()
             : null,
         billIsTaxExempt: json['bill_is_tax_exempt'] as bool? ?? false,
+        savingsAmount: (json['savings_amount'] as num? ?? 0).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -218,6 +221,7 @@ class ReceiptAnalysis {
         'bill_status': billStatus,
         if (billPaidDate != null) 'bill_paid_date': billPaidDate!.toIso8601String(),
         'bill_is_tax_exempt': billIsTaxExempt,
+        'savings_amount': savingsAmount,
       };
 }
 
@@ -241,7 +245,8 @@ class Receipt {
   final String paymentMethod;
   final List<ReceiptItem> items;
   final List<ReceiptDiscount> discounts;
-  final String? memo; // メモ
+  final String? memo;
+  final int savingsAmount;
 
   Receipt({
     required this.receiptId,
@@ -252,6 +257,7 @@ class Receipt {
     required this.items,
     this.discounts = const [],
     this.memo,
+    this.savingsAmount = 0,
   });
 
   factory Receipt.fromJson(Map<String, dynamic> json) => Receipt(
@@ -267,5 +273,6 @@ class Receipt {
             .map((e) => ReceiptDiscount.fromJson(e as Map<String, dynamic>))
             .toList(),
         memo: json['memo'] as String?,
+        savingsAmount: (json['savings_amount'] as num? ?? 0).toInt(),
       );
 }

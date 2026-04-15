@@ -2083,6 +2083,32 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
               ],
             ),
           ),
+          // ── 今回の節約額バッジ（割引適用があった場合のみ表示）──
+          if (!_isBill && widget.analysis.savingsAmount > 0) ...[
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: colors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.savings_outlined, size: 18, color: colors.success),
+                  const SizedBox(width: 8),
+                  Text('今回の節約',
+                      style: camillBodyStyle(13, colors.success,
+                          weight: FontWeight.w600)),
+                  const Spacer(),
+                  Text(
+                    _fmt.format(widget.analysis.savingsAmount),
+                    style: camillAmountStyle(16, colors.success),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // ── クーポン（医療時・請求書時は非表示）──
           if (!_isMedical && !_isBill) ...[
             const SizedBox(height: 12),

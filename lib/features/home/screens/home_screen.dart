@@ -2343,6 +2343,30 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               ),
             ),
             const SizedBox(height: 4),
+            if ((_summary?.totalSavings ?? 0) > 0) ...[
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: colors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.savings_outlined, size: 15, color: colors.success),
+                    const SizedBox(width: 6),
+                    Text('今月の節約合計',
+                        style: camillBodyStyle(12, colors.success, weight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(
+                      _currencyFmt.format(_summary!.totalSavings),
+                      style: camillAmountStyle(14, colors.success),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

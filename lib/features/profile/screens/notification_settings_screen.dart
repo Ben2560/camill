@@ -24,6 +24,7 @@ class _NotificationSettingsScreenState
   bool _scoreReport = true;
   int _scoreReportTime = 21;
   bool _weeklyReport = true;
+  int _weeklyReportDay = 0; // 0=月〜6=日
   bool _monthlyReport = true;
   bool _couponToday = true;
   bool _coupon3days = true;
@@ -45,6 +46,7 @@ class _NotificationSettingsScreenState
         _scoreReport = data['score_report'] as bool? ?? true;
         _scoreReportTime = (data['score_report_time'] as num?)?.toInt() ?? 21;
         _weeklyReport = data['weekly_report'] as bool? ?? true;
+        _weeklyReportDay = (data['weekly_report_day'] as num?)?.toInt() ?? 0;
         _monthlyReport = data['monthly_report'] as bool? ?? true;
         _couponToday = data['coupon_today'] as bool? ?? true;
         _coupon3days = data['coupon_3days'] as bool? ?? true;
@@ -143,12 +145,33 @@ class _NotificationSettingsScreenState
               ),
             _SettingTile(
               title: '週次レポート',
-              subtitle: '毎週月曜朝9時',
+              subtitle: '毎週朝9時',
               value: _weeklyReport,
               onChanged: (v) {
                 setState(() => _weeklyReport = v);
                 _updateSetting({'weekly_report': v});
               },
+              trailing: _weeklyReport
+                  ? DropdownButton<int>(
+                      value: _weeklyReportDay,
+                      underline: const SizedBox.shrink(),
+                      isDense: true,
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('月曜')),
+                        DropdownMenuItem(value: 1, child: Text('火曜')),
+                        DropdownMenuItem(value: 2, child: Text('水曜')),
+                        DropdownMenuItem(value: 3, child: Text('木曜')),
+                        DropdownMenuItem(value: 4, child: Text('金曜')),
+                        DropdownMenuItem(value: 5, child: Text('土曜')),
+                        DropdownMenuItem(value: 6, child: Text('日曜')),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _weeklyReportDay = v);
+                        _updateSetting({'weekly_report_day': v});
+                      },
+                    )
+                  : null,
             ),
             _SettingTile(
               title: '月次決算レポート',
@@ -215,12 +238,14 @@ class _SettingTile extends StatelessWidget {
   final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final Widget? trailing;
 
   const _SettingTile({
     required this.title,
     this.subtitle,
     required this.value,
     required this.onChanged,
+    this.trailing,
   });
 
   @override
@@ -234,6 +259,7 @@ class _SettingTile extends StatelessWidget {
       value: value,
       activeThumbColor: c.primary,
       onChanged: onChanged,
+      secondary: trailing,
     );
   }
 }

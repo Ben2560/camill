@@ -4,7 +4,7 @@ class AppConstants {
   // FastAPI base URL
   // 開発時: デフォルトのローカルIPを使用
   // 本番ビルド時: --dart-define=API_BASE_URL=https://api.example.com/v1 で上書き
-  // 自宅WiFi: --dart-define=API_BASE_URL=http://192.168.2.101:8000/v1
+  // WiFi: --dart-define=API_BASE_URL=http://172.20.10.10:8000/v1
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://172.20.10.10:8000/v1',

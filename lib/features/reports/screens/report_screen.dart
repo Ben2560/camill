@@ -559,9 +559,10 @@ class _ReportPageState extends State<_ReportPage> {
     );
   }
 
+  static const _kQuotaSentinel = '__quota__';
+
   bool _isAiAvailable() {
-    final r = _report!;
-    final comment = r['ai_comment'] as String? ?? '';
+    final comment = _report!['ai_comment'] as String? ?? '';
     return comment.isNotEmpty;
   }
 
@@ -569,6 +570,7 @@ class _ReportPageState extends State<_ReportPage> {
     final r = _report!;
     final comment = r['ai_comment'] as String? ?? '';
     final goal = r['next_month_advice'] as String? ?? '';
+    final isQuotaError = comment == _kQuotaSentinel;
 
     return CamillCard(
       child: Column(
@@ -576,7 +578,8 @@ class _ReportPageState extends State<_ReportPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, size: 16, color: colors.primary),
+              Icon(Icons.auto_awesome, size: 16,
+                  color: isQuotaError ? colors.textMuted : colors.primary),
               const SizedBox(width: 6),
               Text('AIアドバイス',
                   style: camillBodyStyle(14, colors.textPrimary,
@@ -584,28 +587,48 @@ class _ReportPageState extends State<_ReportPage> {
             ],
           ),
           const SizedBox(height: 10),
-          Text(comment, style: camillBodyStyle(13, colors.textPrimary)),
-          if (goal.isNotEmpty) ...[
-            const SizedBox(height: 10),
+          if (isQuotaError)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: colors.primaryLight,
+                color: colors.danger.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.danger.withValues(alpha: 0.25)),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.flag_outlined, size: 14, color: colors.primary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(goal,
-                        style: camillBodyStyle(12, colors.primary)),
-                  ),
+                  Icon(Icons.warning_amber_rounded, size: 14, color: colors.danger),
+                  const SizedBox(width: 8),
+                  Text('APIの上限に達しました。しばらくお待ちください。',
+                      style: camillBodyStyle(12, colors.danger)),
                 ],
               ),
-            ),
+            )
+          else ...[
+            Text(comment, style: camillBodyStyle(13, colors.textPrimary)),
+            if (goal.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.primaryLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.flag_outlined, size: 14, color: colors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(goal,
+                          style: camillBodyStyle(12, colors.primary)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),

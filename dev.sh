@@ -1,27 +1,45 @@
 #!/bin/bash
 
-# Check and auto-update IP address
-CURRENT_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+# CLI usage
+# ./dev.sh                    # Auto-detect WiFi IP
+# ./dev.sh home               # 自宅WiFi (192.168.2.101)
+# ./dev.sh tether             # スマホデザリング (172.20.10.10)
+
+# Determine IP based on argument or auto-detect
+if [ "$1" = "home" ]; then
+  SELECTED_IP="192.168.2.101"
+  echo "🏠 自宅WiFi モード: $SELECTED_IP"
+elif [ "$1" = "tether" ]; then
+  SELECTED_IP="172.20.10.10"
+  echo "📱 スマホデザリング モード: $SELECTED_IP"
+else
+  # Auto-detect
+  SELECTED_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+  if [ -z "$SELECTED_IP" ]; then
+    echo "⚠️  Could not auto-detect IP. 明示的に指定してください:"
+    echo "  ./dev.sh home         (192.168.2.101)"
+    echo "  ./dev.sh tether       (172.20.10.10)"
+    exit 1
+  fi
+  echo "🔍 Auto-detect モード: $SELECTED_IP"
+fi
+
 CONSTANTS_FILES=(
   "/Users/tsutomuwatanabe/camill/lib/core/constants.dart"
 )
 
 IP_CHANGED=false
 
-if [ -z "$CURRENT_IP" ]; then
-  echo "⚠️  Could not retrieve IP address. Are you connected to Wi-Fi?"
-else
-  for FILE in "${CONSTANTS_FILES[@]}"; do
-    SAVED_IP=$(grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' "$FILE" | head -1)
-    if [ "$CURRENT_IP" = "$SAVED_IP" ]; then
-      echo "✅ IP unchanged ($CURRENT_IP) → $(basename $(dirname $(dirname $(dirname $FILE))))"
-    else
-      sed -i '' "s|http://$SAVED_IP:8000|http://$CURRENT_IP:8000|g" "$FILE"
-      echo "🔄 IP updated: $SAVED_IP → $CURRENT_IP ($(basename $(dirname $(dirname $(dirname $FILE)))))"
-      IP_CHANGED=true
-    fi
-  done
-fi
+for FILE in "${CONSTANTS_FILES[@]}"; do
+  SAVED_IP=$(grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' "$FILE" | head -1)
+  if [ "$SELECTED_IP" = "$SAVED_IP" ]; then
+    echo "✅ IP unchanged ($SELECTED_IP) → $(basename $(dirname $(dirname $(dirname $FILE))))"
+  else
+    sed -i '' "s|http://$SAVED_IP:8000|http://$SELECTED_IP:8000|g" "$FILE"
+    echo "🔄 IP updated: $SAVED_IP → $SELECTED_IP ($(basename $(dirname $(dirname $(dirname $FILE)))))"
+    IP_CHANGED=true
+  fi
+done
 
 if [ "$IP_CHANGED" = true ]; then
   echo "🧹 IP change detected. Running flutter clean && flutter pub get..."

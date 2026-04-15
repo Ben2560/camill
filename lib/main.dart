@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/camill_theme.dart';
@@ -31,6 +31,7 @@ import 'features/data/screens/data_screen.dart';
 import 'features/family/screens/family_management_screen.dart';
 import 'features/family/screens/family_invite_screen.dart';
 import 'features/family/screens/family_join_screen.dart';
+import 'features/family/screens/wallet_management_screen.dart';
 import 'features/profile/screens/income_settings_screen.dart';
 import 'features/profile/screens/account_settings_screen.dart';
 import 'features/profile/screens/plan_screen.dart';
@@ -131,7 +132,7 @@ final _router = GoRouter(
           initialImage = extra['file'] as File?;
           documentHint = extra['hint'] as String?;
         } else {
-          autoSource = extra == 'camera' ? ImageSource.camera : null;
+          autoSource = extra == 'camera' ? ImageSource.camera : extra == 'gallery' ? ImageSource.gallery : null;
           initialImage = extra is File ? extra : null;
           documentHint = null;
         }
@@ -277,6 +278,11 @@ final _router = GoRouter(
     GoRoute(
       path: '/family/join',
       builder: (context, state) => const FamilyJoinScreen(),
+    ),
+    GoRoute(
+      path: '/family/wallets',
+      builder: (context, state) =>
+          WalletManagementScreen(family: state.extra as Family),
     ),
     GoRoute(
       path: '/income',

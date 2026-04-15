@@ -67,6 +67,17 @@ class _PlanScreenState extends State<PlanScreen> {
     await _purchaseService.buy(productId);
   }
 
+  Future<void> _devSetPlan(String plan) async {
+    try {
+      await _api.post('/billing/dev-set-plan', body: {'plan': plan});
+      await _loadBilling();
+      if (mounted) showTopNotification(context, 'プランを $plan に変更しました');
+    } catch (e) {
+      debugPrint('devSetPlan: $e');
+      if (mounted) showTopNotification(context, 'プラン変更に失敗しました');
+    }
+  }
+
   Future<void> _restore() async {
     setState(() => _purchasing = true);
     await _purchaseService.restorePurchases();
@@ -130,6 +141,16 @@ class _PlanScreenState extends State<PlanScreen> {
                       colors: colors,
                     ),
                     const SizedBox(height: 20),
+
+                    // デベロッパーモード: プラン即切替
+                    if (_isDeveloper) ...[
+                      _DevPlanSwitcher(
+                        currentPlan: _currentPlan,
+                        onSelect: _devSetPlan,
+                        colors: colors,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
 
                     // 1ヶ月無料キャンペーンバナー（無料プランユーザーのみ）
                     if (!_isPaying) ...[
@@ -675,6 +696,81 @@ class _CancelSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── デベロッパー用プラン切替 ──────────────────────────────────────────────────
+class _DevPlanSwitcher extends StatelessWidget {
+  final String currentPlan;
+  final void Function(String) onSelect;
+  final CamillColors colors;
+
+  const _DevPlanSwitcher({
+    required this.currentPlan,
+    required this.onSelect,
+    required this.colors,
+  });
+
+  static const _plans = [
+    ('free', '無料'),
+    ('pro', 'Pro月'),
+    ('pro_annual', 'Pro年'),
+    ('family', 'Family月'),
+    ('family_annual', 'Family年'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.purple.withAlpha(15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.purple.withAlpha(60)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.developer_mode, size: 15, color: Colors.purple),
+              const SizedBox(width: 6),
+              Text('DEV: プラン即切替',
+                  style: camillBodyStyle(13, Colors.purple,
+                      weight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _plans.map((p) {
+              final isCurrent = currentPlan == p.$1;
+              return GestureDetector(
+                onTap: isCurrent ? null : () => onSelect(p.$1),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isCurrent ? Colors.purple : Colors.purple.withAlpha(15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: Colors.purple.withAlpha(isCurrent ? 255 : 80)),
+                  ),
+                  child: Text(
+                    p.$2,
+                    style: camillBodyStyle(
+                      13,
+                      isCurrent ? Colors.white : Colors.purple,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

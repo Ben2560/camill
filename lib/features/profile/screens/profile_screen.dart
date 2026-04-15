@@ -292,6 +292,13 @@ String get _displayName =>
             colors: colors,
             onTap: () => context.push('/settings'),
           ),
+          if (_plan == 'family')
+            _SettingsItem(
+              icon: Icons.group_outlined,
+              title: 'ファミリー管理',
+              colors: colors,
+              onTap: () => context.push('/family'),
+            ),
           const SizedBox(height: 8),
           _SectionHeader(title: 'プラン', colors: colors),
           _SettingsItem(
@@ -304,21 +311,14 @@ String get _displayName =>
               if (mounted) _loadBillingStatus();
             },
           ),
-          if (_plan == 'family')
-            _SettingsItem(
-              icon: Icons.group_outlined,
-              title: 'ファミリー管理',
-              colors: colors,
-              onTap: () => context.push('/family'),
-            ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'その他', colors: colors),
           _SettingsItem(
             icon: Icons.support_agent_outlined,
             title: 'お問い合わせ',
             colors: colors,
             onTap: () => context.push('/support'),
           ),
-          const SizedBox(height: 8),
-          _SectionHeader(title: 'その他', colors: colors),
           _SettingsItem(
             icon: Icons.privacy_tip_outlined,
             title: 'プライバシーポリシー',

@@ -117,8 +117,8 @@ class _CameraScreenState extends State<CameraScreen> {
         final maxReceipts = _isPremium ? 5 : 1;
         if (mounted) {
           await context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
-          // 保存せずに戻ってきた場合（保存時は context.go('/') でカメラも破棄される）
-          if (mounted && widget.autoSource != null && context.canPop()) {
+          // 保存せずに戻ってきた場合はカメラ画面も閉じる（保存時は context.go('/') でカメラも破棄される）
+          if (mounted && context.canPop()) {
             context.pop();
           }
         }
@@ -154,11 +154,22 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final isTransparent = widget.autoSource != null && _pendingImage == null;
+    final isAutoSource = widget.autoSource != null;
+    // autoSourceのとき: 常に透明（ホーム等の画面が背景に透ける）
+    // 確認画面でのみAppBarを表示、ゴースト/ローディング中はAppBarなし
+    // extendBodyBehindAppBar=trueでBlurがステータスバー部分まで覆う（白ヘッダ防止）
+    final showConfirmAppBar = isAutoSource && _pendingImage != null && !_loading;
     return Scaffold(
-      backgroundColor: isTransparent ? Colors.transparent : colors.background,
-      appBar: isTransparent
-          ? null
+      // autoSource時: 確認画面のみ背景あり、ゴーストとローディング中は透明（ホーム画面が透ける）
+      backgroundColor: (isAutoSource && _pendingImage == null) ? Colors.transparent : colors.background,
+      extendBodyBehindAppBar: isAutoSource,
+      appBar: isAutoSource
+          ? (showConfirmAppBar
+              ? AppBar(
+                  backgroundColor: colors.background,
+                  iconTheme: IconThemeData(color: colors.textSecondary),
+                )
+              : null)
           : AppBar(
               backgroundColor: colors.background,
               iconTheme: IconThemeData(color: colors.textSecondary),
@@ -168,9 +179,11 @@ class _CameraScreenState extends State<CameraScreen> {
         message: '解析中',
         subtitle: _loadingSubtitle,
         blur: true,
-        child: _pendingImage != null
-            ? _buildConfirmView(colors)
-            : (widget.autoSource != null ? const SizedBox.shrink() : _buildCameraView(colors)),
+        child: _loading
+            ? const SizedBox.shrink()
+            : _pendingImage != null
+                ? _buildConfirmView(colors)
+                : (isAutoSource ? const SizedBox.shrink() : _buildCameraView(colors)),
       ),
     );
   }

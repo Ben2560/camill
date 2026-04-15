@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -14,19 +16,80 @@ class FamilyManagementScreen extends StatefulWidget {
   State<FamilyManagementScreen> createState() => _FamilyManagementScreenState();
 }
 
-class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
+class _FamilyManagementScreenState extends State<FamilyManagementScreen>
+    with SingleTickerProviderStateMixin {
   final _service = FamilyService();
   Family? _family;
   bool _loading = true;
   bool _showInfoBanner = true;
+
+  // dismiss scroll
+  final _dismissOffset = ValueNotifier<double>(0);
+  late final AnimationController _snapController;
+  bool _isDismissing = false;
+  double _pullDistance = 0;
+  final _scrollController = ScrollController();
 
   static const _bannerPrefKey = 'family_info_banner_dismissed';
 
   @override
   void initState() {
     super.initState();
+    _snapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _dismissOffset.addListener(_onOffsetChanged);
     _load();
     _checkBanner();
+  }
+
+  void _onOffsetChanged() {
+    if (!mounted || _isDismissing) return;
+    final limit = MediaQuery.of(context).size.height * 0.19;
+    if (_dismissOffset.value >= limit) {
+      _isDismissing = true;
+      _dismissOffset.removeListener(_onOffsetChanged);
+      _beginDismiss();
+    }
+  }
+
+  void _endDismiss() {
+    if (_isDismissing) return;
+    final sh = MediaQuery.of(context).size.height;
+    if (_dismissOffset.value > sh * 0.20) {
+      _isDismissing = true;
+      _beginDismiss();
+    } else {
+      _snapBack();
+    }
+  }
+
+  void _beginDismiss() {
+    _snapController.duration = const Duration(milliseconds: 200);
+    _snapController.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) Navigator.of(context, rootNavigator: false).pop();
+    });
+  }
+
+  void _snapBack() {
+    final start = _dismissOffset.value;
+    _snapController.reset();
+    final anim = Tween<double>(begin: start, end: 0).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+    anim.addListener(() => _dismissOffset.value = anim.value);
+    _snapController.forward();
+  }
+
+  @override
+  void dispose() {
+    _dismissOffset.removeListener(_onOffsetChanged);
+    _dismissOffset.dispose();
+    _snapController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkBanner() async {
@@ -174,20 +237,75 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        foregroundColor: colors.textPrimary,
-        elevation: 0,
-        title: Text('ファミリー管理',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
+    final sh = MediaQuery.of(context).size.height;
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([_dismissOffset, _snapController]),
+      builder: (ctx, child) {
+        final progress = (_dismissOffset.value / (sh * 0.20)).clamp(0.0, 1.0);
+        final blur = _isDismissing ? _snapController.value * 12.0 : 0.0;
+        Widget content = child!;
+        if (blur > 0.1) {
+          content = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: content,
+          );
+        }
+        return Stack(
+          children: [
+            Container(color: colors.background),
+            Container(color: Colors.black.withValues(alpha: 0.28 * progress)),
+            Transform.translate(
+              offset: Offset(0, _dismissOffset.value),
+              child: Transform.scale(
+                scale: 1.0 - progress * 0.07,
+                alignment: Alignment.topCenter,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(progress * 22.0),
+                  ),
+                  child: content,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: Scaffold(
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          backgroundColor: colors.surface,
+          foregroundColor: colors.textPrimary,
+          elevation: 0,
+          title: Text('ファミリー管理',
+              style: TextStyle(
+                  color: colors.textPrimary, fontWeight: FontWeight.bold)),
+        ),
+        body: Listener(
+          onPointerMove: (e) {
+            if (_isDismissing) return;
+            final atTop = !_scrollController.hasClients ||
+                _scrollController.position.pixels <= 0;
+            if (atTop && e.delta.dy > 0) {
+              _pullDistance += e.delta.dy;
+              _dismissOffset.value = _pullDistance;
+            } else if (e.delta.dy < 0 && _pullDistance > 0) {
+              _pullDistance = 0;
+              _dismissOffset.value = 0;
+            }
+          },
+          onPointerUp: (_) {
+            if (_isDismissing) return;
+            _endDismiss();
+            _pullDistance = 0;
+          },
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _family == null
+                  ? _buildEmpty(colors)
+                  : _buildFamily(colors),
+        ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _family == null
-              ? _buildEmpty(colors)
-              : _buildFamily(colors),
     );
   }
 
@@ -232,6 +350,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     final isFull = family.members.length >= family.maxMembers;
 
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
       children: [
         if (_showInfoBanner) _buildInfoBanner(colors),
@@ -283,6 +402,26 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                 onTap: isFull ? null : () => _showInviteSheet(),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        Text('財布・仕分けルール', style: TextStyle(color: colors.textSecondary,
+            fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        _SectionCard(
+          colors: colors,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.account_balance_wallet_outlined,
+                color: colors.primary),
+            title: Text('財布管理',
+                style: TextStyle(color: colors.textPrimary,
+                    fontWeight: FontWeight.w600)),
+            subtitle: Text('お小遣いや仕分けルールを管理',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+            trailing: Icon(Icons.chevron_right, color: colors.textSecondary),
+            onTap: () => context.push('/family/wallets', extra: family),
           ),
         ),
         const SizedBox(height: 32),

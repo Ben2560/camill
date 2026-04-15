@@ -1,14 +1,20 @@
 import '../../../shared/models/family_model.dart';
 import '../../../shared/services/api_service.dart';
 
+
 class FamilyService {
   final ApiService _api;
   FamilyService({ApiService? api}) : _api = api ?? ApiService();
 
   Future<Family?> fetchMyFamily() async {
-    final data = await _api.getAny('/families');
-    if (data == null) return null;
-    return Family.fromJson(data as Map<String, dynamic>);
+    try {
+      final data = await _api.getAny('/families');
+      if (data == null) return null;
+      return Family.fromJson(data as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
   }
 
   Future<Family> createFamily(String name) async {

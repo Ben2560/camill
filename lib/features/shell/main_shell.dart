@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/camill_colors.dart';
 import '../../core/theme/camill_theme.dart';
@@ -186,15 +184,9 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _pickFromGallery() async {
+  void _pickFromGallery() {
     _closeSpeedDial();
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 72,
-      maxWidth: 1000,
-    );
-    if (picked == null || !mounted) return;
-    context.push('/camera', extra: File(picked.path));
+    context.push('/camera', extra: 'gallery');
   }
 
   void _onNavTap(int index) {

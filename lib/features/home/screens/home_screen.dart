@@ -25,6 +25,9 @@ import '../../receipt/screens/receipt_list_screen.dart';
 import '../../../core/constants.dart';
 import '../../data/screens/data_screen.dart';
 import '../../reports/screens/report_screen.dart';
+import '../../family/screens/family_management_screen.dart';
+import '../../family/services/family_service.dart';
+import '../../../shared/models/family_model.dart';
 import 'category_budget_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -75,9 +78,15 @@ class _HomeScreenState extends State<HomeScreen> {
     'recent',
     'tax',
     'bills',
+    'family_management',
     'family_partner',
     'family_savings',
   ];
+  static const _familyWidgetIds = {
+    'family_management',
+    'family_partner',
+    'family_savings',
+  };
   static const _defaultWidgetIds = [
     'budget',
     'category',
@@ -144,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final path = _routerDelegate?.currentConfiguration.uri.path;
     if (path == '/' && _prevRoutePath != null && _prevRoutePath != '/') {
+      _loadBillingStatus();
       _loadAvailableMonths();
       _loadUpcomingBills();
       _loadRecentBills();
@@ -287,10 +297,19 @@ class _HomeScreenState extends State<HomeScreen> {
       final api = ApiService();
       final data = await api.get('/billing/status');
       if (!mounted) return;
+      final newPlan = data['plan'] as String? ?? 'free';
       setState(() {
         _analysisLimit = (data['analysis_limit'] as num?)?.toInt() ?? 10;
-        _plan = data['plan'] as String? ?? 'free';
+        _plan = newPlan;
+        if (newPlan != 'family') {
+          _homeWidgets = _homeWidgets
+              .where((id) => !_familyWidgetIds.contains(id))
+              .toList();
+        }
       });
+      if (newPlan != 'family') {
+        _saveHomeLayout(_homeWidgets);
+      }
     } catch (e) {
       debugPrint('_loadBillingStatus error: $e');
     }
@@ -1027,9 +1046,11 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   int? _weekMedicalExpense;
 
   // ファミリープラン用
+  Family? _family;
   Map<String, dynamic>? _partnerSummary;   // null = 権限未付与
   List<Map<String, dynamic>> _childrenData = [];
   bool _familyLoaded = false;
+  final _familyService = FamilyService();
 
   String? _selectedCategory;
 
@@ -1053,6 +1074,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   ];
   List<String> get _allWidgetIds => [
         ..._baseWidgetIds,
+        if (widget.plan == 'family') 'family_management',
         if (widget.plan == 'family') 'family_partner',
         if (widget.plan == 'family') 'family_savings',
       ];
@@ -1064,6 +1086,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'recent': (title: '最近のレシート', icon: Icons.receipt_outlined),
     'tax': (title: '消費税', icon: Icons.account_balance_outlined),
     'bills': (title: '請求書', icon: Icons.receipt_long_outlined),
+    'family_management': (title: 'ファミリー管理', icon: Icons.group_outlined),
     'family_partner': (title: 'パートナー支出', icon: Icons.people_outline),
     'family_savings': (title: '子供の貯金', icon: Icons.savings_outlined),
   };
@@ -1103,6 +1126,14 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       _routerDelegate = GoRouter.of(context).routerDelegate;
       _routerDelegate?.addListener(_onRouteChanged);
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeMonthPage old) {
+    super.didUpdateWidget(old);
+    if (old.plan != 'family' && widget.plan == 'family') {
+      _loadFamilySummaries();
+    }
   }
 
   @override
@@ -1226,13 +1257,15 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   Future<void> _loadFamilySummaries() async {
     try {
       final results = await Future.wait([
+        _familyService.fetchMyFamily(),
         _api.getAny('/families/summary/partner'),
         _api.getAny('/families/summary/children'),
       ]);
       if (!mounted) return;
       setState(() {
-        _partnerSummary = results[0] as Map<String, dynamic>?;
-        _childrenData = ((results[1] as List<dynamic>?) ?? [])
+        _family = results[0] as Family?;
+        _partnerSummary = results[1] as Map<String, dynamic>?;
+        _childrenData = ((results[2] as List<dynamic>?) ?? [])
             .cast<Map<String, dynamic>>();
         _familyLoaded = true;
       });
@@ -1371,6 +1404,8 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
         return _buildTaxCard(colors);
       case 'bills':
         return _buildBillsCard(colors);
+      case 'family_management':
+        return widget.plan == 'family' ? _buildFamilyManagementCard(colors) : const SizedBox.shrink();
       case 'family_partner':
         return widget.plan == 'family' ? _buildFamilyPartnerCard(colors) : const SizedBox.shrink();
       case 'family_savings':
@@ -3145,6 +3180,167 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
   }
 
   // ── ファミリーカード ──────────────────────────────────────────────────────
+  Widget _buildFamilyManagementCard(CamillColors colors) {
+    final family = _family;
+
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fade,
+      transitionDuration: const Duration(milliseconds: 400),
+      closedColor: colors.surface,
+      openColor: colors.background,
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      tappable: false,
+      openBuilder: (_, _) => const FamilyManagementScreen(),
+      closedBuilder: (_, openContainer) => GestureDetector(
+        onTap: () {
+          if (_wasScrollingBeforeTap) {
+            _wasScrollingBeforeTap = false;
+            return;
+          }
+          openContainer();
+        },
+        child: CamillCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.group_outlined, color: colors.primary, size: 16),
+                      const SizedBox(width: 6),
+                      Text('ファミリー管理',
+                          style: camillBodyStyle(14, colors.textPrimary,
+                              weight: FontWeight.w700)),
+                    ],
+                  ),
+                  if (family != null)
+                    Text('${family.members.length} / ${family.maxMembers}人',
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 12)),
+                ],
+              ),
+              if (family == null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5, color: colors.textMuted),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('読み込み中...',
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 13)),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 4),
+                Text(family.name,
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                const SizedBox(height: 12),
+                if (family.members.length <= 1) ...[
+                  // 自分だけの場合 → 招待を促すボタン
+                  GestureDetector(
+                    onTap: openContainer,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(20),
+                        border:
+                            Border.all(color: colors.primary.withAlpha(60)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_add_outlined,
+                              size: 14, color: colors.primary),
+                          const SizedBox(width: 6),
+                          Text('家族を招待する',
+                              style: TextStyle(
+                                  color: colors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // メンバーのアバター一覧
+                  Row(
+                    children: [
+                      ...family.members.take(5).map((m) {
+                        final roleColor = switch (m.role) {
+                          'owner' => colors.primary,
+                          'parent' => Colors.teal,
+                          _ => Colors.orange,
+                        };
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Column(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: roleColor.withAlpha(30),
+                                child: Text(
+                                  m.displayName.isNotEmpty
+                                      ? m.displayName[0]
+                                      : '?',
+                                  style: TextStyle(
+                                      color: roleColor,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                m.displayName.length > 4
+                                    ? '${m.displayName.substring(0, 4)}…'
+                                    : m.displayName,
+                                style: TextStyle(
+                                    color: colors.textSecondary,
+                                    fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      if (family.members.length < family.maxMembers)
+                        Column(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: colors.surfaceBorder,
+                              child: Icon(Icons.person_add_outlined,
+                                  size: 16, color: colors.textMuted),
+                            ),
+                            const SizedBox(height: 4),
+                            Text('招待',
+                                style: TextStyle(
+                                    color: colors.textMuted, fontSize: 10)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFamilyPartnerCard(CamillColors colors) {
     final summary = _partnerSummary;
 

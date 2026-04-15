@@ -5,6 +5,11 @@
 # ./dev.sh home               # 自宅WiFi (192.168.2.101)
 # ./dev.sh tether             # スマホデザリング (172.20.10.10)
 
+# Setup paths
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CAMILL_ROOT="$SCRIPT_DIR"
+CAMILL_API_ROOT="$SCRIPT_DIR/../camill-api"
+
 # Determine IP based on argument or auto-detect
 if [ "$1" = "home" ]; then
   SELECTED_IP="192.168.2.101"
@@ -25,7 +30,7 @@ else
 fi
 
 CONSTANTS_FILES=(
-  "/Users/tsutomuwatanabe/camill/lib/core/constants.dart"
+  "$CAMILL_ROOT/lib/core/constants.dart"
 )
 
 IP_CHANGED=false
@@ -43,13 +48,13 @@ done
 
 if [ "$IP_CHANGED" = true ]; then
   echo "🧹 IP change detected. Running flutter clean && flutter pub get..."
-  cd /Users/tsutomuwatanabe/camill
+  cd "$CAMILL_ROOT"
   flutter clean
   flutter pub get
 fi
 
 # Check iOS version; run pub get & pod install if changed
-IOS_VERSION_FILE="/Users/tsutomuwatanabe/camill/.ios_device_version"
+IOS_VERSION_FILE="$CAMILL_ROOT/.ios_device_version"
 CURRENT_IOS=$(xcrun xctrace list devices 2>/dev/null | grep -E "iPhone|iPad" | grep -v Simulator | head -1 | grep -oE '\([0-9]+\.[0-9]+(\.[0-9]+)?\)' | tr -d '()')
 
 if [ -n "$CURRENT_IOS" ]; then
@@ -57,7 +62,7 @@ if [ -n "$CURRENT_IOS" ]; then
   if [ "$CURRENT_IOS" != "$SAVED_IOS" ]; then
     echo "📱 iOS version change detected: ${SAVED_IOS:-none} → $CURRENT_IOS"
     echo "🔧 Running flutter pub get & pod install..."
-    cd /Users/tsutomuwatanabe/camill
+    cd "$CAMILL_ROOT"
     flutter pub get
     cd ios && pod install --repo-update && cd ..
     echo "$CURRENT_IOS" > "$IOS_VERSION_FILE"
@@ -78,7 +83,7 @@ if [ -n "$EXISTING_PID" ]; then
 fi
 
 # Start API server in background
-cd /Users/tsutomuwatanabe/camill-api
+cd "$CAMILL_API_ROOT"
 source venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level warning &
 API_PID=$!
@@ -87,7 +92,7 @@ echo "Starting API server... (PID: $API_PID)"
 sleep 2
 
 # Start Flutter app
-cd /Users/tsutomuwatanabe/camill
+cd "$CAMILL_ROOT"
 flutter run --device-timeout 30 2> >(grep -Ev "maps to more than one section|Dart VM Service was not discovered" >&2)
 
 # Stop API server after Flutter exits

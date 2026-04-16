@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -233,7 +234,18 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = (message['sender'] as String?) == 'user';
     final body = message['body'] as String? ?? '';
+    final imageDataUri = message['image_data'] as String?;
     final timeStr = _formatTime(message['created_at'] as String?);
+
+    // base64 data URI → Uint8List
+    Uint8List? imageBytes;
+    if (imageDataUri != null && imageDataUri.isNotEmpty) {
+      try {
+        final comma = imageDataUri.indexOf(',');
+        final b64 = comma >= 0 ? imageDataUri.substring(comma + 1) : imageDataUri;
+        imageBytes = base64Decode(b64);
+      } catch (_) {}
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -267,25 +279,49 @@ class _MessageBubble extends StatelessWidget {
             ),
           // バブル
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.68,
               ),
-              decoration: BoxDecoration(
-                color: isUser ? colors.primary : Colors.white,
+              child: ClipRRect(
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
                   bottomLeft: Radius.circular(isUser ? 16 : 4),
                   bottomRight: Radius.circular(isUser ? 4 : 16),
                 ),
-              ),
-              child: Text(
-                body,
-                style: camillBodyStyle(
-                  14,
-                  isUser ? Colors.white : const Color(0xFF1A1A1A),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 画像（添付がある場合）
+                    if (imageBytes != null)
+                      Image.memory(
+                        imageBytes,
+                        fit: BoxFit.cover,
+                      ),
+                    // テキスト本文
+                    if (body.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        color: isUser ? colors.primary : Colors.white,
+                        child: Text(
+                          body,
+                          style: camillBodyStyle(
+                            14,
+                            isUser ? Colors.white : const Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ),
+                    // 画像のみでテキストなしの場合の背景
+                    if (imageBytes != null && body.isEmpty)
+                      Container(
+                        color: isUser ? colors.primary : Colors.white,
+                        height: 4,
+                      ),
+                  ],
                 ),
               ),
             ),

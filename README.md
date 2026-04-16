@@ -1,17 +1,175 @@
-# smartreceipt
+# Camill
 
-A new Flutter project.
+レシートを撮るだけで家計が整う、家族向け家計管理アプリです。
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## どんなアプリか
 
-A few resources to get you started if this is your first Flutter project:
+「いちいち手書きで家計簿をつけるのが面倒だし節約にならない」といった問題を解決するところから始まりました。カメラを向けるだけでAIが品目・金額・カテゴリを読み取り、あとは勝手に集計してくれます。医療明細や請求書（光熱費・税金など）も同じフローで登録できるので、財布の中のレシートをまとめて撮るだけで今月の支出がほぼ把握できます。
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+ファミリープランでは家族ごとにウォレットを分けて管理でき、パートナーや子供の支出もまとめて見られます。
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## 主な機能
+
+### レシート・明細管理
+
+- カメラまたはギャラリーから撮影 → AIが品目・金額・カテゴリを自動解析
+- 医療明細・請求書・通常レシートをそれぞれ最適なフォームで登録
+- 自由診療（保険外）の自動検出とバッジ表示
+- 同一品目のグループ折りたたみ表示（`×N`バッジ）
+- 解析失敗時は最大3回まで自動リトライ（指数バックオフ）
+- 手動入力フォームも完備
+
+### 予算・支出管理
+
+- カテゴリ別予算設定と進捗バー
+- カレンダービューで日ごとの支出確認
+- 月次・週次・年次のサマリー集計
+- 消費税の自動推定（非課税品目は除外）
+- 節約額の自動集計と表示（割引・クーポン分）
+
+### 請求書管理
+
+- 未払い請求書のアラートバナー（3日以内は赤色強調）
+- 印鑑・スタンプから支払済みを自動判定
+- 公共料金・税金は消費税計算から自動除外
+
+### クーポン管理
+
+- レシートから次回利用できるクーポンを自動検出
+- 有効期限が近いクーポンのプッシュ通知
+- コミュニティ機能で近くのユーザーのクーポン情報を共有
+
+### ファミリープラン
+
+- QRコードでメンバー招待
+- ウォレット機能で支出の振り分けルール設定
+- パートナーの支出サマリー・子供の今月支出をホームに表示
+- メンバーごとの閲覧権限管理
+
+### レポート・分析
+
+- 月次AIコメント（プレミアムのみ）
+- 週次レポートの曜日設定
+- 上位店舗ランキング・スキャン枚数統計
+
+### その他
+
+- FCMプッシュ通知（請求書リマインダー・クーポン期限・予算超過アラート）
+- 日の出・日の入りベースの自動ダークモード切替
+- ホーム画面のウィジェット並び替え（ドラッグ）
+- プロフィール画像（アプリコンテナUUID変更にも対応）
+
+---
+
+## プラン
+
+| プラン | 月額 | スキャン枚数 |
+| --- | --- | --- |
+| 無料 | 無料 | 制限あり |
+| Pro（月払い） | ¥480 | 50枚/月 |
+| Pro（年払い） | ¥4,600 | 60枚/月 |
+| Family（月払い） | ¥980 | 150枚/月（共有） |
+| Family（年払い） | ¥11,100 | 200枚/月（共有） |
+
+初回は1ヶ月無料トライアルあり。
+
+---
+
+## 技術構成
+
+| レイヤー | 技術 |
+| --- | --- |
+| モバイルアプリ | Flutter (iOS / Android) |
+| バックエンドAPI | FastAPI (Python) |
+| 管理画面 | Next.js |
+| 認証 | Firebase Auth |
+| プッシュ通知 | Firebase Cloud Messaging (FCM) |
+| AI解析 | Google Gemini |
+| 課金 | App Store IAP / Google Play Billing |
+| スケジューラー | APScheduler (JST基準) |
+
+---
+
+## ディレクトリ構成
+
+```text
+camill/           # Flutterアプリ（このリポジトリ）
+camill-api/       # FastAPI バックエンド
+camill-admin-web/ # Next.js 管理画面
+```
+
+### Flutterアプリの構成
+
+```text
+lib/
+├── main.dart                     # エントリーポイント・GoRouter設定
+├── core/
+│   ├── constants.dart            # API URL・カテゴリ定義
+│   └── theme/                    # テーマ（Sakura / Morning / Forest / Midnight など）
+├── features/                     # 機能別モジュール
+│   ├── auth/                     # ログイン・登録・電話認証
+│   ├── shell/                    # ボトムナビ・スピードダイアル
+│   ├── home/                     # ダッシュボード・収支グラフ
+│   ├── receipt/                  # カメラ・OCR結果・編集
+│   ├── calendar/                 # カレンダービュー
+│   ├── coupon/                   # クーポン管理
+│   ├── bill/                     # 請求書管理
+│   ├── community/                # コミュニティ・地図
+│   ├── family/                   # ファミリー管理・QR招待
+│   ├── reports/                  # 月次レポート
+│   └── profile/                  # プロフィール・プラン・設定
+└── shared/
+    ├── models/                   # データモデル
+    ├── services/api_service.dart # HTTP通信・認証トークン付与
+    └── widgets/                  # 共通UIコンポーネント
+```
+
+---
+
+## 開発環境のセットアップ
+
+### 前提
+
+- Flutter SDK
+- Firebase プロジェクト（`google-services.json` / `GoogleService-Info.plist`）
+- バックエンドAPI（`camill-api/` を別途起動）
+
+### 起動
+
+```bash
+# 依存パッケージのインストール
+flutter pub get
+
+# 実機またはシミュレーターで起動
+flutter run
+```
+
+API の向き先は `lib/core/constants.dart` の `baseUrl` で変更できます。
+
+---
+
+## バックエンドの起動
+
+```bash
+cd camill-api
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+詳細は `camill-api/` 配下の設定ファイルを参照してください。
+
+---
+
+## 管理画面の起動
+
+```bash
+cd camill-admin-web
+npm install
+npm run dev
+```
+
+または `admin.sh` を使うと IP アドレスの自動更新も含めて起動できます。

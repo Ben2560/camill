@@ -100,6 +100,12 @@ class _PlanScreenState extends State<PlanScreen> {
   int get _limitCount => _billing?['analysis_limit'] as int? ?? 10;
   bool get _isDeveloper => _billing?['is_developer'] as bool? ?? false;
   bool get _isPaying => _currentPlan != 'free';
+  bool get _isInTrial => _billing?['is_trial'] as bool? ?? false;
+  DateTime? get _trialEndsAt {
+    final s = _billing?['trial_ends_at'] as String?;
+    if (s == null) return null;
+    try { return DateTime.parse(s).toLocal(); } catch (_) { return null; }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +144,8 @@ class _PlanScreenState extends State<PlanScreen> {
                       usedCount: _usedCount,
                       limitCount: _limitCount,
                       isDeveloper: _isDeveloper,
+                      isInTrial: _isInTrial,
+                      trialEndsAt: _trialEndsAt,
                       colors: colors,
                     ),
                     const SizedBox(height: 20),
@@ -384,6 +392,8 @@ class _CurrentPlanCard extends StatelessWidget {
   final int usedCount;
   final int limitCount;
   final bool isDeveloper;
+  final bool isInTrial;
+  final DateTime? trialEndsAt;
   final CamillColors colors;
 
   const _CurrentPlanCard({
@@ -392,6 +402,8 @@ class _CurrentPlanCard extends StatelessWidget {
     required this.limitCount,
     required this.colors,
     this.isDeveloper = false,
+    this.isInTrial = false,
+    this.trialEndsAt,
   });
 
   static const _planLabels = {
@@ -429,6 +441,28 @@ class _CurrentPlanCard extends StatelessWidget {
               ),
             ],
           ),
+          if (isInTrial && trialEndsAt != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: colors.danger.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.danger.withAlpha(80)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.hourglass_top_rounded, size: 12, color: colors.danger),
+                  const SizedBox(width: 4),
+                  Text(
+                    '無料トライアル中 〜 ${trialEndsAt!.year}/${trialEndsAt!.month}/${trialEndsAt!.day}まで',
+                    style: camillBodyStyle(11, colors.danger, weight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (!isDeveloper) ...[
             const SizedBox(height: 16),
             Row(

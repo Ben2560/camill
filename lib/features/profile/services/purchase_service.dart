@@ -115,12 +115,9 @@ class PurchaseService {
       await _api.post('/billing/verify-purchase', body: {
         'product_id': purchase.productID,
         'plan': plan,
-        'verification_data':
-            purchase.verificationData.serverVerificationData,
+        'verification_data': purchase.verificationData.serverVerificationData,
         'source': purchase.verificationData.source,
-        'is_trial': purchase.status == PurchaseStatus.restored
-            ? false
-            : true, // 初回購入はトライアル扱い
+        // トライアル判定はサーバー側のストアレシート検証に委ねる
       });
       onPurchaseComplete?.call();
     } catch (e) {

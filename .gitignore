@@ -5,6 +5,9 @@ CLAUDE.md
 admin.sh
 dev.sh
 
+# 管理画面（Next.js）— Flutterリポジトリとは別管理
+camill-admin-web/
+
 # 仕様書
 camill_ファミリープラン_総合仕様書_v1.0.docx
 

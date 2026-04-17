@@ -37,17 +37,14 @@ class CommunityService {
   Future<CommunitySettings> updateSettings({
     bool? shareEnabled,
     bool? notifyAll,
+    List<String>? notifiedStoreIds,
   }) async {
     final body = <String, dynamic>{};
     if (shareEnabled != null) body['share_enabled'] = shareEnabled;
     if (notifyAll != null) body['notify_all'] = notifyAll;
+    if (notifiedStoreIds != null) body['notified_store_ids'] = notifiedStoreIds;
     final data = await _api.patch('/community/settings', body: body);
     return CommunitySettings.fromJson(data);
-  }
-
-  /// クーポンをコミュニティに公開
-  Future<void> shareCoupon(String couponId) async {
-    await _api.patch('/coupons/$couponId/share-to-community', body: {});
   }
 
   /// 無料ユーザーの店舗選択を更新

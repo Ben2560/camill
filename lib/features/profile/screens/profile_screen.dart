@@ -292,6 +292,13 @@ String get _displayName =>
             colors: colors,
             onTap: () => context.push('/settings'),
           ),
+          _SettingsItem(
+            icon: Icons.people_alt_outlined,
+            title: 'コミュニティ設定',
+            subtitle: 'クーポンシェア・通知設定',
+            colors: colors,
+            onTap: () => context.push('/community-settings'),
+          ),
           if (_plan == 'family')
             _SettingsItem(
               icon: Icons.group_outlined,

@@ -11,7 +11,6 @@ import '../../../shared/models/receipt_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 import '../../bill/services/bill_service.dart';
-import '../../community/services/community_service.dart';
 import '../../calendar/screens/calendar_screen.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../services/receipt_service.dart';
@@ -210,7 +209,6 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
   bool get wantKeepAlive => true;
   final _receiptService = ReceiptService();
   final _couponService = CouponService();
-  final _communityService = CommunityService();
   final _billService = BillService();
   final _fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
 
@@ -633,7 +631,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
         );
         if (_shareToComm[i]) {
           try {
-            await _communityService.shareCoupon(coupon.couponId);
+            await _couponService.shareToCommunity(coupon.couponId);
           } catch (_) {}
         }
       }
@@ -708,7 +706,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
         );
         if (_shareToComm[i]) {
           try {
-            await _communityService.shareCoupon(coupon.couponId);
+            await _couponService.shareToCommunity(coupon.couponId);
           } catch (_) {}
         }
       }
@@ -785,7 +783,7 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
         );
         if (_shareToComm[i]) {
           try {
-            await _communityService.shareCoupon(coupon.couponId);
+            await _couponService.shareToCommunity(coupon.couponId);
           } catch (_) {}
         }
       }

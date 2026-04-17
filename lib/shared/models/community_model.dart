@@ -98,15 +98,19 @@ class CommunitySettings {
   final bool shareEnabled;
   final bool notifyAll;
   final List<String> selectedStoreIds; // 無料ユーザーの選択店舗（最大2）
+  final List<String> notifiedStoreIds; // 個別通知する店舗
   final int remainingChanges; // 残り変更回数
   final DateTime? nextResetDate; // 次のリセット日
+  final bool isPremium; // 有料プランかどうか
 
   CommunitySettings({
     this.shareEnabled = true,
     this.notifyAll = true,
     this.selectedStoreIds = const [],
+    this.notifiedStoreIds = const [],
     this.remainingChanges = 3,
     this.nextResetDate,
+    this.isPremium = false,
   });
 
   factory CommunitySettings.fromJson(Map<String, dynamic> json) =>
@@ -117,15 +121,21 @@ class CommunitySettings {
                 ?.map((e) => e as String)
                 .toList() ??
             [],
+        notifiedStoreIds: (json['notified_store_ids'] as List?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
         remainingChanges: (json['remaining_changes'] as num?)?.toInt() ?? 3,
         nextResetDate: json['next_reset_date'] != null
             ? DateTime.parse(json['next_reset_date'] as String)
             : null,
+        isPremium: json['is_premium'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
         'share_enabled': shareEnabled,
         'notify_all': notifyAll,
         'selected_store_ids': selectedStoreIds,
+        'notified_store_ids': notifiedStoreIds,
       };
 }

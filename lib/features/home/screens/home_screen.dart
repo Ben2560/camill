@@ -7,6 +7,7 @@ import 'package:animations/animations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/user_prefs.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/coupon_model.dart';
@@ -246,13 +247,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadWeekStartPref() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() => _weekStartsSunday = prefs.getBool(_weekStartKey) ?? true);
+    final v = await UserPrefs.getBool(prefs, _weekStartKey);
+    if (!mounted) return;
+    setState(() => _weekStartsSunday = v ?? true);
   }
 
   Future<void> _loadBudget() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() => _budget = prefs.getInt(_budgetKey) ?? 80000);
+    final v = await UserPrefs.getInt(prefs, _budgetKey);
+    if (!mounted) return;
+    setState(() => _budget = v ?? 80000);
   }
 
   Future<void> _loadCategoryBudgets() async {
@@ -260,15 +265,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final budgets = <String, int>{};
     for (final key in _HomeMonthPageState._categoryMeta.keys) {
-      budgets[key] = prefs.getInt('category_budget_$key') ?? 0;
+      budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
+    if (!mounted) return;
     setState(() => _categoryBudgets = budgets);
   }
 
   Future<void> _loadHomeLayout() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    final saved = prefs.getStringList(_layoutKey);
+    final saved = await UserPrefs.getStringList(prefs, _layoutKey);
     if (saved != null && saved.isNotEmpty) {
       final valid = saved.where(_allWidgetIds.contains).toList();
       if (valid.isNotEmpty) setState(() => _homeWidgets = valid);
@@ -277,18 +283,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _saveHomeLayout(List<String> layout) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_layoutKey, layout);
+    await UserPrefs.setStringList(prefs, _layoutKey, layout);
   }
 
   Future<void> _saveBudget(int value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_budgetKey, value);
+    await UserPrefs.setInt(prefs, _budgetKey, value);
   }
 
   Future<void> _saveCategoryBudgets(Map<String, int> map) async {
     final prefs = await SharedPreferences.getInstance();
     for (final e in map.entries) {
-      await prefs.setInt('category_budget_${e.key}', e.value);
+      await UserPrefs.setInt(prefs, 'category_budget_${e.key}', e.value);
     }
   }
 
@@ -1370,7 +1376,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     if (!mounted) return;
     final budgets = <String, int>{};
     for (final key in _categoryMeta.keys) {
-      budgets[key] = prefs.getInt('category_budget_$key') ?? 0;
+      budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
     widget.onCategoryBudgetsChanged(budgets);
   }
@@ -2023,9 +2029,10 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
 
   Widget _buildCategorySummary(CamillColors colors) {
     final cats = _summary!.byCategory;
-    // 予算カードと一致するよう totalExpense を使う
+    // カテゴリ別データは月次のみ取得しているため常に月次合計を使う
+    // 週/年モードでも「月」ラベルで月次データを表示
     final total = _summary!.totalExpense;
-    final periodLabel = ['週', '月', '年'][_periodIndex];
+    const periodLabel = '月';
 
     // 支出があるカテゴリの行（予算未設定でも表示）
     final rows =
@@ -2056,7 +2063,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
       ),
       onClosed: (_) async {
         final prefs = await SharedPreferences.getInstance();
-        final newBudget = prefs.getInt('budget_monthly') ?? 0;
+        final newBudget = (await UserPrefs.getInt(prefs, 'budget_monthly')) ?? 0;
         if (mounted) widget.onBudgetChanged(newBudget);
         _loadCategoryBudgets();
         _load(silent: true);
@@ -2097,7 +2104,7 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                       ),
                     );
                     final prefs = await SharedPreferences.getInstance();
-                    final newBudget = prefs.getInt('budget_monthly') ?? 0;
+                    final newBudget = (await UserPrefs.getInt(prefs, 'budget_monthly')) ?? 0;
                     if (mounted) widget.onBudgetChanged(newBudget);
                     _loadCategoryBudgets();
                     _load(silent: true);

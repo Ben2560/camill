@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/notification_inbox.dart';
+import '../../../shared/services/notification_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -123,5 +125,13 @@ class AuthService {
     await user.delete();
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    // 1. FCM トークンをバックエンドから削除（ログアウト後の誤配信を防止）
+    //    onTokenRefresh リスナーもここでキャンセルされる
+    await NotificationService().unregisterToken();
+    // 2. 通知インボックスのメモリキャッシュをリセット（前ユーザーの通知を隠す）
+    NotificationInbox().reset();
+    // 3. Firebase からサインアウト
+    await _auth.signOut();
+  }
 }

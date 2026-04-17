@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'shared/services/user_prefs.dart';
 import 'core/theme/camill_theme.dart';
 import 'core/theme/camill_theme_mode.dart';
 import 'core/theme/theme_provider.dart';
@@ -57,11 +58,11 @@ void main() async {
   // await しない（起動ブロックを避ける）
   NotificationService.init();
 
-  // テーマを起動前に読み込んでフラッシュを防ぐ
+  // テーマを起動前に読み込んでフラッシュを防ぐ（UID 別キーを優先）
   final prefs = await SharedPreferences.getInstance();
-  final baseName = prefs.getString('camill_theme_base')
+  final baseName = await UserPrefs.getString(prefs, 'camill_theme_base')
                 ?? prefs.getString('camill_theme'); // 旧キー後方互換
-  final autoSwitch = prefs.getBool('camill_auto_switch') ?? true;
+  final autoSwitch = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
 
   CamillThemeMode initialBase = CamillThemeMode.sakura;
   if (baseName != null) {

@@ -393,7 +393,8 @@ class _MonthPageContentState extends State<_MonthPageContent> {
 
     final categories = _summary?.byCategory ?? [];
     final recentReceipts = _summary?.recentReceipts ?? [];
-    final total = categories.fold(0, (s, e) => s + e.amount);
+    // totalExpense を使うことでカテゴリ合計と支出合計を一致させる
+    final int total = _summary?.totalExpense ?? categories.fold<int>(0, (s, e) => s + e.amount);
 
     return LoadingOverlay(
       isLoading: _loading,

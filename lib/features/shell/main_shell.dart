@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../shared/services/user_prefs.dart';
 import '../../core/theme/camill_colors.dart';
 import '../../core/theme/camill_theme.dart';
 import '../../shared/services/api_service.dart';
+import '../../shared/services/notification_inbox.dart';
 import '../../shared/services/notification_service.dart';
 import '../../shared/widgets/month_greeting_overlay.dart';
 import '../../shared/widgets/top_notification.dart';
@@ -86,6 +88,10 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   void _initNotifications() {
     final ns = NotificationService();
 
+    // 新しいユーザーのインボックスをロード（前ユーザーのキャッシュをリセット済みなので
+    // ここで load() することで現在ユーザーの通知履歴を正しく復元する）
+    NotificationInbox().load();
+
     // FCMトークンを登録（パーミッション要求も含む）
     ns.registerToken();
 
@@ -113,9 +119,9 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
     final currentKey = '${now.year}-${now.month}';
-    final lastSeen = prefs.getString('last_month_greeting');
+    final lastSeen = await UserPrefs.getString(prefs, 'last_month_greeting');
     if (lastSeen != currentKey) {
-      await prefs.setString('last_month_greeting', currentKey);
+      await UserPrefs.setString(prefs, 'last_month_greeting', currentKey);
       if (mounted) {
         setState(() {
           _showMonthGreeting = true;

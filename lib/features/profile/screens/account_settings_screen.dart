@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/user_prefs.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/widgets/camill_card.dart';
@@ -52,18 +53,36 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     super.dispose();
   }
 
+  /// UID 別のアバターファイル名を返す
+  static String _avatarFileName() {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    return 'profile_avatar_$uid.jpg';
+  }
+
   Future<void> _loadAvatar() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(_avatarPathKey);
+    final stored = await UserPrefs.getString(prefs, _avatarPathKey);
     if (stored == null) return;
-    final fileName = stored.contains('/') ? stored.split('/').last : stored;
+    final rawName = stored.contains('/') ? stored.split('/').last : stored;
     final dir = await getApplicationDocumentsDirectory();
-    final path = '${dir.path}/$fileName';
-    if (File(path).existsSync()) {
-      if (stored != fileName) {
-        await prefs.setString(_avatarPathKey, fileName);
+    final expectedName = _avatarFileName();
+
+    // 旧ファイル名（profile_avatar.jpg 等）→ UID 別ファイルへ移行
+    if (rawName != expectedName) {
+      final oldPath = '${dir.path}/$rawName';
+      final newPath = '${dir.path}/$expectedName';
+      if (File(oldPath).existsSync() && !File(newPath).existsSync()) {
+        await File(oldPath).copy(newPath);
       }
-      if (mounted) setState(() => _avatarPath = path);
+      if (File(newPath).existsSync()) {
+        await UserPrefs.setString(prefs, _avatarPathKey, expectedName);
+        if (mounted) setState(() => _avatarPath = newPath);
+      }
+    } else {
+      final path = '${dir.path}/$rawName';
+      if (File(path).existsSync()) {
+        if (mounted) setState(() => _avatarPath = path);
+      }
     }
   }
 
@@ -85,12 +104,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     if (picked == null || !mounted) return;
 
     final dir = await getApplicationDocumentsDirectory();
-    const fileName = 'profile_avatar.jpg';
+    final fileName = _avatarFileName();
     final dest = '${dir.path}/$fileName';
     await File(picked.path).copy(dest);
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_avatarPathKey, fileName);
+    await UserPrefs.setString(prefs, _avatarPathKey, fileName);
     if (mounted) setState(() => _avatarPath = dest);
   }
 
@@ -131,7 +150,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove(_avatarPathKey);
+                  await UserPrefs.remove(prefs, _avatarPathKey);
                   if (mounted) setState(() => _avatarPath = null);
                 },
               ),

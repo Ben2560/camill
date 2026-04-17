@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../shared/services/user_prefs.dart';
 import 'camill_colors.dart';
 import 'camill_theme_mode.dart';
 import 'sun_times.dart';
@@ -85,13 +86,13 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
   Future<void> setBase(CamillThemeMode base) async {
     state = state.copyWith(selectedBase: base);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('camill_theme_base', base.name);
+    await UserPrefs.setString(prefs, 'camill_theme_base', base.name);
   }
 
   Future<void> setAutoSwitch(bool value) async {
     state = state.copyWith(autoSwitch: value);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('camill_auto_switch', value);
+    await UserPrefs.setBool(prefs, 'camill_auto_switch', value);
     if (value) {
       await _scheduleFromSunTimes();
     } else {
@@ -115,9 +116,10 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString('camill_theme_base')
+    // UID付きキーを優先し、なければ旧キー（後方互換）にフォールバック
+    final name = await UserPrefs.getString(prefs, 'camill_theme_base')
                ?? prefs.getString('camill_theme');
-    final auto = prefs.getBool('camill_auto_switch') ?? true;
+    final auto = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
     CamillThemeMode? base;
     if (name != null) {
       try { base = CamillThemeMode.values.byName(name); } catch (_) {}

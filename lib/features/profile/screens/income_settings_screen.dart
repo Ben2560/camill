@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/user_prefs.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/widgets/camill_card.dart';
@@ -50,16 +51,16 @@ class _IncomeSettingsScreenState extends State<IncomeSettingsScreen> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+    final income = await UserPrefs.getInt(prefs, _monthlyIncomeKey) ?? 0;
+    final side = await UserPrefs.getInt(prefs, _sideIncomeKey) ?? 0;
+    final payday = await UserPrefs.getInt(prefs, _paydayKey) ?? 0;
+    final paydayType = await UserPrefs.getString(prefs, _paydayTypeKey) ?? 'before';
     if (!mounted) return;
-    final income = prefs.getInt(_monthlyIncomeKey) ?? 0;
-    final side = prefs.getInt(_sideIncomeKey) ?? 0;
     setState(() {
       _incomeCtrl.text = income > 0 ? income.toString() : '';
-      _paydayCtrl.text = (prefs.getInt(_paydayKey) ?? 0) > 0
-          ? (prefs.getInt(_paydayKey)!).toString()
-          : '';
+      _paydayCtrl.text = payday > 0 ? payday.toString() : '';
       _sideCtrl.text = side > 0 ? side.toString() : '';
-      _paydayType = prefs.getString(_paydayTypeKey) ?? 'before';
+      _paydayType = paydayType;
     });
   }
 
@@ -67,10 +68,10 @@ class _IncomeSettingsScreenState extends State<IncomeSettingsScreen> {
     setState(() => _saving = true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_monthlyIncomeKey, int.tryParse(_incomeCtrl.text) ?? 0);
-      await prefs.setInt(_paydayKey, int.tryParse(_paydayCtrl.text) ?? 0);
-      await prefs.setString(_paydayTypeKey, _paydayType);
-      await prefs.setInt(_sideIncomeKey, int.tryParse(_sideCtrl.text) ?? 0);
+      await UserPrefs.setInt(prefs, _monthlyIncomeKey, int.tryParse(_incomeCtrl.text) ?? 0);
+      await UserPrefs.setInt(prefs, _paydayKey, int.tryParse(_paydayCtrl.text) ?? 0);
+      await UserPrefs.setString(prefs, _paydayTypeKey, _paydayType);
+      await UserPrefs.setInt(prefs, _sideIncomeKey, int.tryParse(_sideCtrl.text) ?? 0);
       if (mounted) {
         showTopNotification(context, '保存しました');
         Navigator.of(context).pop();

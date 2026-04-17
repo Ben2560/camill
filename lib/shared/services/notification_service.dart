@@ -34,6 +34,9 @@ class NotificationService {
   /// MainShell でリッスンして context.go() で遷移する。
   final onRoutePush = StreamController<String>.broadcast();
 
+  /// onTokenRefresh のサブスクリプション（ログアウト時にキャンセルするため保持）
+  StreamSubscription<String>? _tokenRefreshSub;
+
   // ──────────────────────────────────────────────────────
   // 初期化（main() で一度だけ呼ぶ）
   // ──────────────────────────────────────────────────────
@@ -112,10 +115,25 @@ class NotificationService {
 
       await _sendTokenToServer(token);
 
-      // トークンリフレッシュを監視して自動更新
-      _messaging.onTokenRefresh.listen(_sendTokenToServer);
+      // 既存リスナーをキャンセルしてから再登録（複数ユーザー切り替え時の重複防止）
+      await _tokenRefreshSub?.cancel();
+      _tokenRefreshSub = _messaging.onTokenRefresh.listen(_sendTokenToServer);
     } catch (e) {
       debugPrint('[FCM] registerToken failed: $e');
+    }
+  }
+
+  /// ログアウト時に呼ぶ。
+  /// onTokenRefresh リスナーをキャンセルし、バックエンドの FCM トークンを削除する。
+  /// これにより、ログアウト後にこのデバイスへ誤って通知が届くことを防ぐ。
+  Future<void> unregisterToken() async {
+    await _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    try {
+      await ApiService().delete('/users/fcm-token');
+      debugPrint('[FCM] token unregistered');
+    } catch (e) {
+      debugPrint('[FCM] token unregister failed: $e');
     }
   }
 

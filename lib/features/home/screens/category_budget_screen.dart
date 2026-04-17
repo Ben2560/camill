@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/user_prefs.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/services/api_service.dart';
@@ -112,7 +113,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     final prefs = await SharedPreferences.getInstance();
     // まずSharedPrefsから読み込む
     for (final key in _categories.keys) {
-      _budgets[key] = prefs.getInt('category_budget_$key') ?? 0;
+      _budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
     // APIから取得してSharedPrefsを上書き（マイグレーション兼同期）
     try {
@@ -126,7 +127,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         }
         // SharedPrefsにも反映
         for (final e in _budgets.entries) {
-          await prefs.setInt('category_budget_${e.key}', e.value);
+          await UserPrefs.setInt(prefs, 'category_budget_${e.key}', e.value);
         }
       } else {
         // DBが空 → ローカルデータをAPIへ初回アップロード
@@ -143,20 +144,20 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     // カテゴリ予算の合計を月の予算として自動反映
     final computed = _budgets.values.fold(0, (s, v) => s + v);
     _totalBudget = computed;
-    await prefs.setInt(_budgetKey, _totalBudget);
+    await UserPrefs.setInt(prefs, _budgetKey, _totalBudget);
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _persist({bool updateTotal = true}) async {
     final prefs = await SharedPreferences.getInstance();
     for (final e in _budgets.entries) {
-      await prefs.setInt('category_budget_${e.key}', e.value);
+      await UserPrefs.setInt(prefs, 'category_budget_${e.key}', e.value);
     }
     if (updateTotal) {
       // カテゴリ合計を月の予算として保存
       final computed = _budgets.values.fold(0, (s, v) => s + v);
       _totalBudget = computed;
-      await prefs.setInt(_budgetKey, _totalBudget);
+      await UserPrefs.setInt(prefs, _budgetKey, _totalBudget);
     }
     // APIにも保存
     try {
@@ -292,7 +293,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                     onPressed: () async {
                       final val = int.tryParse(ctrl.text) ?? 0;
                       final prefs = await SharedPreferences.getInstance();
-                      await prefs.setInt(_budgetKey, val);
+                      await UserPrefs.setInt(prefs, _budgetKey, val);
                       if (mounted) setState(() => _totalBudget = val);
                       await _persist(updateTotal: false);
                       if (ctx.mounted) Navigator.pop(ctx);

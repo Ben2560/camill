@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/user_prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
@@ -79,7 +80,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _loadAvatar() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(_avatarPathKey);
+    final stored = await UserPrefs.getString(prefs, _avatarPathKey);
     if (!mounted) return;
     if (stored == null) {
       setState(() => _avatarPath = null);
@@ -87,6 +88,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
     final fileName = stored.contains('/') ? stored.split('/').last : stored;
     final dir = await getApplicationDocumentsDirectory();
+    // UID 別ファイル名への移行（旧: profile_avatar.jpg → 新: profile_avatar_{uid}.jpg）
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    final expectedName = 'profile_avatar_$uid.jpg';
+    if (fileName != expectedName) {
+      final oldPath = '${dir.path}/$fileName';
+      final newPath = '${dir.path}/$expectedName';
+      if (File(oldPath).existsSync() && !File(newPath).existsSync()) {
+        await File(oldPath).copy(newPath);
+      }
+      if (File(newPath).existsSync()) {
+        await UserPrefs.setString(prefs, _avatarPathKey, expectedName);
+        if (mounted) setState(() => _avatarPath = newPath);
+      } else {
+        if (mounted) setState(() => _avatarPath = null);
+      }
+      return;
+    }
     final path = '${dir.path}/$fileName';
     if (!mounted) return;
     if (File(path).existsSync()) {
@@ -98,17 +116,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _loadBudget() async {
     final prefs = await SharedPreferences.getInstance();
+    final v = await UserPrefs.getInt(prefs, _budgetKey);
     if (!mounted) return;
-    setState(() => _budget = prefs.getInt(_budgetKey) ?? 80000);
+    setState(() => _budget = v ?? 80000);
   }
 
   Future<void> _loadIncome() async {
     final prefs = await SharedPreferences.getInstance();
+    final income = await UserPrefs.getInt(prefs, _monthlyIncomeKey);
+    final payday = await UserPrefs.getInt(prefs, _paydayKey);
+    final side = await UserPrefs.getInt(prefs, _sideIncomeKey);
     if (!mounted) return;
     setState(() {
-      _monthlyIncome = prefs.getInt(_monthlyIncomeKey) ?? 0;
-      _payday = prefs.getInt(_paydayKey) ?? 0;
-      _sideIncome = prefs.getInt(_sideIncomeKey) ?? 0;
+      _monthlyIncome = income ?? 0;
+      _payday = payday ?? 0;
+      _sideIncome = side ?? 0;
     });
   }
 

@@ -45,7 +45,8 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   String? _highlightedStoreId;
   bool _locationPermissionGranted = false;
   Timer? _debounceTimer;
-  double _sheetSize = 0.32;
+  bool _suppressCameraFetch = false; // プログラム的なカメラ移動時にフェッチを抑制
+  double _sheetSize = 0.38;
   late String _mapStyle;
   CommunitySettings? _settings;
 
@@ -208,26 +209,32 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   void _onPinTap(CommunityStore store) {
     setState(() => _highlightedStoreId = store.storeId);
-    // ボトムシートを展開
-    _sheetController.animateTo(
-      0.45,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+    _showStoreDetailSheet(store);
+  }
+
+  void _showStoreDetailSheet(CommunityStore store) {
+    final colors = context.colors;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _StoreDetailSheet(
+        store: store,
+        colors: colors,
+        onLockTap: store.isLocked
+            ? () {
+                Navigator.pop(context);
+                _onLockedStoreTap(store);
+              }
+            : null,
+      ),
     );
-    // リストを該当店舗までスクロール
-    final index = _stores.indexWhere((s) => s.storeId == store.storeId);
-    if (index >= 0 && _listScrollController.hasClients) {
-      _listScrollController.animateTo(
-        index * 72.0, // カードの推定高さ
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
   }
 
   void _onCardTap(CommunityStore store) {
     setState(() => _highlightedStoreId = store.storeId);
-    // 地図を店舗の位置にフォーカス
+    _suppressCameraFetch = true;
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
         LatLng(store.latitude, store.longitude),
@@ -250,7 +257,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   void _cycleSheetSize() {
     final current = _sheetController.size;
-    final middle = _searchPanelOpen ? 0.55 : 0.32;
+    final middle = _searchPanelOpen ? 0.55 : 0.38;
     double next;
     if (current < 0.2) {
       next = middle; // しまう → マニュアル
@@ -267,6 +274,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   }
 
   void _onCameraIdle() {
+    if (_suppressCameraFetch) {
+      _suppressCameraFetch = false;
+      return;
+    }
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (_currentZoom >= _minFetchZoom) {
@@ -530,6 +541,12 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
               mapToolbarEnabled: false,
               onMapCreated: (controller) {
                 _mapController = controller;
+                // _initLocation() がマップ生成前に完了していた場合に備えてカメラを移動
+                if (_currentCenter != _defaultLatLng) {
+                  controller.moveCamera(
+                    CameraUpdate.newLatLng(_currentCenter),
+                  );
+                }
               },
               onCameraMove: _onCameraMove,
               onCameraIdle: _onCameraIdle,
@@ -717,11 +734,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
           // ボトムシート
           DraggableScrollableSheet(
             controller: _sheetController,
-            initialChildSize: 0.32,
-            minChildSize: 0.08,
+            initialChildSize: 0.38,
+            minChildSize: 0.1,
             maxChildSize: 0.93,
             snap: true,
-            snapSizes: const [0.08, 0.32, 0.93],
+            snapSizes: const [0.1, 0.38, 0.93],
             builder: (context, scrollController) {
               return Container(
                 decoration: BoxDecoration(
@@ -869,7 +886,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   bool get _hasActiveFilter => _filterFree || _minDiscountAmount != null;
 
-  bool get _isSheetCollapsed => _sheetSize < 0.15;
+  bool get _isSheetCollapsed => _sheetSize < 0.18;
 
   Widget _buildSearchButton(CamillColors colors) {
     return Padding(
@@ -888,9 +905,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
               duration: const Duration(milliseconds: 320),
               curve: Curves.easeOutCubic,
             );
-          } else if (_sheetController.size > 0.45) {
+          } else if (_sheetController.size > 0.55) {
             _sheetController.animateTo(
-              0.32,
+              0.38,
               duration: const Duration(milliseconds: 320),
               curve: Curves.easeOutCubic,
             );
@@ -931,7 +948,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       _minDiscountAmount = null;
                       _searchPanelOpen = false;
                     });
-                    _sheetController.animateTo(0.32,
+                    _sheetController.animateTo(0.38,
                         duration: const Duration(milliseconds: 320),
                         curve: Curves.easeOutCubic);
                   },
@@ -967,7 +984,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 if (_filterFree) _minDiscountAmount = null;
                 _searchPanelOpen = false;
               });
-              _sheetController.animateTo(0.32,
+              _sheetController.animateTo(0.38,
                   duration: const Duration(milliseconds: 320),
                   curve: Curves.easeOutCubic);
             },
@@ -1076,7 +1093,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                             _filterFree = false;
                             _searchPanelOpen = false;
                           });
-                          _sheetController.animateTo(0.32,
+                          _sheetController.animateTo(0.38,
                               duration: const Duration(milliseconds: 320),
                               curve: Curves.easeOutCubic);
                         },
@@ -1211,6 +1228,320 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
           );
         },
         childCount: filtered.length,
+      ),
+    );
+  }
+}
+
+// ─── 店舗詳細シート ────────────────────────────────────────────────────────────
+
+class _StoreDetailSheet extends StatelessWidget {
+  final CommunityStore store;
+  final CamillColors colors;
+  final VoidCallback? onLockTap;
+
+  const _StoreDetailSheet({
+    required this.store,
+    required this.colors,
+    this.onLockTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = store.coupons.where((c) => !c.isExpired).toList();
+    final expired = store.coupons.where((c) => c.isExpired).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ドラッグハンドル
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.textMuted.withAlpha(100),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+          // 店舗ヘッダー
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: store.isLocked
+                        ? colors.textMuted.withAlpha(20)
+                        : colors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    store.isLocked ? Icons.lock_outline : Icons.store,
+                    color: store.isLocked ? colors.textMuted : colors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (store.isFeatured && !store.isLocked) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: colors.accent.withAlpha(30),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('🔥',
+                                  style: TextStyle(fontSize: 10)),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Flexible(
+                            child: Text(
+                              store.storeName,
+                              style: camillBodyStyle(
+                                16,
+                                colors.textPrimary,
+                                weight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (store.storeAddress != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          store.storeAddress!,
+                          style: camillBodyStyle(12, colors.textMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!store.isLocked)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: colors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${store.couponCount}件',
+                      style: camillBodyStyle(12, colors.primary,
+                          weight: FontWeight.w600),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: colors.surfaceBorder),
+          // クーポン一覧 or ロック
+          if (store.isLocked)
+            _buildLockedBody(context, colors)
+          else
+            _buildCouponList(context, colors, active, expired),
+          SizedBox(
+              height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockedBody(BuildContext context, CamillColors colors) {
+    return Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        children: [
+          Icon(Icons.lock_outline, size: 40, color: colors.textMuted),
+          const SizedBox(height: 12),
+          Text(
+            'このお店のクーポンを見るには\n店舗を選択するか、プレミアムプランが必要です',
+            style: camillBodyStyle(13, colors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: onLockTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '店舗を選択する',
+                style: camillBodyStyle(14, Colors.white,
+                    weight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCouponList(
+    BuildContext context,
+    CamillColors colors,
+    List<SharedCoupon> active,
+    List<SharedCoupon> expired,
+  ) {
+    if (store.coupons.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(28),
+        child: Text(
+          'クーポンはありません',
+          style: camillBodyStyle(13, colors.textMuted),
+        ),
+      );
+    }
+
+    return ListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        ...active.map((c) => _CouponRow(coupon: c, colors: colors)),
+        if (expired.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: Text(
+              '終了したクーポン',
+              style: camillBodyStyle(11, colors.textMuted,
+                  weight: FontWeight.w600),
+            ),
+          ),
+          ...expired.map((c) => _CouponRow(coupon: c, colors: colors)),
+        ],
+      ],
+    );
+  }
+}
+
+class _CouponRow extends StatelessWidget {
+  final SharedCoupon coupon;
+  final CamillColors colors;
+
+  const _CouponRow({required this.coupon, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    final expired = coupon.isExpired;
+    final label = coupon.isFree
+        ? '無料クーポン'
+        : coupon.discountPercent != null
+            ? '${coupon.discountPercent}%OFF'
+            : '${coupon.discountAmount}円引き';
+
+    String? dateLabel;
+    if (coupon.validUntil != null) {
+      final d = coupon.validUntil!;
+      dateLabel = '〜${d.month}/${d.day}まで';
+    }
+
+    return Opacity(
+      opacity: expired ? 0.45 : 1.0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: expired
+                    ? colors.surfaceBorder
+                    : coupon.isFree
+                        ? colors.accent.withAlpha(30)
+                        : colors.primaryLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  coupon.isFree ? '🎁' : '¥',
+                  style: TextStyle(
+                    fontSize: coupon.isFree ? 16 : 14,
+                    color: expired ? colors.textMuted : colors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    coupon.description,
+                    style: camillBodyStyle(
+                      13,
+                      expired ? colors.textMuted : colors.textPrimary,
+                      weight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        label,
+                        style: camillBodyStyle(
+                          12,
+                          expired ? colors.textMuted : colors.primary,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                      if (dateLabel != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          dateLabel,
+                          style: camillBodyStyle(11, colors.textMuted),
+                        ),
+                      ],
+                      if (coupon.isExpiringSoon && !expired) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: colors.danger.withAlpha(25),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'まもなく終了',
+                            style: camillBodyStyle(10, colors.danger,
+                                weight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

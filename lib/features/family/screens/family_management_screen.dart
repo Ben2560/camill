@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/user_prefs.dart';
 
 import '../../../core/theme/camill_colors.dart';
 import '../../../shared/models/family_model.dart';
@@ -94,13 +95,13 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
 
   Future<void> _checkBanner() async {
     final prefs = await SharedPreferences.getInstance();
-    final dismissed = prefs.getBool(_bannerPrefKey) ?? false;
+    final dismissed = await UserPrefs.getBool(prefs, _bannerPrefKey) ?? false;
     if (mounted) setState(() => _showInfoBanner = !dismissed);
   }
 
   Future<void> _dismissBanner() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_bannerPrefKey, true);
+    await UserPrefs.setBool(prefs, _bannerPrefKey, true);
     if (mounted) setState(() => _showInfoBanner = false);
   }
 

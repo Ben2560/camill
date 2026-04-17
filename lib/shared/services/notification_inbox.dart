@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'user_prefs.dart';
 
 class NotificationItem {
   final String title;
@@ -56,7 +57,7 @@ class NotificationInbox {
   /// アプリ起動時に呼んで保存済みデータを読み込む。
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefsKey);
+    final raw = await UserPrefs.getString(prefs, _prefsKey);
     if (raw == null) return;
     try {
       final list = jsonDecode(raw) as List;
@@ -101,11 +102,18 @@ class NotificationInbox {
     await _save();
   }
 
-  /// 全通知を削除する。
+  /// 全通知を削除する（ストレージも消去）。
   Future<void> clear() async {
     _items = [];
     _refreshUnread();
     await _save();
+  }
+
+  /// ログアウト時に呼ぶ。メモリ上のキャッシュのみをリセットし、
+  /// ストレージには触れない（次回ログイン時に load() で再構築される）。
+  void reset() {
+    _items = [];
+    _refreshUnread();
   }
 
   void _refreshUnread() =>
@@ -113,7 +121,8 @@ class NotificationInbox {
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await UserPrefs.setString(
+      prefs,
       _prefsKey,
       jsonEncode(_items.map((i) => i.toJson()).toList()),
     );

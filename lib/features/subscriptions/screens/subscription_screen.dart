@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
@@ -6,6 +11,37 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 import '../../../shared/widgets/camill_card.dart';
+
+// サブスク種別の定義
+const _subTypeLabel = {
+  'streaming': '動画・音楽',
+  'app':       'アプリ・クラウド',
+  'shopping':  '通販・EC',
+  'news':      'ニュース・書籍',
+  'game':      'ゲーム',
+  'fitness':   'フィットネス',
+  'other':     'その他',
+};
+
+const _subTypeIcon = {
+  'streaming': Icons.play_circle_outline,
+  'app':       Icons.cloud_outlined,
+  'shopping':  Icons.shopping_bag_outlined,
+  'news':      Icons.article_outlined,
+  'game':      Icons.sports_esports_outlined,
+  'fitness':   Icons.fitness_center_outlined,
+  'other':     Icons.subscriptions_outlined,
+};
+
+const _subTypeColor = {
+  'streaming': Color(0xFFE50914),  // 赤
+  'app':       Color(0xFF007AFF),  // 青
+  'shopping':  Color(0xFFFF9500),  // オレンジ
+  'news':      Color(0xFF34C759),  // 緑
+  'game':      Color(0xFF5856D6),  // 紫
+  'fitness':   Color(0xFFFF2D55),  // ピンク
+  'other':     Color(0xFF8E8E93),  // グレー
+};
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -59,7 +95,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
         if (!silent) _loading = false;
       });
     } catch (e) {
-      // silently swallow
+      debugPrint('loadAll error: $e');
     } finally {
       if (mounted && !silent) setState(() => _loading = false);
     }
@@ -82,7 +118,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       await _api.postAny('/subscriptions/$id/confirm', body: {});
       await _loadAll();
     } catch (e) {
-      // silently swallow
+      debugPrint('confirm error: $e');
     }
   }
 
@@ -107,7 +143,89 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       await _api.delete('/subscriptions/$id');
       await _loadAll();
     } catch (e) {
-      // silently swallow
+      debugPrint('delete error: $e');
+    }
+  }
+
+  // ---- スキャン ----
+
+  Future<void> _scanFromImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final colors = context.colors;
+
+    // スキャン中ダイアログ
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _ScanningDialog(),
+    );
+
+    try {
+      final bytes = await FlutterImageCompress.compressWithFile(
+        picked.path,
+        minWidth: 1000,
+        quality: 75,
+      ) ?? await File(picked.path).readAsBytes();
+
+      final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      final result = await _api.postAny(
+        '/subscriptions/scan',
+        body: {'image_base64': b64},
+      );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // dismiss scanning dialog
+
+      final items = (result as List).cast<Map<String, dynamic>>();
+      if (items.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('サブスクが検出されませんでした')),
+        );
+        return;
+      }
+
+      // 結果シートを表示
+      final added = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: colors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (ctx) => _ScanResultSheet(
+          items: items,
+          currencyFmt: _currencyFmt,
+          colors: colors,
+          onSave: (selected) async {
+            await _api.postAny(
+              '/subscriptions/scan/add',
+              body: {'subscriptions': selected},
+            );
+          },
+        ),
+      );
+
+      if (added == true) {
+        await _loadAll();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('サブスクを登録しました')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('解析に失敗しました: $e')),
+        );
+      }
     }
   }
 
@@ -122,6 +240,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
           backgroundColor: colors.background,
           title: Text('サブスク管理', style: camillHeadingStyle(17, colors.textPrimary)),
           iconTheme: IconThemeData(color: colors.textSecondary),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.document_scanner_outlined, color: colors.primary),
+              tooltip: 'スクショから追加',
+              onPressed: _scanFromImage,
+            ),
+          ],
           bottom: TabBar(
             controller: _tabCtrl,
             labelColor: colors.primary,
@@ -209,7 +334,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     if (_confirmed.isEmpty) {
       return _EmptyState(
         icon: Icons.subscriptions_outlined,
-        message: '登録済みのサブスクはありません',
+        message: 'サブスクはまだ登録されていません\n右上のアイコンからスクショで一括追加できます',
         colors: colors,
       );
     }
@@ -283,6 +408,267 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
   }
 }
 
+// ---- スキャン中ダイアログ ----
+
+class _ScanningDialog extends StatelessWidget {
+  const _ScanningDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AlertDialog(
+      content: Row(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 16),
+          Text('解析中...'),
+        ],
+      ),
+    );
+  }
+}
+
+// ---- スキャン結果シート ----
+
+class _ScanResultSheet extends StatefulWidget {
+  final List<Map<String, dynamic>> items;
+  final NumberFormat currencyFmt;
+  final CamillColors colors;
+  final Future<void> Function(List<Map<String, dynamic>>) onSave;
+
+  const _ScanResultSheet({
+    required this.items,
+    required this.currencyFmt,
+    required this.colors,
+    required this.onSave,
+  });
+
+  @override
+  State<_ScanResultSheet> createState() => _ScanResultSheetState();
+}
+
+class _ScanResultSheetState extends State<_ScanResultSheet> {
+  late final Set<int> _selected;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // confidence >= 0.7 のものを初期選択
+    _selected = {
+      for (var i = 0; i < widget.items.length; i++)
+        if ((widget.items[i]['confidence'] as num? ?? 0) >= 0.7) i
+    };
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final toSave = [
+      for (var i = 0; i < widget.items.length; i++)
+        if (_selected.contains(i)) widget.items[i],
+    ];
+    try {
+      await widget.onSave(toSave);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存に失敗しました: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final fmt = widget.currencyFmt;
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (ctx, scrollCtrl) => Column(
+        children: [
+          // ドラッグハンドル
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: colors.surfaceBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Text('検出されたサブスク',
+                    style: camillBodyStyle(18, colors.textPrimary,
+                        weight: FontWeight.w700)),
+                const Spacer(),
+                Text('${_selected.length}件選択',
+                    style: camillBodyStyle(13, colors.textMuted)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text('追加したいサブスクにチェックを入れてください',
+                style: camillBodyStyle(12, colors.textMuted)),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView.separated(
+              controller: scrollCtrl,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: widget.items.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (ctx, i) {
+                final item = widget.items[i];
+                final isSelected = _selected.contains(i);
+                final subType = item['subscription_type'] as String? ?? 'other';
+                final typeColor = _subTypeColor[subType] ?? const Color(0xFF8E8E93);
+                final typeIcon = _subTypeIcon[subType] ?? Icons.subscriptions_outlined;
+                final typeLabel = _subTypeLabel[subType] ?? 'その他';
+                final cycle = item['billing_cycle'] as String? ?? 'monthly';
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selected.remove(i);
+                      } else {
+                        _selected.add(i);
+                      }
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colors.primaryLight
+                          : colors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? colors.primary
+                            : colors.surfaceBorder,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: typeColor.withAlpha(24),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(typeIcon, color: typeColor, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item['service_name'] as String? ?? '',
+                                  style: camillBodyStyle(15, colors.textPrimary,
+                                      weight: FontWeight.w600)),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: typeColor.withAlpha(20),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(typeLabel,
+                                        style: camillBodyStyle(10, typeColor,
+                                            weight: FontWeight.w600)),
+                                  ),
+                                  if (cycle == 'annual') ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: colors.textMuted.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text('年払い',
+                                          style: camillBodyStyle(10,
+                                              colors.textMuted,
+                                              weight: FontWeight.w600)),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(fmt.format(item['monthly_amount'] as int? ?? 0),
+                                style: camillAmountStyle(15, colors.textPrimary)),
+                            Text('/月', style: camillBodyStyle(11, colors.textMuted)),
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isSelected ? colors.primary : colors.textMuted,
+                          size: 22,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: (_selected.isEmpty || _saving) ? null : _save,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text('${_selected.length}件を登録する',
+                        style: camillBodyStyle(15, Colors.white,
+                            weight: FontWeight.w600)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---- 登録済みカード ----
+
 class _ConfirmedCard extends StatelessWidget {
   final Map<String, dynamic> sub;
   final NumberFormat currencyFmt;
@@ -301,10 +687,12 @@ class _ConfirmedCard extends StatelessWidget {
     final storeName = sub['store_name'] as String? ?? '';
     final amount = (sub['monthly_amount'] as num?)?.toInt() ?? 0;
     final detectedAt = sub['detected_at'] as String? ?? '';
+    final subType = sub['subscription_type'] as String? ?? 'other';
+    final typeColor = _subTypeColor[subType] ?? const Color(0xFF8E8E93);
+    final typeIcon = _subTypeIcon[subType] ?? Icons.subscriptions_outlined;
+    final typeLabel = _subTypeLabel[subType] ?? 'その他';
     DateTime? date;
-    try {
-      date = DateTime.parse(detectedAt);
-    } catch (_) {}
+    try { date = DateTime.parse(detectedAt); } catch (_) {}
 
     return CamillCard(
       child: Row(
@@ -313,10 +701,10 @@ class _ConfirmedCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: colors.primaryLight,
+              color: typeColor.withAlpha(24),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.autorenew, color: colors.primary, size: 22),
+            child: Icon(typeIcon, color: typeColor, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -326,9 +714,27 @@ class _ConfirmedCard extends StatelessWidget {
                 Text(storeName,
                     style: camillBodyStyle(15, colors.textPrimary,
                         weight: FontWeight.w600)),
-                if (date != null)
-                  Text('検出: ${DateFormat('yyyy年M月').format(date)}',
-                      style: camillBodyStyle(12, colors.textMuted)),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: typeColor.withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(typeLabel,
+                          style: camillBodyStyle(10, typeColor,
+                              weight: FontWeight.w600)),
+                    ),
+                    if (date != null) ...[
+                      const SizedBox(width: 6),
+                      Text('検出: ${DateFormat('yyyy年M月').format(date)}',
+                          style: camillBodyStyle(11, colors.textMuted)),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -352,6 +758,8 @@ class _ConfirmedCard extends StatelessWidget {
     );
   }
 }
+
+// ---- 候補カード ----
 
 class _CandidateCard extends StatelessWidget {
   final Map<String, dynamic> candidate;

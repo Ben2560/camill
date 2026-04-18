@@ -1109,8 +1109,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     'education': (icon: Icons.menu_book_outlined, label: '教育・書籍'),
     'utility': (icon: Icons.bolt_outlined, label: '光熱費'),
     'subscription': (icon: Icons.subscriptions_outlined, label: 'サブスク'),
+    'housing': (icon: Icons.home_outlined, label: '住居費'),
     'other': (icon: Icons.more_horiz, label: 'その他雑費'),
   };
+
+  // 固定費カテゴリキー
+  static const _fixedCategoryKeys = {'housing', 'utility', 'subscription'};
 
   @override
   void initState() {
@@ -2027,6 +2031,29 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     );
   }
 
+  Widget _buildFixedVarChip(String label, int amount, Color color, CamillColors colors) {
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(label, style: camillBodyStyle(11, colors.textMuted)),
+          const Spacer(),
+          Text(
+            _currencyFmt.format(amount),
+            style: camillBodyStyle(12, colors.textPrimary, weight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCategorySummary(CamillColors colors) {
     final cats = _summary!.byCategory;
     // カテゴリ別データは月次のみ取得しているため常に月次合計を使う
@@ -2050,6 +2077,12 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
     final rowsTotal = rows.fold(0, (sum, r) => sum + r.amount);
     final otherAmount = total - rowsTotal;
     final otherMeta = _categoryMeta['other']!;
+
+    // 固定費 / 変動費 合計
+    final fixedTotal = rows
+        .where((r) => _fixedCategoryKeys.contains(r.key))
+        .fold(0, (s, r) => s + r.amount);
+    final variableTotal = total - fixedTotal;
 
     return OpenContainer(
       transitionType: ContainerTransitionType.fade,
@@ -2114,6 +2147,23 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
               ],
             ),
             const SizedBox(height: 12),
+            // 固定費 / 変動費 サマリー行
+            if (total > 0)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    _buildFixedVarChip('固定費', fixedTotal, const Color(0xFF8D6E63), colors),
+                    const SizedBox(width: 8),
+                    _buildFixedVarChip('変動費', variableTotal, colors.primary, colors),
+                  ],
+                ),
+              ),
             if (rows.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),

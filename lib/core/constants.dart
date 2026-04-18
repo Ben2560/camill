@@ -23,8 +23,12 @@ class AppConstants {
     'education': '教育・書籍',
     'utility': '光熱費',
     'subscription': 'サブスク',
+    'housing': '住居費',
     'other': 'その他',
   };
+
+  // Fixed cost categories (毎月ほぼ固定の支出)
+  static const Set<String> fixedCategories = {'housing', 'utility', 'subscription'};
 
   // Category colors (badge background: withAlpha(30), text/border: full color)
   static const Map<String, Color> categoryColors = {
@@ -39,6 +43,7 @@ class AppConstants {
     'education': Color(0xFF4CAF50), // 教育・書籍  - グリーン
     'utility': Color(0xFF0097A7), // 光熱費      - シアン
     'subscription': Color(0xFF7986CB), // サブスク    - インディゴ
+    'housing': Color(0xFF8D6E63), // 住居費      - ブラウン
     'other': Color(0xFF90A4AE), // その他      - グレー
   };
 

@@ -11,6 +11,7 @@ import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../auth/services/auth_service.dart';
+import '../../home/screens/fixed_expense_scan_screen.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 
@@ -224,7 +225,7 @@ String get _displayName =>
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 15, 8, 4),
             child: Text(
-              'プロフィール',
+              'マイページ',
               style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),
             ),
           ),
@@ -303,6 +304,27 @@ String get _displayName =>
             onTap: () async {
               await context.push('/category-budget');
               if (mounted) _loadBudget();
+            },
+          ),
+          _SettingsItem(
+            icon: Icons.subscriptions_outlined,
+            title: 'サブスク管理',
+            subtitle: 'スクショから一括追加・種別管理',
+            colors: colors,
+            onTap: () => context.push('/subscriptions'),
+          ),
+          _SettingsItem(
+            icon: Icons.account_balance_outlined,
+            title: '固定費の確認',
+            subtitle: '銀行明細で引き落とし状況を確認',
+            colors: colors,
+            onTap: () {
+              Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const FixedExpenseScanScreen(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 8),

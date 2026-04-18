@@ -512,7 +512,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
                       _BottomNavItem(
                         icon: Icons.person_outline,
                         activeIcon: Icons.person,
-                        label: 'プロフィール',
+                        label: 'マイページ',
                         selected: _currentIndex == 4,
                         colors: colors,
                         onTap: () => _onNavTap(4),

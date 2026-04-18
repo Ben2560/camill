@@ -294,6 +294,8 @@ class _ReportPageState extends State<_ReportPage> {
                 children: [
                   _buildSummaryCard(colors),
                   const SizedBox(height: 12),
+                  _buildFixedVariableCard(colors),
+                  const SizedBox(height: 12),
                   _buildSavingsCard(colors),
                   const SizedBox(height: 12),
                   _buildScanCard(colors),
@@ -647,8 +649,99 @@ class _ReportPageState extends State<_ReportPage> {
     'education': '教育・書籍',
     'subscription': 'サブスク',
     'utility': '光熱費',
+    'housing': '住居費',
     'other': 'その他',
   };
+
+  static const _fixedCategoryKeys = {'housing', 'utility', 'subscription'};
+
+  Widget _buildFixedVariableCard(CamillColors colors) {
+    final r = _report!;
+    final total = (r['total_expense'] as num?)?.toInt() ?? 0;
+    final cats = (r['top_categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    int fixedTotal = 0;
+    for (final cat in cats) {
+      final key = cat['category'] as String? ?? '';
+      final amount = (cat['amount'] as num?)?.toInt() ?? 0;
+      if (_fixedCategoryKeys.contains(key)) fixedTotal += amount;
+    }
+    final variableTotal = total - fixedTotal;
+    final fixedRatio = total > 0 ? (fixedTotal / total).clamp(0.0, 1.0) : 0.0;
+    final variableRatio = total > 0 ? (variableTotal / total).clamp(0.0, 1.0) : 0.0;
+
+    const fixedColor = Color(0xFF8D6E63);
+
+    return CamillCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('固定費 / 変動費',
+              style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
+          const SizedBox(height: 14),
+          // 積み上げバー
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 10,
+              child: Row(
+                children: [
+                  Flexible(
+                    flex: (fixedRatio * 1000).round(),
+                    child: Container(color: fixedColor),
+                  ),
+                  Flexible(
+                    flex: ((1 - fixedRatio) * 1000).round(),
+                    child: Container(color: colors.primary.withValues(alpha: 0.7)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _buildFVItem('固定費', fixedTotal, fixedRatio, fixedColor, colors),
+              const SizedBox(width: 12),
+              Container(width: 1, height: 40, color: colors.surfaceBorder),
+              const SizedBox(width: 12),
+              _buildFVItem('変動費', variableTotal, variableRatio,
+                  colors.primary.withValues(alpha: 0.7), colors),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFVItem(String label, int amount, double ratio, Color color, CamillColors colors) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8, height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(label, style: camillBodyStyle(12, colors.textMuted)),
+              const Spacer(),
+              Text('${(ratio * 100).round()}%',
+                  style: camillBodyStyle(12, colors.textMuted)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(_currencyFmt.format(amount),
+              style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
 
   Widget _buildCategoryRanking(CamillColors colors) {
     final r = _report!;

@@ -1,15 +1,19 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/services/user_prefs.dart';
+import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
+import '../../../shared/models/fixed_expense_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/camill_card.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
+import '../services/fixed_expense_service.dart';
 
 class CategoryBudgetScreen extends StatefulWidget {
   final bool dismissible;
@@ -20,29 +24,50 @@ class CategoryBudgetScreen extends StatefulWidget {
 }
 
 class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
-    with SingleTickerProviderStateMixin {
-  static const _categories = <String, ({IconData icon, String label})>{
-    'food':         (icon: Icons.rice_bowl_outlined,       label: '食費'),
-    'dining_out':   (icon: Icons.restaurant_outlined,      label: '外食費'),
-    'daily':        (icon: Icons.shopping_basket_outlined, label: '日用品'),
-    'transport':    (icon: Icons.train_outlined,           label: '交通費'),
-    'clothing':     (icon: Icons.checkroom_outlined,       label: '衣服'),
-    'social':       (icon: Icons.people_outline,           label: '交際費'),
-    'hobby':        (icon: Icons.sports_esports_outlined,  label: '趣味'),
-    'medical':      (icon: Icons.local_hospital_outlined,  label: '医療・健康'),
-    'education':    (icon: Icons.menu_book_outlined,       label: '教育・書籍'),
-    'utility':      (icon: Icons.bolt_outlined,            label: '光熱費'),
+    with TickerProviderStateMixin {
+
+  // 固定費カテゴリ
+  static const _fixedCategories = <String, ({IconData icon, String label})>{
+    'housing':      (icon: Icons.home_outlined,           label: '住居費'),
+    'utility':      (icon: Icons.bolt_outlined,           label: '光熱費'),
     'subscription': (icon: Icons.subscriptions_outlined,  label: 'サブスク'),
-    'other':        (icon: Icons.more_horiz,               label: 'その他雑費'),
+  };
+
+  // 変動費カテゴリ
+  static const _variableCategories = <String, ({IconData icon, String label})>{
+    'food':       (icon: Icons.rice_bowl_outlined,       label: '食費'),
+    'dining_out': (icon: Icons.restaurant_outlined,      label: '外食費'),
+    'daily':      (icon: Icons.shopping_basket_outlined, label: '日用品'),
+    'transport':  (icon: Icons.train_outlined,           label: '交通費'),
+    'clothing':   (icon: Icons.checkroom_outlined,       label: '衣服'),
+    'social':     (icon: Icons.people_outline,           label: '交際費'),
+    'hobby':      (icon: Icons.sports_esports_outlined,  label: '趣味'),
+    'medical':    (icon: Icons.local_hospital_outlined,  label: '医療・健康'),
+    'education':  (icon: Icons.menu_book_outlined,       label: '教育・書籍'),
+    'other':      (icon: Icons.more_horiz,               label: 'その他雑費'),
+  };
+
+  // 全カテゴリ（API保存・合計計算用）
+  static Map<String, ({IconData icon, String label})> get _allCategories => {
+    ..._fixedCategories,
+    ..._variableCategories,
   };
 
   static const _budgetKey = 'budget_monthly';
 
   final _api = ApiService();
+  final _fixedSvc = FixedExpenseService();
   final _fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
   final Map<String, int> _budgets = {};
+  // 固定費: 引き落とし日設定（category → FixedExpenseSetting）
+  final Map<String, FixedExpenseSetting> _fixedSettings = {};
+  // 固定費: 当月支払い実績（category → FixedPayment）
+  Map<String, FixedPayment> _payments = {};
   int _totalBudget = 0;
   bool _loading = true;
+
+  // タブ: 0=固定費, 1=変動費
+  int _tabIndex = 0;
 
   final _dismissOffset = ValueNotifier<double>(0);
   late final AnimationController _snapController;
@@ -111,26 +136,22 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    // まずSharedPrefsから読み込む
-    for (final key in _categories.keys) {
+    for (final key in _allCategories.keys) {
       _budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
-    // APIから取得してSharedPrefsを上書き（マイグレーション兼同期）
+    final ym = DateTime.now();
+    final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
     try {
-      final ym = DateTime.now();
-      final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
       final data = await _api.get('/budgets/$yearMonth');
       final apiBudgets = data.map((k, v) => MapEntry(k, (v as num).toInt()));
       if (apiBudgets.isNotEmpty) {
-        for (final key in _categories.keys) {
+        for (final key in _allCategories.keys) {
           _budgets[key] = apiBudgets[key] ?? 0;
         }
-        // SharedPrefsにも反映
         for (final e in _budgets.entries) {
           await UserPrefs.setInt(prefs, 'category_budget_${e.key}', e.value);
         }
       } else {
-        // DBが空 → ローカルデータをAPIへ初回アップロード
         final nonZero = {
           for (final e in _budgets.entries) if (e.value > 0) e.key: e.value
         };
@@ -138,13 +159,25 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
           await _api.patch('/budgets/$yearMonth', body: nonZero);
         }
       }
-    } catch (_) {
-      // API失敗時はSharedPrefsのままで続行
-    }
-    // カテゴリ予算の合計を月の予算として自動反映
+    } catch (_) {}
+
+    // 固定費: 引き落とし日・支払い実績を並列取得
+    try {
+      final results = await Future.wait([
+        _fixedSvc.getSettings(),
+        _fixedSvc.getPayments(yearMonth),
+      ]);
+      final settings = results[0] as Map<String, FixedExpenseSetting>;
+      final payments = results[1] as Map<String, FixedPayment>;
+      _fixedSettings
+        ..clear()
+        ..addAll(settings);
+      _payments = payments;
+    } catch (_) {}
+
     final computed = _budgets.values.fold(0, (s, v) => s + v);
     _totalBudget = computed;
-    await UserPrefs.setInt(prefs, _budgetKey, _totalBudget);
+    await UserPrefs.setInt(await SharedPreferences.getInstance(), _budgetKey, _totalBudget);
     if (mounted) setState(() => _loading = false);
   }
 
@@ -154,26 +187,64 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
       await UserPrefs.setInt(prefs, 'category_budget_${e.key}', e.value);
     }
     if (updateTotal) {
-      // カテゴリ合計を月の予算として保存
       final computed = _budgets.values.fold(0, (s, v) => s + v);
       _totalBudget = computed;
       await UserPrefs.setInt(prefs, _budgetKey, _totalBudget);
     }
-    // APIにも保存
     try {
       final ym = DateTime.now();
       final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
       await _api.patch('/budgets/$yearMonth', body: Map.from(_budgets));
-    } catch (_) {
-      // API失敗時はローカル保存のみで続行
+    } catch (_) {}
+  }
+
+
+  Future<void> _openSubscriptionEditor() async {
+    final colors = context.colors;
+    List<Map<String, dynamic>> subs = [];
+    try {
+      final result = await _api.getAny('/subscriptions');
+      subs = (result as List).cast<Map<String, dynamic>>();
+    } catch (_) {}
+    if (!mounted) return;
+
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _SubscriptionEditorSheet(
+        initialSubs: subs,
+        initialBudget: _budgets['subscription'] ?? 0,
+        colors: colors,
+        api: _api,
+      ),
+    );
+
+    if (result != null) {
+      setState(() => _budgets['subscription'] = result);
+      await _persist();
     }
   }
 
-  void _openTotalBudgetEditor() {
+  void _openEditor(String key) {
     final colors = context.colors;
+    final meta = _allCategories[key]!;
     final ctrl = TextEditingController(
-      text: _totalBudget > 0 ? _totalBudget.toString() : '',
+      text: (_budgets[key] ?? 0) > 0 ? (_budgets[key]!).toString() : '',
     );
+    final isFixed = AppConstants.fixedCategories.contains(key);
+    final existing = _fixedSettings[key];
+    // 末日(32)の場合は dayCtrl を空にして isLastDay フラグで管理
+    bool isLastDay = existing?.billingDay == 32;
+    final dayCtrl = TextEditingController(
+      text: (existing?.billingDay != null && existing!.billingDay != 32)
+          ? existing.billingDay.toString()
+          : '',
+    );
+    String? selectedHolidayRule = existing?.holidayRule;
 
     showModalBottomSheet(
       context: context,
@@ -192,8 +263,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 36,
-                height: 4,
+                width: 36, height: 4,
                 decoration: BoxDecoration(
                   color: colors.surfaceBorder,
                   borderRadius: BorderRadius.circular(2),
@@ -204,19 +274,31 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                 child: Row(
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 44, height: 44,
                       decoration: BoxDecoration(
                         color: colors.primaryLight,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.wallet_outlined,
-                          color: colors.primary, size: 22),
+                      child: Icon(meta.icon, color: colors.primary, size: 22),
                     ),
                     const SizedBox(width: 14),
-                    Text('月に使えるお金',
-                        style: camillBodyStyle(20, colors.textPrimary,
-                            weight: FontWeight.w700)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(meta.label,
+                            style: camillBodyStyle(20, colors.textPrimary,
+                                weight: FontWeight.w700)),
+                        Text(isFixed ? '固定費' : '変動費',
+                            style: camillBodyStyle(12, colors.textMuted)),
+                      ],
+                    ),
+                    const Spacer(),
+                    if ((_budgets[key] ?? 0) > 0)
+                      GestureDetector(
+                        onTap: () { ctrl.clear(); setSheet(() {}); },
+                        child: Text('削除',
+                            style: camillBodyStyle(14, const Color(0xFFFF3B30))),
+                      ),
                   ],
                 ),
               ),
@@ -226,8 +308,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: BoxDecoration(
                       color: colors.surface,
                       borderRadius: BorderRadius.circular(16),
@@ -236,9 +317,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text('¥',
-                            style: camillBodyStyle(26, colors.textMuted,
-                                weight: FontWeight.w500)),
+                        Text('¥', style: camillBodyStyle(26, colors.textMuted, weight: FontWeight.w500)),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Theme(
@@ -251,15 +330,11 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                               autofocus: true,
                               keyboardType: const TextInputType.numberWithOptions(
                                   decimal: false, signed: false),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly
-                              ],
-                              style: camillBodyStyle(32, colors.textPrimary,
-                                  weight: FontWeight.w700),
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: camillBodyStyle(32, colors.textPrimary, weight: FontWeight.w700),
                               decoration: InputDecoration(
                                 hintText: '0',
-                                hintStyle: camillBodyStyle(32, colors.textMuted,
-                                    weight: FontWeight.w700),
+                                hintStyle: camillBodyStyle(32, colors.textMuted, weight: FontWeight.w700),
                                 border: InputBorder.none,
                                 focusedBorder: InputBorder.none,
                                 enabledBorder: InputBorder.none,
@@ -272,200 +347,229 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                         ),
                         if (ctrl.text.isNotEmpty)
                           GestureDetector(
-                            onTap: () {
-                              ctrl.clear();
-                              setSheet(() {});
-                            },
-                            child: Icon(Icons.cancel,
-                                color: colors.textMuted, size: 22),
+                            onTap: () { ctrl.clear(); setSheet(() {}); },
+                            child: Icon(Icons.cancel, color: colors.textMuted, size: 22),
                           ),
                       ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () async {
-                      final val = int.tryParse(ctrl.text) ?? 0;
-                      final prefs = await SharedPreferences.getInstance();
-                      await UserPrefs.setInt(prefs, _budgetKey, val);
-                      if (mounted) setState(() => _totalBudget = val);
-                      await _persist(updateTotal: false);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text('設定する',
-                        style: camillBodyStyle(16, Colors.white,
-                            weight: FontWeight.w600)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openEditor(String key) {
-    final colors = context.colors;
-    final meta = _categories[key]!;
-    final ctrl = TextEditingController(
-      text: (_budgets[key] ?? 0) > 0 ? (_budgets[key]!).toString() : '',
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => AnimatedPadding(
-        // キーボード表示でシートが押し上がる
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-        ),
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        child: StatefulBuilder(
-          builder: (ctx, setSheet) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ハンドル
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.surfaceBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // カテゴリヘッダー
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colors.primaryLight,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(meta.icon, color: colors.primary, size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    Text(meta.label,
-                        style: camillBodyStyle(20, colors.textPrimary,
-                            weight: FontWeight.w700)),
-                    const Spacer(),
-                    if ((_budgets[key] ?? 0) > 0)
-                      GestureDetector(
-                        onTap: () {
-                          ctrl.clear();
-                          setSheet(() {});
-                        },
-                        child: Text('削除',
-                            style: camillBodyStyle(14, const Color(0xFFFF3B30))),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              // 大きな入力欄
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
-                  // フォーカスリングがはみ出さないよう clip
-                  borderRadius: BorderRadius.circular(16),
+              // 固定費のみ: 引き落とし日 + 休日ルール
+              if (isFixed) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.surfaceBorder),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text('¥',
-                          style: camillBodyStyle(26, colors.textMuted,
-                              weight: FontWeight.w500)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Theme(
-                          // スプラッシュ・フォーカスアニメを消す
-                          data: Theme.of(ctx).copyWith(
-                            splashFactory: NoSplash.splashFactory,
-                            highlightColor: Colors.transparent,
-                          ),
-                          child: TextField(
-                            controller: ctrl,
-                            autofocus: true,
-                            // 純粋な数字キーパッド（電話キーパッドでない）
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: false, signed: false),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            style: camillBodyStyle(32, colors.textPrimary,
-                                weight: FontWeight.w700),
-                            decoration: InputDecoration(
-                              hintText: '0',
-                              hintStyle: camillBodyStyle(32, colors.textMuted,
-                                  weight: FontWeight.w700),
-                              // 全ボーダー状態を none にしてフォーカスリング消去
-                              border: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: colors.surfaceBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── 引き落とし日入力 ──
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today_outlined,
+                                size: 15, color: colors.textMuted),
+                            const SizedBox(width: 8),
+                            Text('引き落とし日',
+                                style: camillBodyStyle(13, colors.textSecondary)),
+                            const SizedBox(width: 12),
+                            // 数字入力（末日トグル時はdisable）
+                            SizedBox(
+                              width: 48,
+                              child: TextField(
+                                controller: dayCtrl,
+                                enabled: !isLastDay,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                textAlign: TextAlign.center,
+                                style: camillBodyStyle(15, colors.textPrimary,
+                                    weight: FontWeight.w700),
+                                decoration: InputDecoration(
+                                  hintText: '--',
+                                  hintStyle: camillBodyStyle(15, colors.textMuted),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 6, horizontal: 4),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: colors.surfaceBorder),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: colors.surfaceBorder),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: colors.primary),
+                                  ),
+                                  disabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                        color: colors.surfaceBorder.withValues(alpha: 0.5)),
+                                  ),
+                                ),
+                                onChanged: (_) => setSheet(() {}),
+                              ),
                             ),
-                            onChanged: (_) => setSheet(() {}),
+                            const SizedBox(width: 6),
+                            Text('日', style: camillBodyStyle(13, colors.textSecondary)),
+                            const Spacer(),
+                            // 末日トグル
+                            GestureDetector(
+                              onTap: () => setSheet(() {
+                                isLastDay = !isLastDay;
+                                if (isLastDay) dayCtrl.clear();
+                              }),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isLastDay
+                                      ? colors.primary
+                                      : colors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isLastDay
+                                        ? colors.primary
+                                        : colors.surfaceBorder,
+                                  ),
+                                ),
+                                child: Text('末日',
+                                    style: camillBodyStyle(12,
+                                        isLastDay ? Colors.white : colors.textMuted,
+                                        weight: FontWeight.w600)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        // 休日ルール（引き落とし日が設定されている場合のみ表示）
+                        if (isLastDay || dayCtrl.text.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Divider(height: 1, color: colors.surfaceBorder),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(Icons.event_busy_outlined,
+                                  size: 15, color: colors.textMuted),
+                              const SizedBox(width: 8),
+                              Text('休日の場合',
+                                  style: camillBodyStyle(13, colors.textSecondary)),
+                              const SizedBox(width: 12),
+                              _HolidayRulePill(
+                                label: '前営業日',
+                                selected: selectedHolidayRule == 'before',
+                                colors: colors,
+                                onTap: () => setSheet(() =>
+                                    selectedHolidayRule =
+                                        selectedHolidayRule == 'before' ? null : 'before'),
+                              ),
+                              const SizedBox(width: 6),
+                              _HolidayRulePill(
+                                label: '翌営業日',
+                                selected: selectedHolidayRule == 'after',
+                                colors: colors,
+                                onTap: () => setSheet(() =>
+                                    selectedHolidayRule =
+                                        selectedHolidayRule == 'after' ? null : 'after'),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      if (ctrl.text.isNotEmpty)
-                        GestureDetector(
-                          onTap: () {
-                            ctrl.clear();
-                            setSheet(() {});
-                          },
-                          child: Icon(Icons.cancel,
-                              color: colors.textMuted, size: 22),
-                        ),
-                    ],
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-                ), // ClipRRect
-              ),
+              ],
+              if (key == 'subscription') ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/subscriptions');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: colors.surfaceBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34, height: 34,
+                            decoration: BoxDecoration(
+                              color: colors.primaryLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.subscriptions_outlined,
+                                size: 18, color: colors.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('サブスクを登録・確認する',
+                                    style: camillBodyStyle(14, colors.textPrimary,
+                                        weight: FontWeight.w600)),
+                                Text('Netflix・Spotify などを個別に管理',
+                                    style: camillBodyStyle(12, colors.textMuted)),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.chevron_right,
+                              size: 18, color: colors.textMuted),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
-              // 決定ボタン
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: () async {
                       final val = int.tryParse(ctrl.text) ?? 0;
-                      setState(() => _budgets[key] = val);
+                      int? billingDay;
+                      if (isFixed) {
+                        if (isLastDay) {
+                          billingDay = 32;
+                        } else {
+                          final d = int.tryParse(dayCtrl.text);
+                          billingDay = (d != null && d >= 1 && d <= 31) ? d : null;
+                        }
+                      }
+                      setState(() {
+                        _budgets[key] = val;
+                        if (isFixed) {
+                          _fixedSettings[key] = FixedExpenseSetting(
+                            category: key,
+                            billingDay: billingDay,
+                            holidayRule: billingDay != null ? selectedHolidayRule : null,
+                          );
+                        }
+                      });
                       await _persist();
+                      if (isFixed) {
+                        try {
+                          await _fixedSvc.updateBillingDay(key,
+                              billingDay: billingDay,
+                              holidayRule: billingDay != null ? selectedHolidayRule : null);
+                        } catch (_) {}
+                      }
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: FilledButton.styleFrom(
@@ -476,8 +580,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                       ),
                     ),
                     child: Text('設定する',
-                        style: camillBodyStyle(16, Colors.white,
-                            weight: FontWeight.w600)),
+                        style: camillBodyStyle(16, Colors.white, weight: FontWeight.w600)),
                   ),
                 ),
               ),
@@ -487,23 +590,12 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         ),
       ),
     );
-
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final sh = MediaQuery.of(context).size.height;
-
-    // 'other'(その他雑費)は予算未設定でも必ず設定済みセクションに表示
-    final setItems = _categories.entries
-        .where((e) => (_budgets[e.key] ?? 0) > 0 || e.key == 'other')
-        .toList();
-    final unsetItems = _categories.entries
-        .where((e) => (_budgets[e.key] ?? 0) == 0 && e.key != 'other')
-        .toList();
-
-    final totalAllocated = _budgets.values.fold(0, (s, v) => s + v);
 
     final scaffold = Scaffold(
       backgroundColor: colors.background,
@@ -513,8 +605,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         scrolledUnderElevation: 0,
         centerTitle: true,
         title: Text('カテゴリ予算',
-            style: camillBodyStyle(17, colors.textPrimary,
-                weight: FontWeight.w600)),
+            style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w600)),
         leading: widget.dismissible
             ? IconButton(
                 icon: Icon(Icons.close, color: colors.textSecondary),
@@ -555,13 +646,13 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                   controller: _scrollController,
                   physics: const DismissScrollPhysicsWithTopBounce(),
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
-                  children: _buildListItems(colors, totalAllocated, setItems, unsetItems),
+                  children: _buildListItems(colors),
                 ),
               )
             : ListView(
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
-                children: _buildListItems(colors, totalAllocated, setItems, unsetItems),
+                children: _buildListItems(colors),
               ),
       ),
     );
@@ -604,164 +695,764 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     );
   }
 
-  List<Widget> _buildListItems(
-    CamillColors colors,
-    int totalAllocated,
-    List<MapEntry<String, ({IconData icon, String label})>> setItems,
-    List<MapEntry<String, ({IconData icon, String label})>> unsetItems,
-  ) {
+  List<Widget> _buildListItems(CamillColors colors) {
+    final isFixed = _tabIndex == 0;
+    final currentCategories = isFixed ? _fixedCategories : _variableCategories;
+
+    final fixedTotal = _fixedCategories.keys.fold(0, (s, k) => s + (_budgets[k] ?? 0));
+    final variableTotal = _variableCategories.keys.fold(0, (s, k) => s + (_budgets[k] ?? 0));
+    final totalAllocated = fixedTotal + variableTotal;
+
+    final setItems = currentCategories.entries
+        .where((e) => (_budgets[e.key] ?? 0) > 0 || (isFixed ? false : e.key == 'other'))
+        .toList();
+    final unsetItems = currentCategories.entries
+        .where((e) => (_budgets[e.key] ?? 0) == 0 && !(isFixed ? false : e.key == 'other'))
+        .toList();
+
     return [
-          // ── Monthly budget header ───────────────────────────
-          Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.surfaceBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      // ── 月の予算ヘッダー ──
+      Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.surfaceBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.wallet_outlined,
-                        size: 14, color: colors.textMuted),
-                    const SizedBox(width: 5),
-                    Text('月に使えるお金',
-                        style: camillBodyStyle(12, colors.textMuted,
-                            weight: FontWeight.w500)),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: _openTotalBudgetEditor,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colors.primaryLight,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text('変更',
-                            style: camillBodyStyle(12, colors.primary,
-                                weight: FontWeight.w600)),
+                Icon(Icons.wallet_outlined, size: 14, color: colors.textMuted),
+                const SizedBox(width: 5),
+                Text('月に使えるお金',
+                    style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w500)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              totalAllocated > 0 ? _fmt.format(_totalBudget) : '¥ ---',
+              style: camillBodyStyle(32, colors.textPrimary, weight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            // 固定費 / 変動費 内訳バー
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF8D6E63),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text('固定費', style: camillBodyStyle(11, colors.textMuted)),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(_fmt.format(fixedTotal),
+                          style: camillBodyStyle(13, colors.textPrimary, weight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  totalAllocated > 0
-                      ? _fmt.format(_totalBudget)
-                      : '¥ ---',
-                  style: camillBodyStyle(32, colors.textPrimary,
-                      weight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.auto_awesome,
-                        size: 11, color: colors.textMuted),
-                    const SizedBox(width: 4),
-                    Text(
-                      'カテゴリ予算の合計から自動計算',
-                      style: camillBodyStyle(11, colors.textMuted),
+                Container(width: 1, height: 32, color: colors.surfaceBorder),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 8, height: 8,
+                              decoration: BoxDecoration(
+                                color: colors.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text('変動費', style: camillBodyStyle(11, colors.textMuted)),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(_fmt.format(variableTotal),
+                            style: camillBodyStyle(13, colors.textPrimary, weight: FontWeight.w600)),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-          if (setItems.isNotEmpty) ...[
-            _sectionLabel('設定済み (${setItems.length})', colors),
-            ...setItems.map((e) => _buildRow(e.key, e.value, colors)),
-            const SizedBox(height: 20),
           ],
-          _sectionLabel(
-              unsetItems.isEmpty
-                  ? '未設定 (0)'
-                  : '未設定 (${unsetItems.length})',
-              colors),
-          if (unsetItems.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: Text('全カテゴリ設定済みです',
-                    style: camillBodyStyle(13, colors.textMuted)),
-              ),
-            )
-          else
-            ...unsetItems.map((e) => _buildRow(e.key, e.value, colors)),
+        ),
+      ),
+
+      // ── 固定費/変動費 タブ ──
+      Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.surfaceBorder),
+        ),
+        child: Row(
+          children: [
+            _buildTab(0, '固定費', Icons.lock_outline, colors),
+            _buildTab(1, '変動費', Icons.shuffle, colors),
+          ],
+        ),
+      ),
+
+      // ── 固定費タブの説明 ──
+      if (isFixed)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12, left: 4),
+          child: Text(
+            '家賃・光熱費・サブスクなど毎月ほぼ一定の支出',
+            style: camillBodyStyle(12, colors.textMuted),
+          ),
+        ),
+
+      if (setItems.isNotEmpty) ...[
+        _sectionLabel('設定済み (${setItems.length})', colors),
+        ...setItems.map((e) => _buildRow(e.key, e.value, colors)),
+        const SizedBox(height: 20),
+      ],
+      _sectionLabel(
+          unsetItems.isEmpty ? '未設定 (0)' : '未設定 (${unsetItems.length})',
+          colors),
+      if (unsetItems.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: Text('全カテゴリ設定済みです',
+                style: camillBodyStyle(13, colors.textMuted)),
+          ),
+        )
+      else
+        ...unsetItems.map((e) => _buildRow(e.key, e.value, colors)),
     ];
+  }
+
+  Widget _buildTab(int index, String label, IconData icon, CamillColors colors) {
+    final selected = _tabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_tabIndex != index) setState(() => _tabIndex = index);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? colors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15,
+                  color: selected ? Colors.white : colors.textMuted),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: camillBodyStyle(13,
+                      selected ? Colors.white : colors.textMuted,
+                      weight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _sectionLabel(String text, CamillColors colors) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
       child: Text(text,
-          style: camillBodyStyle(12, colors.textMuted,
-              weight: FontWeight.w600)),
+          style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600)),
     );
+  }
+
+  // 固定費の支払い状態バッジを生成
+  Widget? _buildPaymentBadge(String key, CamillColors colors) {
+    final isFixed = AppConstants.fixedCategories.contains(key);
+    if (!isFixed) return null;
+
+    final payment = _payments[key];
+    if (payment != null) {
+      // 支払い済み
+      return GestureDetector(
+        onTap: () async {
+          // 長押しで取り消し確認
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF34C759).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_outline, size: 13,
+                  color: Color(0xFF34C759)),
+              const SizedBox(width: 4),
+              Text('引き落とし済',
+                  style: camillBodyStyle(12, const Color(0xFF34C759),
+                      weight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final billingDay = _fixedSettings[key]?.billingDay;
+    if (billingDay == null) return null;
+
+    final today = DateTime.now().day;
+    final isOverdue = billingDay == 32
+        ? today >= _lastDayOfMonth()
+        : today >= billingDay;
+
+    if (isOverdue) {
+      // 引き落とし日到来・未確認
+      return GestureDetector(
+        onTap: () async {
+          final ym = DateTime.now();
+          final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
+          try {
+            await _fixedSvc.markPaid(yearMonth, key);
+            final payments = await _fixedSvc.getPayments(yearMonth);
+            if (mounted) setState(() => _payments = payments);
+          } catch (_) {}
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF9500).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 13,
+                  color: Color(0xFFFF9500)),
+              const SizedBox(width: 4),
+              Text('未確認  タップで済',
+                  style: camillBodyStyle(12, const Color(0xFFFF9500),
+                      weight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 引き落とし日は未到来
+    final dayLabel = billingDay == 32 ? '末日' : '$billingDay日';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.surfaceBorder),
+      ),
+      child: Text('$dayLabel 予定',
+          style: camillBodyStyle(12, colors.textMuted)),
+    );
+  }
+
+  int _lastDayOfMonth() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month + 1, 0).day;
   }
 
   Widget _buildRow(
       String key, ({IconData icon, String label}) meta, CamillColors colors) {
     final budget = _budgets[key] ?? 0;
     final hasValue = budget > 0;
+    final paymentBadge = _buildPaymentBadge(key, colors);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: CamillCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        onTap: () => _openEditor(key),
-        child: Row(
+        onTap: () => key == 'subscription' ? _openSubscriptionEditor() : _openEditor(key),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: hasValue ? colors.primaryLight : colors.surface,
-                borderRadius: BorderRadius.circular(10),
+            Row(
+              children: [
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: hasValue ? colors.primaryLight : colors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(meta.icon,
+                      color: hasValue ? colors.primary : colors.textMuted,
+                      size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(meta.label,
+                      style: camillBodyStyle(14, colors.textPrimary)),
+                ),
+                if (hasValue)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colors.primaryLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(_fmt.format(budget),
+                        style: camillBodyStyle(13, colors.primary,
+                            weight: FontWeight.w600)),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: colors.surfaceBorder),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 13, color: colors.textMuted),
+                        const SizedBox(width: 3),
+                        Text('設定する', style: camillBodyStyle(13, colors.textMuted)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            if (paymentBadge != null) ...[
+              const SizedBox(height: 8),
+              paymentBadge,
+            ],
+            if (key == 'subscription') ...[
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => context.push('/subscriptions'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: colors.primaryLight,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.list_alt_outlined, size: 13, color: colors.primary),
+                      const SizedBox(width: 4),
+                      Text('サブスクを管理',
+                          style: camillBodyStyle(12, colors.primary,
+                              weight: FontWeight.w600)),
+                      const SizedBox(width: 2),
+                      Icon(Icons.chevron_right, size: 14, color: colors.primary),
+                    ],
+                  ),
+                ),
               ),
-              child: Icon(meta.icon,
-                  color: hasValue ? colors.primary : colors.textMuted,
-                  size: 18),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// サブスク一覧エディターシート
+// ─────────────────────────────────────────────────────────
+class _SubscriptionEditorSheet extends StatefulWidget {
+  final List<Map<String, dynamic>> initialSubs;
+  final int initialBudget;
+  final CamillColors colors;
+  final ApiService api;
+
+  const _SubscriptionEditorSheet({
+    required this.initialSubs,
+    required this.initialBudget,
+    required this.colors,
+    required this.api,
+  });
+
+  @override
+  State<_SubscriptionEditorSheet> createState() => _SubscriptionEditorSheetState();
+}
+
+class _SubscriptionEditorSheetState extends State<_SubscriptionEditorSheet> {
+  final _fmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
+  // confirmed subs from API: {id, store_name, amount}
+  late List<Map<String, dynamic>> _subs;
+  // pending deletes (ids)
+  final Set<String> _pendingDeletes = {};
+  // new items being added locally
+  final List<({TextEditingController name, TextEditingController amount})> _newItems = [];
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _subs = List.from(widget.initialSubs);
+    _addNewRow();
+  }
+
+  @override
+  void dispose() {
+    for (final item in _newItems) {
+      item.name.dispose();
+      item.amount.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addNewRow() {
+    _newItems.add((
+      name: TextEditingController(),
+      amount: TextEditingController(),
+    ));
+  }
+
+  void _onItemChanged() {
+    setState(() {});
+    final last = _newItems.last;
+    if (last.name.text.trim().isNotEmpty && last.amount.text.trim().isNotEmpty) {
+      setState(() => _addNewRow());
+    }
+  }
+
+  void _removeNewRow(int index) {
+    final item = _newItems.removeAt(index);
+    item.name.dispose();
+    item.amount.dispose();
+    if (_newItems.isEmpty) _addNewRow();
+    setState(() {});
+  }
+
+  int get _total {
+    final existingSum = _subs
+        .where((s) => !_pendingDeletes.contains(s['subscription_id']?.toString()))
+        .fold(0, (sum, s) => sum + ((s['amount'] as num?)?.toInt() ?? 0));
+    final newSum = _newItems.fold(0, (sum, item) {
+      return sum + (int.tryParse(item.amount.text) ?? 0);
+    });
+    return existingSum + newSum;
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      // 削除
+      for (final id in _pendingDeletes) {
+        try { await widget.api.delete('/subscriptions/$id'); } catch (_) {}
+      }
+      // 新規追加
+      for (final item in _newItems) {
+        final name = item.name.text.trim();
+        final amt = int.tryParse(item.amount.text) ?? 0;
+        if (name.isEmpty || amt <= 0) continue;
+        try {
+          await widget.api.postAny('/subscriptions/manual', body: {
+            'service_name': name,
+            'monthly_amount': amt,
+          });
+        } catch (_) {}
+      }
+      if (mounted) Navigator.pop(context, _total);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final sh = MediaQuery.of(context).size.height;
+    final keyboardBottom = MediaQuery.of(context).viewInsets.bottom;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
+    final visibleSubs = _subs
+        .where((s) => !_pendingDeletes.contains(s['subscription_id']?.toString()))
+        .toList();
+
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: keyboardBottom),
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      child: ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: sh * 0.88),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ドラッグハンドル
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: colors.surfaceBorder,
+              borderRadius: BorderRadius.circular(2),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(meta.label,
-                  style: camillBodyStyle(14, colors.textPrimary)),
-            ),
-            if (hasValue)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colors.primaryLight,
-                  borderRadius: BorderRadius.circular(20),
+          ),
+          // ヘッダー
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: colors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.subscriptions_outlined,
+                      color: colors.primary, size: 22),
                 ),
-                child: Text(_fmt.format(budget),
-                    style: camillBodyStyle(13, colors.primary,
-                        weight: FontWeight.w600)),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colors.surfaceBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.add, size: 13, color: colors.textMuted),
-                    const SizedBox(width: 3),
-                    Text('設定する',
-                        style: camillBodyStyle(13, colors.textMuted)),
+                    Text('サブスク',
+                        style: camillBodyStyle(20, colors.textPrimary,
+                            weight: FontWeight.w700)),
+                    Text('固定費', style: camillBodyStyle(12, colors.textMuted)),
                   ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // リスト
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                // 既存サブスク
+                ...visibleSubs.map((s) {
+                  final id = s['subscription_id']?.toString() ?? '';
+                  final name = s['store_name'] as String? ?? '';
+                  final amount = (s['amount'] as num?)?.toInt() ?? 0;
+                  return _SubRow(
+                    name: name,
+                    amount: _fmt.format(amount),
+                    colors: colors,
+                    onDelete: () => setState(() => _pendingDeletes.add(id)),
+                  );
+                }),
+                // 新規入力行
+                ..._newItems.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final item = entry.value;
+                  final radius = BorderRadius.circular(10);
+                  final enabledBorder = OutlineInputBorder(
+                    borderRadius: radius,
+                    borderSide: BorderSide(color: colors.surfaceBorder),
+                  );
+                  final focusedBorder = OutlineInputBorder(
+                    borderRadius: radius,
+                    borderSide: BorderSide(color: colors.primary, width: 1.5),
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: item.name,
+                              style: camillBodyStyle(14, colors.textPrimary),
+                              decoration: InputDecoration(
+                                hintText: 'サービス名',
+                                hintStyle: camillBodyStyle(14, colors.textMuted),
+                                enabledBorder: enabledBorder,
+                                focusedBorder: focusedBorder,
+                                filled: true,
+                                fillColor: colors.surface,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 12),
+                              ),
+                              onChanged: (_) => _onItemChanged(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 100,
+                            child: TextField(
+                              controller: item.amount,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                  signed: false, decimal: false),
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: camillBodyStyle(14, colors.primary,
+                                  weight: FontWeight.w600),
+                              decoration: InputDecoration(
+                                hintText: '月額',
+                                hintStyle: camillBodyStyle(14, colors.textMuted),
+                                prefixText: '¥',
+                                prefixStyle: camillBodyStyle(14, colors.textMuted),
+                                enabledBorder: enabledBorder,
+                                focusedBorder: focusedBorder,
+                                filled: true,
+                                fillColor: colors.surface,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 12),
+                              ),
+                              onChanged: (_) => _onItemChanged(),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _removeNewRow(i),
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: Icon(Icons.close,
+                                  size: 18, color: colors.textMuted),
+                            ),
+                          ),
+                        ],
+                      ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          // 合計バー
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.surfaceBorder),
+            ),
+            child: Row(
+              children: [
+                Text('合計 / 月',
+                    style: camillBodyStyle(13, colors.textMuted)),
+                const Spacer(),
+                Text(_fmt.format(_total),
+                    style: camillBodyStyle(20, colors.textPrimary,
+                        weight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          // 設定するボタン
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, safeBottom + 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text('設定する',
+                    style: camillBodyStyle(16, Colors.white,
+                        weight: FontWeight.w600)),
               ),
+            ),
+          ),
+        ],
+      ),
+    ),
+    );
+  }
+
+}
+
+class _SubRow extends StatelessWidget {
+  final String name;
+  final String amount;
+  final CamillColors colors;
+  final VoidCallback onDelete;
+
+  const _SubRow({
+    required this.name,
+    required this.amount,
+    required this.colors,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.surfaceBorder),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(name,
+                  style: camillBodyStyle(14, colors.textPrimary,
+                      weight: FontWeight.w500)),
+            ),
+            Text(amount,
+                style: camillBodyStyle(14, colors.primary,
+                    weight: FontWeight.w600)),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onDelete,
+              child: Icon(Icons.delete_outline, size: 18, color: colors.textMuted),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HolidayRulePill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final CamillColors colors;
+  final VoidCallback onTap;
+
+  const _HolidayRulePill({
+    required this.label,
+    required this.selected,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? colors.primary : colors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? colors.primary : colors.surfaceBorder,
+          ),
+        ),
+        child: Text(
+          label,
+          style: camillBodyStyle(12,
+              selected ? Colors.white : colors.textMuted,
+              weight: FontWeight.w600),
         ),
       ),
     );

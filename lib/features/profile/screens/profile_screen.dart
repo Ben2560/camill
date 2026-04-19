@@ -12,6 +12,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../auth/services/auth_service.dart';
 import '../../home/screens/fixed_expense_scan_screen.dart';
+import '../services/drive_export_service.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 
@@ -41,6 +42,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isDeveloper = false;
   String? _avatarPath;
 
+  // データ管理
+  final _driveService = DriveExportService();
+  int _receiptCount = 0;
+  int _estimatedBytes = 0;
+  bool _driveConnected = false;
+  bool _storageLoaded = false;
+  bool _isExporting = false;
+  bool _exportDone = false;
+  double _exportProgress = 0.0;
+  DateTime? _lastBackupAt;
+
+  static const _lastBackupKey = 'drive_last_backup_at';
+
   static const _planLabels = {
     'free': '無料プラン',
     'pro': 'Proプラン',
@@ -57,6 +71,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _loadIncome();
     _loadAvatar();
     _loadBillingStatus();
+    _loadStorageUsage();
+    _loadLastBackupAt();
     widget.refreshNotifier?.addListener(_loadBudget);
   }
 
@@ -162,6 +178,102 @@ String get _displayName =>
   }
 
   // ── URL起動 ─────────────────────────────────────────────────────────────────
+  Future<void> _loadStorageUsage() async {
+    try {
+      final connected = await _driveService.isSignedIn;
+      final data = await _apiService.get('/users/storage-usage');
+      if (!mounted) return;
+      setState(() {
+        _receiptCount = data['receipt_count'] as int? ?? 0;
+        _estimatedBytes = data['estimated_bytes'] as int? ?? 0;
+        _driveConnected = connected;
+        _storageLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('storage usage load failed: $e');
+      if (mounted) setState(() => _storageLoaded = true);
+    }
+  }
+
+  Future<void> _loadLastBackupAt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final saved = prefs.getString('${uid}_$_lastBackupKey');
+    if (saved != null && mounted) {
+      setState(() => _lastBackupAt = DateTime.tryParse(saved));
+    }
+  }
+
+  Future<void> _saveLastBackupAt(DateTime dt) async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    await prefs.setString('${uid}_$_lastBackupKey', dt.toIso8601String());
+  }
+
+  Future<void> _exportToDrive() async {
+    if (_isExporting) return;
+    setState(() {
+      _isExporting = true;
+      _exportDone = false;
+      _exportProgress = 0.0;
+    });
+
+    // step → progress マッピング (4ステップ)
+    const progressMap = {0: 0.1, 1: 0.4, 2: 0.65, 3: 0.85, 4: 1.0};
+
+    try {
+      await _driveService.exportToDrive(
+        onStep: (step, _) {
+          if (mounted) {
+            setState(() => _exportProgress = progressMap[step]?.toDouble() ?? _exportProgress);
+          }
+        },
+      );
+      if (!mounted) return;
+      final now = DateTime.now();
+      await _saveLastBackupAt(now);
+      setState(() {
+        _exportProgress = 1.0;
+        _exportDone = true;
+        _driveConnected = true;
+        _lastBackupAt = now;
+      });
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      setState(() {
+        _isExporting = false;
+        _exportDone = false;
+        _exportProgress = 0.0;
+      });
+    } catch (e) {
+      debugPrint('Drive export error: $e');
+      if (!mounted) return;
+      setState(() {
+        _isExporting = false;
+        _exportDone = false;
+        _exportProgress = 0.0;
+      });
+      final msg = e.toString().contains('キャンセル') ? 'キャンセルされました' : 'エクスポートに失敗しました';
+      showTopNotification(context, msg);
+    }
+  }
+
+  String _formatBackupTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'たった今';
+    if (diff.inHours < 1) return '${diff.inMinutes}分前';
+    if (diff.inDays < 1) return '${diff.inHours}時間前';
+    if (diff.inDays < 2) return '昨日 ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -287,6 +399,104 @@ String get _displayName =>
             colors: colors,
             onTap: _openAccountSettings,
           ),
+          const SizedBox(height: 8),
+          _SectionHeader(title: 'データ管理', colors: colors),
+          if (_storageLoaded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.surfaceBorder),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.storage_outlined, size: 16, color: colors.textMuted),
+                        const SizedBox(width: 6),
+                        Text('使用データ量', style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _DataStatItem(label: 'レシート', value: '$_receiptCount件', colors: colors),
+                        _DataStatItem(label: '概算サイズ', value: _formatBytes(_estimatedBytes), colors: colors),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    AnimatedSlide(
+                      offset: _isExporting ? const Offset(0, -0.15) : Offset.zero,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isExporting ? null : _exportToDrive,
+                          icon: _isExporting && !_exportDone
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : Icon(
+                                  _exportDone ? Icons.check_circle_outline : Icons.cloud_upload_outlined,
+                                  size: 18,
+                                ),
+                          label: Text(
+                            _exportDone
+                                ? 'バックアップが完了しました'
+                                : _isExporting
+                                    ? 'バックアップ中...'
+                                    : _driveConnected
+                                        ? 'Google Driveにバックアップ'
+                                        : 'Google Driveに接続してバックアップ',
+                            style: camillBodyStyle(13, Colors.white, weight: FontWeight.w600),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _exportDone ? const Color(0xFF34A853) : const Color(0xFF4285F4),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      child: _isExporting
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: _exportProgress,
+                                  minHeight: 4,
+                                  backgroundColor: colors.surfaceBorder,
+                                  color: _exportDone ? const Color(0xFF34A853) : const Color(0xFF4285F4),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    if (_lastBackupAt != null) ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          '最終バックアップ: ${_formatBackupTime(_lastBackupAt!)}',
+                          style: camillBodyStyle(11, colors.textMuted),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           _SectionHeader(title: '収入・支出', colors: colors),
           _SettingsItem(
@@ -457,6 +667,26 @@ class _SettingsItem extends StatelessWidget {
           : null,
       trailing: Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
       onTap: onTap,
+    );
+  }
+}
+
+
+class _DataStatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final CamillColors colors;
+
+  const _DataStatItem({required this.label, required this.value, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(label, style: camillBodyStyle(11, colors.textMuted)),
+      ],
     );
   }
 }

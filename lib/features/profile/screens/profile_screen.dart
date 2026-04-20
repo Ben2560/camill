@@ -14,6 +14,7 @@ import '../../auth/services/auth_service.dart';
 import '../../home/screens/fixed_expense_scan_screen.dart';
 import '../services/drive_export_service.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/overseas_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -610,6 +611,13 @@ String get _displayName =>
             colors: colors,
             onTap: () => _confirmDelete(colors),
           ),
+          // ── デベロッパー専用：旅行モードテスト ──
+          if (_isDeveloper) ...[
+            Divider(color: colors.surfaceBorder),
+            _SectionHeader(title: '🛠 旅行モード テスト', colors: colors),
+            _OverseasDebugPanel(colors: colors),
+          ],
+
           const SizedBox(height: 40),
         ],
       ),
@@ -671,6 +679,110 @@ class _SettingsItem extends StatelessWidget {
   }
 }
 
+
+// ── 旅行モード デバッグパネル（開発者専用） ────────────────────────────────────
+
+class _OverseasDebugPanel extends StatefulWidget {
+  final CamillColors colors;
+  const _OverseasDebugPanel({required this.colors});
+
+  @override
+  State<_OverseasDebugPanel> createState() => _OverseasDebugPanelState();
+}
+
+class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
+  late final _service = OverseasService(ApiService());
+  bool _isOverseas = false;
+  String _currency = 'JPY';
+  bool _loading = false;
+
+  static const _testCountries = [
+    ('🇯🇵 日本（JPY）',  false, 'JPY', 'JP'),
+    ('🇹🇭 タイ（THB）',  true,  'THB', 'TH'),
+    ('🇺🇸 アメリカ（USD）', true, 'USD', 'US'),
+    ('🇰🇷 韓国（KRW）',  true,  'KRW', 'KR'),
+    ('🇨🇳 中国（CNY）',  true,  'CNY', 'CN'),
+    ('🇸🇬 シンガポール（SGD）', true, 'SGD', 'SG'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final overseas = await _service.getIsOverseas();
+    final currency = await _service.getCurrentCurrency();
+    if (mounted) setState(() { _isOverseas = overseas; _currency = currency; });
+  }
+
+  Future<void> _apply(bool isOverseas, String currency, String countryCode) async {
+    setState(() => _loading = true);
+    await _service.applyOverseasStatus(
+      isOverseas: isOverseas,
+      currency: currency,
+      countryCode: countryCode,
+    );
+    if (mounted) {
+      setState(() { _isOverseas = isOverseas; _currency = currency; _loading = false; });
+      showTopNotification(
+        context,
+        isOverseas ? '✈️ $currency モードに切り替えました' : '🏠 日本円（JPY）に戻しました',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '現在: ${_isOverseas ? "✈️ 海外モード ($_currency)" : "🏠 国内モード (JPY)"}',
+            style: camillBodyStyle(13, _isOverseas ? colors.primary : colors.textMuted,
+                weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _testCountries.map((entry) {
+              final (label, overseas, currency, code) = entry;
+              final isSelected = _currency == currency;
+              return GestureDetector(
+                onTap: _loading ? null : () => _apply(overseas, currency, code),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSelected ? colors.primary.withAlpha(30) : colors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? colors.primary : colors.surfaceBorder,
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: camillBodyStyle(12,
+                        isSelected ? colors.primary : colors.textSecondary,
+                        weight: isSelected ? FontWeight.w700 : FontWeight.w400),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          if (_loading) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(color: colors.primary, backgroundColor: colors.primaryLight),
+          ],
+        ],
+      ),
+    );
+  }
+}
 
 class _DataStatItem extends StatelessWidget {
   final String label;

@@ -10,6 +10,7 @@ import '../../core/theme/camill_theme.dart';
 import '../../shared/services/api_service.dart';
 import '../../shared/services/notification_inbox.dart';
 import '../../shared/services/notification_service.dart';
+import '../../shared/services/overseas_service.dart';
 import '../../shared/widgets/month_greeting_overlay.dart';
 import '../../shared/widgets/top_notification.dart';
 import '../home/screens/home_screen.dart';
@@ -24,7 +25,8 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
+class _MainShellState extends State<MainShell>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _speedDialOpen = false;
   bool _speedDialVisible = false;
@@ -36,6 +38,8 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   bool _isPremium = false;
   bool _isDeveloper = false;
   final _apiService = ApiService();
+  late final _overseasService = OverseasService(_apiService);
+  bool _overseasCheckInProgress = false;
   final _calendarReturnNotifier = ValueNotifier<int>(0);
   final _calendarRefreshNotifier = ValueNotifier<int>(0);
   final _profileRefreshNotifier = ValueNotifier<int>(0);
@@ -83,6 +87,60 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
     );
     _checkMonthGreeting();
     _initNotifications();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkOverseas();
+  }
+
+  Future<void> _checkOverseas() async {
+    if (_overseasCheckInProgress || !mounted) return;
+    _overseasCheckInProgress = true;
+    try {
+      final result = await _overseasService.detectCountryChange();
+      if (result == null || !mounted) return;
+      final isOverseas = result.isOverseas;
+      final currency = result.currency;
+      final countryCode = result.countryCode;
+      final message = isOverseas
+          ? '${result.countryName}に来たようです。\n通貨を $currency に切り替えますか？'
+          : 'おかえりなさい！\n日本円（JPY）に戻しますか？';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(isOverseas ? '✈️ 海外モード' : '🏠 帰国しました'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('キャンセル'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(isOverseas ? '切り替える' : '戻す'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await _overseasService.applyOverseasStatus(
+          isOverseas: isOverseas,
+          currency: currency,
+          countryCode: countryCode,
+        );
+      } else {
+        // キャンセルした場合も lastCountry を更新して再通知を防ぐ
+        await _overseasService.applyOverseasStatus(
+          isOverseas: await _overseasService.getIsOverseas(),
+          currency: await _overseasService.getCurrentCurrency(),
+          countryCode: countryCode,
+        );
+      }
+    } finally {
+      _overseasCheckInProgress = false;
+    }
   }
 
   void _initNotifications() {
@@ -133,6 +191,7 @@ class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _fcmMessageSub?.cancel();
     _fcmRouteSub?.cancel();
     _fadeAnim.dispose();

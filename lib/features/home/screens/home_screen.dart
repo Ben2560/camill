@@ -14,6 +14,7 @@ import '../../../shared/models/coupon_model.dart';
 import '../../../shared/models/summary_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/notification_inbox.dart';
+import '../../../shared/services/overseas_service.dart';
 import '../../../shared/widgets/camill_card.dart';
 import '../../../shared/widgets/pull_to_refresh.dart';
 import '../../bill/services/bill_service.dart';
@@ -104,6 +105,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _weekStartsSunday = true; // true=日曜始まり, false=月曜始まり
   static const _weekStartKey = 'week_start_sunday';
 
+  // 海外モード
+  late final _overseasService = OverseasService(ApiService());
+  bool _isOverseas = false;
+  String _overseasCurrency = 'JPY';
+  double _overseasRate = 1.0;
+
   // ナビゲーションオーバーレイ用
   final _navProgress = ValueNotifier<double>(0.0);
 
@@ -126,6 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadTodayCoupons();
     _loadUpcomingBills();
     _loadRecentBills();
+    _loadOverseasStatus();
     CalendarScreen.billRefreshSignal.addListener(_onBillChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -158,8 +166,26 @@ class _HomeScreenState extends State<HomeScreen> {
       _loadAvailableMonths();
       _loadUpcomingBills();
       _loadRecentBills();
+      _loadOverseasStatus();
     }
     _prevRoutePath = path;
+  }
+
+  Future<void> _loadOverseasStatus() async {
+    final isOverseas = await _overseasService.getIsOverseas();
+    if (!isOverseas || !mounted) return;
+    final currency = await _overseasService.getCurrentCurrency();
+    if (currency == 'JPY') return;
+    final data = await _overseasService.fetchRates();
+    final rates = data['rates'] as Map<String, dynamic>? ?? {};
+    final entry = rates[currency] as Map<String, dynamic>?;
+    final rate = (entry?['rate'] as num?)?.toDouble() ?? 1.0;
+    if (!mounted) return;
+    setState(() {
+      _isOverseas = isOverseas;
+      _overseasCurrency = currency;
+      _overseasRate = rate;
+    });
   }
 
   /// データがある月の一覧を取得して PageView を再構築
@@ -951,6 +977,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             : null,
                         recentBills: _recentBills,
                         plan: _plan,
+                        isOverseas: _isOverseas,
+                        overseasCurrency: _overseasCurrency,
+                        overseasRate: _overseasRate,
                       ),
                     ),
                     // ── ヘッダー境目グラデーションブラー ──────────────
@@ -1000,6 +1029,9 @@ class _HomeMonthPage extends StatefulWidget {
   final Widget? billBanner;
   final List<Bill> recentBills;
   final String plan;
+  final bool isOverseas;
+  final String overseasCurrency;
+  final double overseasRate;
 
   const _HomeMonthPage({
     super.key,
@@ -1020,6 +1052,9 @@ class _HomeMonthPage extends StatefulWidget {
     this.billBanner,
     this.recentBills = const [],
     this.plan = 'free',
+    this.isOverseas = false,
+    this.overseasCurrency = 'JPY',
+    this.overseasRate = 1.0,
   });
 
   @override
@@ -3199,6 +3234,18 @@ class _HomeMonthPageState extends State<_HomeMonthPage>
                       },
                     ),
                   ),
+                  // 海外モード中のみレートカードをハイライト最下部に表示
+                  if (widget.isOverseas)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: _OverseasRateCard(
+                          currency: widget.overseasCurrency,
+                          rate: widget.overseasRate,
+                          colors: colors,
+                        ),
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
@@ -4528,5 +4575,92 @@ class _NotificationInboxSheetState extends State<_NotificationInboxSheet> {
     if (diff.inHours < 24) return '${diff.inHours}時間前';
     if (diff.inDays < 7) return '${diff.inDays}日前';
     return '${dt.month}/${dt.day}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 海外モード 為替レートカード
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _currencyFlags = {
+  'USD': '🇺🇸', 'EUR': '🇪🇺', 'GBP': '🇬🇧', 'CNY': '🇨🇳', 'THB': '🇹🇭',
+  'KRW': '🇰🇷', 'TWD': '🇹🇼', 'SGD': '🇸🇬', 'AUD': '🇦🇺', 'HKD': '🇭🇰',
+  'PHP': '🇵🇭', 'VND': '🇻🇳', 'IDR': '🇮🇩', 'MYR': '🇲🇾', 'INR': '🇮🇳',
+  'CAD': '🇨🇦', 'CHF': '🇨🇭', 'SEK': '🇸🇪', 'NOK': '🇳🇴', 'DKK': '🇩🇰',
+  'NZD': '🇳🇿', 'ZAR': '🇿🇦', 'BRL': '🇧🇷', 'MXN': '🇲🇽', 'TRY': '🇹🇷',
+};
+
+const _currencyLabels = {
+  'USD': '米ドル', 'EUR': 'ユーロ', 'GBP': '英ポンド', 'CNY': '中国元',
+  'THB': 'タイバーツ', 'KRW': '韓国ウォン', 'TWD': '台湾ドル',
+  'SGD': 'シンガポールドル', 'AUD': '豪ドル', 'HKD': '香港ドル',
+  'PHP': 'フィリピンペソ', 'VND': 'ベトナムドン', 'IDR': 'インドネシアルピア',
+  'MYR': 'マレーシアリンギット', 'INR': 'インドルピー', 'CAD': 'カナダドル',
+  'CHF': 'スイスフラン', 'SEK': 'スウェーデンクローナ', 'NOK': 'ノルウェークローネ',
+  'DKK': 'デンマーククローネ', 'NZD': 'ニュージーランドドル', 'ZAR': '南アフリカランド',
+  'BRL': 'ブラジルレアル', 'MXN': 'メキシコペソ', 'TRY': 'トルコリラ',
+};
+
+class _OverseasRateCard extends StatelessWidget {
+  final String currency;
+  final double rate;
+  final CamillColors colors;
+
+  const _OverseasRateCard({
+    required this.currency,
+    required this.rate,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final flag = _currencyFlags[currency] ?? '🌐';
+    final label = _currencyLabels[currency] ?? currency;
+
+    String rateStr;
+    if (rate == 0) {
+      rateStr = '---';
+    } else if (rate < 1) {
+      rateStr = rate.toStringAsFixed(4);
+    } else if (rate >= 100) {
+      rateStr = rate.toStringAsFixed(1);
+    } else {
+      rateStr = rate.toStringAsFixed(2);
+    }
+
+    return CamillCard(
+      child: Row(
+        children: [
+          Text(flag, style: const TextStyle(fontSize: 36)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$label（$currency）',
+                  style: camillBodyStyle(12, colors.textMuted),
+                ),
+                const SizedBox(height: 4),
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '1 $currency  =  ',
+                        style: camillBodyStyle(13, colors.textSecondary, weight: FontWeight.w500),
+                      ),
+                      TextSpan(
+                        text: '¥$rateStr',
+                        style: camillAmountStyle(28, colors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

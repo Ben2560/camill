@@ -5,6 +5,8 @@ import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/receipt_model.dart';
+import '../../../shared/services/api_service.dart';
+import '../../../shared/services/overseas_service.dart';
 import 'receipt_edit_screen.dart'
     show showCategoryBottomSheet, showPaymentBottomSheet;
 
@@ -30,6 +32,29 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
   bool _isUncovered = false; // 保険適応外（自由診療）
 
   final List<_ItemEntry> _items = [_ItemEntry()];
+
+  // 外貨対応
+  String _currency = 'JPY';
+  double _exchangeRate = 1.0; // 1外貨単位 = X円
+  late final _overseasService = OverseasService(ApiService());
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrency();
+  }
+
+  Future<void> _loadCurrency() async {
+    final isOverseas = await _overseasService.getIsOverseas();
+    if (!isOverseas || !mounted) return;
+    final currency = await _overseasService.getCurrentCurrency();
+    if (currency == 'JPY') return;
+    final data = await _overseasService.fetchRates();
+    final rates = data['rates'] as Map<String, dynamic>? ?? {};
+    final rateEntry = rates[currency] as Map<String, dynamic>?;
+    final rate = (rateEntry?['rate'] as num?)?.toDouble() ?? 1.0;
+    if (mounted) setState(() { _currency = currency; _exchangeRate = rate; });
+  }
 
   @override
   void dispose() {
@@ -159,9 +184,12 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
         );
       }).toList();
 
-      final total = _docType == 'medical'
+      final rawTotal = _docType == 'medical'
           ? _calcMedicalTotal(items)
           : items.fold(0, (s, i) => s + i.amount);
+      final total = _currency != 'JPY'
+          ? (rawTotal * _exchangeRate).round()
+          : rawTotal;
       analysis = ReceiptAnalysis(
         storeName: _storeCtrl.text,
         purchasedAt: _purchasedAt.toIso8601String(),
@@ -352,6 +380,19 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
           ),
           validator: (v) => (v == null || v.isEmpty) ? '入力してください' : null,
         ),
+
+        // 通貨セレクター（レシートのみ・海外モード時に目立たせる）
+        if (_docType == 'receipt') ...[
+          const SizedBox(height: 12),
+          _CurrencySelector(
+            currency: _currency,
+            exchangeRate: _exchangeRate,
+            colors: colors,
+            onChanged: (code, rate) =>
+                setState(() { _currency = code; _exchangeRate = rate; }),
+            overseasService: _overseasService,
+          ),
+        ],
 
         // 保険適応外トグル（医療明細のみ）
         if (_docType == 'medical') ...[
@@ -700,19 +741,30 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                       weight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format(
-                      _items.fold(
-                        0,
-                        (s, e) =>
-                            s +
-                            (int.tryParse(
-                                  e.priceCtrl.text.replaceAll(',', ''),
-                                ) ??
-                                0),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        () {
+                          final total = _items.fold(0, (s, e) =>
+                              s + (int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0));
+                          if (_currency == 'JPY') {
+                            return NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format(total);
+                          }
+                          return '$total $_currency';
+                        }(),
+                        style: camillAmountStyle(18, colors.primary),
                       ),
-                    ),
-                    style: camillAmountStyle(18, colors.primary),
+                      if (_currency != 'JPY') ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '≈ ${NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format(
+                            (_items.fold(0, (s, e) => s + (int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0)) * _exchangeRate).round(),
+                          )}',
+                          style: camillBodyStyle(12, colors.textMuted),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -761,6 +813,112 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
         ),
         const SizedBox(height: 40),
       ],
+    );
+  }
+}
+
+// ────────────────────────────────────────────
+// 通貨セレクター
+// ────────────────────────────────────────────
+
+class _CurrencySelector extends StatefulWidget {
+  final String currency;
+  final double exchangeRate;
+  final CamillColors colors;
+  final void Function(String code, double rate) onChanged;
+  final OverseasService overseasService;
+
+  const _CurrencySelector({
+    required this.currency,
+    required this.exchangeRate,
+    required this.colors,
+    required this.onChanged,
+    required this.overseasService,
+  });
+
+  @override
+  State<_CurrencySelector> createState() => _CurrencySelectorState();
+}
+
+class _CurrencySelectorState extends State<_CurrencySelector> {
+  Map<String, dynamic> _rates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    widget.overseasService.fetchRates().then((data) {
+      if (mounted) setState(() => _rates = data['rates'] as Map<String, dynamic>? ?? {});
+    });
+  }
+
+  Future<void> _showPicker() async {
+    final entries = _rates.entries.toList();
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => ListView(
+        shrinkWrap: true,
+        children: [
+          ListTile(
+            title: Text('JPY（日本円）', style: camillBodyStyle(14, widget.colors.textPrimary)),
+            trailing: widget.currency == 'JPY' ? Icon(Icons.check, color: widget.colors.primary) : null,
+            onTap: () => Navigator.pop(ctx, 'JPY'),
+          ),
+          const Divider(height: 1),
+          ...entries.map((e) {
+            final entry = e.value as Map<String, dynamic>;
+            final label = entry['label'] as String? ?? e.key;
+            final rate = (entry['rate'] as num?)?.toDouble() ?? 1.0;
+            return ListTile(
+              title: Text('${e.key}（$label）', style: camillBodyStyle(14, widget.colors.textPrimary)),
+              subtitle: Text('1 ${e.key} ≈ ¥${rate.toStringAsFixed(rate < 1 ? 4 : 2)}',
+                  style: camillBodyStyle(12, widget.colors.textMuted)),
+              trailing: widget.currency == e.key ? Icon(Icons.check, color: widget.colors.primary) : null,
+              onTap: () => Navigator.pop(ctx, e.key),
+            );
+          }),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    if (picked == 'JPY') {
+      widget.onChanged('JPY', 1.0);
+    } else {
+      final entry = _rates[picked] as Map<String, dynamic>?;
+      final rate = (entry?['rate'] as num?)?.toDouble() ?? 1.0;
+      widget.onChanged(picked, rate);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isJpy = widget.currency == 'JPY';
+    return GestureDetector(
+      onTap: _showPicker,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isJpy ? widget.colors.surface : widget.colors.primary.withAlpha(20),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isJpy ? widget.colors.surfaceBorder : widget.colors.primary.withAlpha(80),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.currency_exchange, size: 16,
+                color: isJpy ? widget.colors.textMuted : widget.colors.primary),
+            const SizedBox(width: 6),
+            Text(
+              isJpy ? '通貨: JPY（日本円）' : '通貨: ${widget.currency}  1${widget.currency} ≈ ¥${widget.exchangeRate.toStringAsFixed(widget.exchangeRate < 1 ? 4 : 2)}',
+              style: camillBodyStyle(13, isJpy ? widget.colors.textMuted : widget.colors.primary),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.expand_more, size: 16,
+                color: isJpy ? widget.colors.textMuted : widget.colors.primary),
+          ],
+        ),
+      ),
     );
   }
 }

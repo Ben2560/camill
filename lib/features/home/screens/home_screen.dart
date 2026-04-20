@@ -35,6 +35,9 @@ import 'category_budget_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  /// 海外モード変更時に外部からリロードさせるシグナル
+  static final overseasRefreshSignal = ValueNotifier<int>(0);
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -135,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadRecentBills();
     _loadOverseasStatus();
     CalendarScreen.billRefreshSignal.addListener(_onBillChanged);
+    HomeScreen.overseasRefreshSignal.addListener(_loadOverseasStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _routerDelegate = GoRouter.of(context).routerDelegate;
@@ -145,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     CalendarScreen.billRefreshSignal.removeListener(_onBillChanged);
+    HomeScreen.overseasRefreshSignal.removeListener(_loadOverseasStatus);
     _routerDelegate?.removeListener(_onRouteChanged);
     _pageController.dispose();
     _billBannerController.dispose();
@@ -173,9 +178,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadOverseasStatus() async {
     final isOverseas = await _overseasService.getIsOverseas();
-    if (!isOverseas || !mounted) return;
+    if (!mounted) return;
+    if (!isOverseas) {
+      setState(() {
+        _isOverseas = false;
+        _overseasCurrency = 'JPY';
+        _overseasRate = 1.0;
+      });
+      return;
+    }
     final currency = await _overseasService.getCurrentCurrency();
-    if (currency == 'JPY') return;
+    if (!mounted) return;
+    if (currency == 'JPY') {
+      setState(() {
+        _isOverseas = false;
+        _overseasCurrency = 'JPY';
+        _overseasRate = 1.0;
+      });
+      return;
+    }
     final data = await _overseasService.fetchRates();
     final rates = data['rates'] as Map<String, dynamic>? ?? {};
     final entry = rates[currency] as Map<String, dynamic>?;

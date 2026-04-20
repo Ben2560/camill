@@ -130,6 +130,7 @@ class _MainShellState extends State<MainShell>
           currency: currency,
           countryCode: countryCode,
         );
+        HomeScreen.overseasRefreshSignal.value++;
       } else {
         // キャンセルした場合も lastCountry を更新して再通知を防ぐ
         await _overseasService.applyOverseasStatus(

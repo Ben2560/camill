@@ -12,6 +12,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../auth/services/auth_service.dart';
 import '../../home/screens/fixed_expense_scan_screen.dart';
+import '../../home/screens/home_screen.dart';
 import '../services/drive_export_service.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/overseas_service.dart';
@@ -726,6 +727,7 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
     );
     if (mounted) {
       setState(() { _isOverseas = isOverseas; _currency = currency; _loading = false; });
+      HomeScreen.overseasRefreshSignal.value++;
       showTopNotification(
         context,
         isOverseas ? '✈️ $currency モードに切り替えました' : '🏠 日本円（JPY）に戻しました',

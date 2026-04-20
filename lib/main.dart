@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide Family;
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'shared/services/user_prefs.dart';
 import 'core/theme/camill_theme.dart';
@@ -80,14 +81,24 @@ void main() async {
     autoSwitch:   autoSwitch,
   );
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        themeProvider.overrideWith(
-          (ref) => ThemeNotifier.withInitial(initialThemeState),
-        ),
-      ],
-      child: const SmartReceiptApp(),
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = const String.fromEnvironment('SENTRY_DSN');
+      options.tracesSampleRate = 0.2;
+      options.environment = const String.fromEnvironment(
+        'APP_ENV',
+        defaultValue: 'development',
+      );
+    },
+    appRunner: () => runApp(
+      ProviderScope(
+        overrides: [
+          themeProvider.overrideWith(
+            (ref) => ThemeNotifier.withInitial(initialThemeState),
+          ),
+        ],
+        child: const SmartReceiptApp(),
+      ),
     ),
   );
 }

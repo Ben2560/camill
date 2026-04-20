@@ -3,5 +3,9 @@
     "**/smartreceipt-api/smartreceipt/android/**"
   ],
   "java.configuration.updateBuildConfiguration": "interactive",
-  "markdownlint.ignore": [".metadata"]
+  "markdownlint.ignore": [".metadata"],
+  "C_Cpp.files.exclude": {
+    "**/linux/**": true,
+    "**/windows/**": true
+  }
 }

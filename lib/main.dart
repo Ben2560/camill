@@ -84,6 +84,7 @@ void main() async {
   await SentryFlutter.init(
     (options) {
       options.dsn = const String.fromEnvironment('SENTRY_DSN');
+      options.debug = false;
       options.tracesSampleRate = 0.2;
       options.environment = const String.fromEnvironment(
         'APP_ENV',

@@ -14,6 +14,7 @@ import '../../bill/services/bill_service.dart';
 import '../../calendar/screens/calendar_screen.dart';
 import '../../coupon/services/coupon_service.dart';
 import '../services/receipt_service.dart';
+import '../../../shared/services/overseas_service.dart';
 
 // ── 外側ウィジェット ────────────────────────────────────────────
 class AnalysisPreviewScreen extends StatefulWidget {
@@ -234,6 +235,10 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
   DateTime? _billPaidDate; // 印鑑から読み取った支払済み日
   late bool _billIsTaxExempt;
 
+  bool _isOverseas = false;
+  String _overseasCurrency = 'JPY';
+  double _overseasExchangeRate = 1.0;
+
   final _memoCtrl = TextEditingController();
   final _memoFocus = FocusNode();
   bool _memoEditing = false;
@@ -318,6 +323,23 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
         setState(() => _memoEditing = false);
       }
     });
+    _loadOverseasState();
+  }
+
+  Future<void> _loadOverseasState() async {
+    final service = OverseasService(ApiService());
+    final isOverseas = await service.getIsOverseas();
+    if (!isOverseas || !mounted) return;
+    final currency = await service.getCurrentCurrency();
+    final rates = await service.fetchRates();
+    final rate = (rates[currency] as num?)?.toDouble() ?? 1.0;
+    if (mounted) {
+      setState(() {
+        _isOverseas = true;
+        _overseasCurrency = currency;
+        _overseasExchangeRate = rate;
+      });
+    }
   }
 
   @override
@@ -365,6 +387,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
             colors: colors,
             isMedical: _isMedical,
             onTap: () => _editItem(i),
+            isOverseas: _isOverseas,
+            overseasCurrency: _overseasCurrency,
+            exchangeRate: _overseasExchangeRate,
           ),
         ));
       } else {
@@ -399,7 +424,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                             children: [
                               Flexible(
                                 child: Text(
-                                  item.itemName,
+                                  (_isOverseas && item.itemNameRaw.isNotEmpty)
+                                      ? item.itemNameRaw
+                                      : item.itemName,
                                   style: camillBodyStyle(14, colors.textPrimary,
                                       weight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
@@ -421,6 +448,17 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                               ),
                             ],
                           ),
+                          if (_isOverseas &&
+                              item.itemNameRaw.isNotEmpty &&
+                              item.itemName.isNotEmpty &&
+                              item.itemNameRaw != item.itemName)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 1),
+                              child: Text(
+                                '↪︎ ${item.itemName}',
+                                style: camillBodyStyle(12, colors.textMuted),
+                              ),
+                            ),
                           Container(
                             margin: const EdgeInsets.only(top: 2),
                             padding: const EdgeInsets.symmetric(
@@ -438,6 +476,22 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                         ],
                       ),
                     ),
+                    if (_isOverseas)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$_overseasCurrency ${item.amount * count}',
+                            style: camillBodyStyle(14, colors.textPrimary,
+                                weight: FontWeight.w500),
+                          ),
+                          Text(
+                            '¥${(item.amount * count * _overseasExchangeRate).round()}',
+                            style: camillBodyStyle(11, colors.textMuted),
+                          ),
+                        ],
+                      )
+                    else
                     Text(
                       _fmt.format(item.amount * count),
                       style: camillBodyStyle(14, colors.textPrimary,
@@ -544,6 +598,9 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
                               colors: colors,
                               isMedical: _isMedical,
                               onTap: () => _editItem(globalIdx),
+                              isOverseas: _isOverseas,
+                              overseasCurrency: _overseasCurrency,
+                              exchangeRate: _overseasExchangeRate,
                             )),
                       ],
                     )
@@ -581,14 +638,26 @@ class _ReceiptFormPageState extends State<_ReceiptFormPage>
       for (int i = 0; i < _coupons.length; i++)
         if (_couponIncluded[i]) _coupons[i],
     ];
+    // 海外モード時は金額を JPY に変換して保存
+    final saveItems = _isOverseas
+        ? _items
+            .map((item) => item.copyWith(
+                  amount: (item.amount * _overseasExchangeRate).round(),
+                  unitPrice: (item.unitPrice * _overseasExchangeRate).round(),
+                ))
+            .toList()
+        : _items;
+    final saveTotalAmount = _isOverseas
+        ? (_totalAmount * _overseasExchangeRate).round()
+        : _totalAmount;
     final updated = ReceiptAnalysis(
       storeName: _storeName,
       purchasedAt: purchasedAtStr,
-      totalAmount: _totalAmount,
+      totalAmount: saveTotalAmount,
       taxAmount: _taxFromReceipt ? _taxAmount : null,
       paymentMethod: _paymentMethod,
       category: _receiptCategory,
-      items: _items,
+      items: saveItems,
       couponsDetected: includedCoupons,
       duplicateCheckHash: widget.analysis.duplicateCheckHash,
       isMedical: _isMedical,
@@ -2590,6 +2659,9 @@ class _EditableItemRow extends StatelessWidget {
   final CamillColors colors;
   final bool isMedical;
   final VoidCallback onTap;
+  final bool isOverseas;
+  final String overseasCurrency;
+  final double exchangeRate;
 
   const _EditableItemRow({
     required this.item,
@@ -2597,14 +2669,52 @@ class _EditableItemRow extends StatelessWidget {
     required this.colors,
     required this.isMedical,
     required this.onTap,
+    this.isOverseas = false,
+    this.overseasCurrency = 'JPY',
+    this.exchangeRate = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
     final catLabel =
         AppConstants.categoryLabels[item.category] ?? item.category;
-    final amountText =
-        isMedical ? '${item.points}点' : fmt.format(item.amount);
+
+    // 海外モード: item_name_raw（原文）を上段、item_name（日本語訳）を↪︎で下段
+    final showTranslation = isOverseas &&
+        item.itemNameRaw.isNotEmpty &&
+        item.itemName.isNotEmpty &&
+        item.itemNameRaw != item.itemName;
+    final primaryName =
+        (isOverseas && item.itemNameRaw.isNotEmpty) ? item.itemNameRaw : item.itemName;
+
+    Widget amountWidget;
+    if (isMedical) {
+      amountWidget = Text(
+        '${item.points}点',
+        style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w500),
+      );
+    } else if (isOverseas) {
+      final jpyAmount = (item.amount * exchangeRate).round();
+      amountWidget = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            '$overseasCurrency ${item.amount}',
+            style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w500),
+          ),
+          Text(
+            '¥$jpyAmount',
+            style: camillBodyStyle(11, colors.textMuted),
+          ),
+        ],
+      );
+    } else {
+      amountWidget = Text(
+        fmt.format(item.amount),
+        style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w500),
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -2617,10 +2727,18 @@ class _EditableItemRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.itemName,
+                    primaryName,
                     style: camillBodyStyle(14, colors.textPrimary,
                         weight: FontWeight.w500),
                   ),
+                  if (showTranslation)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        '↪︎ ${item.itemName}',
+                        style: camillBodyStyle(12, colors.textMuted),
+                      ),
+                    ),
                   Container(
                     margin: const EdgeInsets.only(top: 2),
                     padding: const EdgeInsets.symmetric(
@@ -2635,11 +2753,7 @@ class _EditableItemRow extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              amountText,
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.w500),
-            ),
+            amountWidget,
             const SizedBox(width: 8),
             Icon(Icons.chevron_right, size: 16, color: colors.textMuted),
           ],

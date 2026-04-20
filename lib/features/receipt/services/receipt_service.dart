@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/overseas_service.dart';
 
 class ReceiptService {
   final _api = ApiService();
@@ -22,10 +23,17 @@ class ReceiptService {
   Future<List<ReceiptAnalysis>> analyzeReceipt(File imageFile, {String? documentHint}) async {
     final compressed = await _compressImage(imageFile);
     final base64Image = base64Encode(compressed);
+    final overseasService = OverseasService(_api);
+    final isOverseas = await overseasService.getIsOverseas();
+    final overseasCurrency = isOverseas ? await overseasService.getCurrentCurrency() : 'JPY';
     final body = <String, dynamic>{
       'image_base64': 'data:image/jpeg;base64,$base64Image',
       'image_type': 'jpeg',
       'document_hint': documentHint,
+      if (isOverseas) ...{
+        'is_overseas': true,
+        'current_currency': overseasCurrency,
+      },
     };
     final data = await _api.post('/receipts/analyze', body: body)
         .timeout(const Duration(seconds: 120));

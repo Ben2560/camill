@@ -87,7 +87,7 @@ dependencies:
   csv: ^6.0.0
 
   # Error monitoring
-  sentry_flutter: ^8.0.0
+  sentry_flutter: ^9.0.0
 
   # Code generation
   freezed_annotation: ^3.0.0

@@ -453,8 +453,9 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (picked != null)
+                    if (picked != null) {
                       setDialogState(() => validUntil = picked);
+                    }
                   },
                   child: Row(
                     children: [

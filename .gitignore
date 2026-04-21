@@ -10,9 +10,6 @@ coverage.sh
 # 管理画面（Next.js）— Flutterリポジトリとは別管理
 camill-admin-web/
 
-# 仕様書
-camill_ファミリープラン_総合仕様書_v1.0.docx
-
 # Miscellaneous
 *.class
 *.log
@@ -57,8 +54,6 @@ app.*.map.json
 # Secrets (API keys)
 secrets.properties
 ios/Flutter/Secrets.xcconfig
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
 
 # dart-define で渡す環境変数メモ書きなど
 *.env.local

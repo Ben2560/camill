@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "104579946378",
+    "project_id": "smartreceipt-8ba6f",
+    "storage_bucket": "smartreceipt-8ba6f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104579946378:android:2995e7cf45486bab809a73",
+        "android_client_info": {
+          "package_name": "app.smartreceipt.smartreceipt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJaG4XCAMKBmTqOw4Iwob0IVBdo7Wh04w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

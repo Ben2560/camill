@@ -20,7 +20,13 @@ class ApiService {
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
+  static final Future<void> _authReady = FirebaseAuth.instance
+      .authStateChanges()
+      .first
+      .then((_) {});
+
   Future<Map<String, String>> _authHeaders() async {
+    await _authReady;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw ApiException(401, 'UNAUTHORIZED', '未ログインです');
     final token = await user.getIdToken();

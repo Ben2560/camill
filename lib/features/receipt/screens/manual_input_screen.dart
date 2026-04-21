@@ -34,6 +34,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
   final List<_ItemEntry> _items = [_ItemEntry()];
 
   // 外貨対応
+  bool _isOverseas = false;
   String _currency = 'JPY';
   double _exchangeRate = 1.0; // 1外貨単位 = X円
   late final _overseasService = OverseasService(ApiService());
@@ -46,14 +47,23 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
 
   Future<void> _loadCurrency() async {
     final isOverseas = await _overseasService.getIsOverseas();
-    if (!isOverseas || !mounted) return;
+    if (!mounted) { return; }
+    if (!isOverseas) {
+      setState(() => _isOverseas = false);
+      return;
+    }
     final currency = await _overseasService.getCurrentCurrency();
-    if (currency == 'JPY') return;
     final data = await _overseasService.fetchRates();
     final rates = data['rates'] as Map<String, dynamic>? ?? {};
     final rateEntry = rates[currency] as Map<String, dynamic>?;
     final rate = (rateEntry?['rate'] as num?)?.toDouble() ?? 1.0;
-    if (mounted) setState(() { _currency = currency; _exchangeRate = rate; });
+    if (mounted) {
+      setState(() {
+        _isOverseas = true;
+        _currency = currency == 'JPY' ? 'JPY' : currency;
+        _exchangeRate = currency == 'JPY' ? 1.0 : rate;
+      });
+    }
   }
 
   @override
@@ -381,8 +391,8 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
           validator: (v) => (v == null || v.isEmpty) ? '入力してください' : null,
         ),
 
-        // 通貨セレクター（レシートのみ・海外モード時に目立たせる）
-        if (_docType == 'receipt') ...[
+        // 通貨セレクター（レシートかつ海外モード時のみ表示）
+        if (_docType == 'receipt' && _isOverseas) ...[
           const SizedBox(height: 12),
           _CurrencySelector(
             currency: _currency,

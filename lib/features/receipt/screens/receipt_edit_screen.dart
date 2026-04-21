@@ -118,7 +118,24 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
 
   Future<void> _pickCategory() async {
     final result = await showCategoryBottomSheet(context, _receiptCategory);
-    if (result != null) setState(() => _receiptCategory = result);
+    if (result != null) {
+      setState(() {
+        _receiptCategory = result;
+        if (_items.length == 1) {
+          _items[0].category = result;
+        }
+      });
+    }
+  }
+
+  void _syncReceiptCategoryFromItems() {
+    if (_items.isEmpty) return;
+    final counts = <String, int>{};
+    for (final item in _items) {
+      counts[item.category] = (counts[item.category] ?? 0) + 1;
+    }
+    final majority = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    setState(() => _receiptCategory = majority);
   }
 
   void _addItem() => setState(() => _items.add(_ItemEntry()));
@@ -295,6 +312,7 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                   canRemove: _items.length > 1,
                   onRemove: () => _removeItem(i),
                   onChanged: () => setState(() {}),
+                  onCategoryChanged: _syncReceiptCategoryFromItems,
                 ),
               ),
               const SizedBox(height: 12),
@@ -612,6 +630,7 @@ class _ItemRow extends StatelessWidget {
   final bool canRemove;
   final VoidCallback onRemove;
   final VoidCallback onChanged;
+  final VoidCallback onCategoryChanged;
 
   const _ItemRow({
     required this.entry,
@@ -619,6 +638,7 @@ class _ItemRow extends StatelessWidget {
     required this.canRemove,
     required this.onRemove,
     required this.onChanged,
+    required this.onCategoryChanged,
   });
 
   Future<void> _pickItemCategory(BuildContext context) async {
@@ -626,6 +646,7 @@ class _ItemRow extends StatelessWidget {
     if (result != null) {
       entry.category = result;
       onChanged();
+      onCategoryChanged();
     }
   }
 

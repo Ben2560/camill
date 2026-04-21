@@ -111,7 +111,7 @@ class ReceiptService {
   // レシート一覧取得
   Future<List<Receipt>> getReceipts(String yearMonth) async {
     final data = await _api.get('/receipts', query: {'year_month': yearMonth});
-    final list = data['receipts'] as List<dynamic>;
+    final list = (data['receipts'] as List<dynamic>?) ?? [];
     return list
         .map((e) => Receipt.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -138,7 +138,7 @@ class ReceiptService {
   /// データが存在する月の一覧を取得（"yyyy-MM" 形式、昇順）
   Future<List<String>> getActiveMonths() async {
     final data = await _api.getAny('/receipts/active-months');
-    final list = (data as Map<String, dynamic>)['months'] as List<dynamic>;
+    final list = ((data as Map<String, dynamic>)['months'] as List<dynamic>?) ?? [];
     return list.cast<String>();
   }
 }

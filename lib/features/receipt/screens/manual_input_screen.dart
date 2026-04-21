@@ -47,7 +47,9 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
 
   Future<void> _loadCurrency() async {
     final isOverseas = await _overseasService.getIsOverseas();
-    if (!mounted) { return; }
+    if (!mounted) {
+      return;
+    }
     if (!isOverseas) {
       setState(() => _isOverseas = false);
       return;
@@ -255,10 +257,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                 switchOutCurve: Curves.easeInCubic,
                 layoutBuilder: (currentChild, previousChildren) => Stack(
                   alignment: Alignment.topCenter,
-                  children: <Widget>[
-                    ...previousChildren,
-                    ?currentChild,
-                  ],
+                  children: <Widget>[...previousChildren, ?currentChild],
                 ),
                 transitionBuilder: (child, animation) => FadeTransition(
                   opacity: animation,
@@ -398,8 +397,10 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
             currency: _currency,
             exchangeRate: _exchangeRate,
             colors: colors,
-            onChanged: (code, rate) =>
-                setState(() { _currency = code; _exchangeRate = rate; }),
+            onChanged: (code, rate) => setState(() {
+              _currency = code;
+              _exchangeRate = rate;
+            }),
             overseasService: _overseasService,
           ),
         ],
@@ -490,7 +491,8 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: AppConstants.categoryColors[_billCategory] ??
+                      color:
+                          AppConstants.categoryColors[_billCategory] ??
                           colors.textMuted,
                       shape: BoxShape.circle,
                     ),
@@ -754,23 +756,28 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        () {
-                          final total = _items.fold(0, (s, e) =>
-                              s + (int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0));
-                          if (_currency == 'JPY') {
-                            return NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format(total);
-                          }
-                          return '$total $_currency';
-                        }(),
-                        style: camillAmountStyle(18, colors.primary),
-                      ),
+                      Text(() {
+                        final total = _items.fold(
+                          0,
+                          (s, e) =>
+                              s +
+                              (int.tryParse(
+                                    e.priceCtrl.text.replaceAll(',', ''),
+                                  ) ??
+                                  0),
+                        );
+                        if (_currency == 'JPY') {
+                          return NumberFormat.currency(
+                            locale: 'ja_JP',
+                            symbol: '¥',
+                          ).format(total);
+                        }
+                        return '$total $_currency';
+                      }(), style: camillAmountStyle(18, colors.primary)),
                       if (_currency != 'JPY') ...[
                         const SizedBox(height: 2),
                         Text(
-                          '≈ ${NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format(
-                            (_items.fold(0, (s, e) => s + (int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0)) * _exchangeRate).round(),
-                          )}',
+                          '≈ ${NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format((_items.fold(0, (s, e) => s + (int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0)) * _exchangeRate).round())}',
                           style: camillBodyStyle(12, colors.textMuted),
                         ),
                       ],
@@ -857,7 +864,9 @@ class _CurrencySelectorState extends State<_CurrencySelector> {
   void initState() {
     super.initState();
     widget.overseasService.fetchRates().then((data) {
-      if (mounted) setState(() => _rates = data['rates'] as Map<String, dynamic>? ?? {});
+      if (mounted) {
+        setState(() => _rates = data['rates'] as Map<String, dynamic>? ?? {});
+      }
     });
   }
 
@@ -869,8 +878,13 @@ class _CurrencySelectorState extends State<_CurrencySelector> {
         shrinkWrap: true,
         children: [
           ListTile(
-            title: Text('JPY（日本円）', style: camillBodyStyle(14, widget.colors.textPrimary)),
-            trailing: widget.currency == 'JPY' ? Icon(Icons.check, color: widget.colors.primary) : null,
+            title: Text(
+              'JPY（日本円）',
+              style: camillBodyStyle(14, widget.colors.textPrimary),
+            ),
+            trailing: widget.currency == 'JPY'
+                ? Icon(Icons.check, color: widget.colors.primary)
+                : null,
             onTap: () => Navigator.pop(ctx, 'JPY'),
           ),
           const Divider(height: 1),
@@ -879,10 +893,17 @@ class _CurrencySelectorState extends State<_CurrencySelector> {
             final label = entry['label'] as String? ?? e.key;
             final rate = (entry['rate'] as num?)?.toDouble() ?? 1.0;
             return ListTile(
-              title: Text('${e.key}（$label）', style: camillBodyStyle(14, widget.colors.textPrimary)),
-              subtitle: Text('1 ${e.key} ≈ ¥${rate.toStringAsFixed(rate < 1 ? 4 : 2)}',
-                  style: camillBodyStyle(12, widget.colors.textMuted)),
-              trailing: widget.currency == e.key ? Icon(Icons.check, color: widget.colors.primary) : null,
+              title: Text(
+                '${e.key}（$label）',
+                style: camillBodyStyle(14, widget.colors.textPrimary),
+              ),
+              subtitle: Text(
+                '1 ${e.key} ≈ ¥${rate.toStringAsFixed(rate < 1 ? 4 : 2)}',
+                style: camillBodyStyle(12, widget.colors.textMuted),
+              ),
+              trailing: widget.currency == e.key
+                  ? Icon(Icons.check, color: widget.colors.primary)
+                  : null,
               onTap: () => Navigator.pop(ctx, e.key),
             );
           }),
@@ -907,25 +928,40 @@ class _CurrencySelectorState extends State<_CurrencySelector> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isJpy ? widget.colors.surface : widget.colors.primary.withAlpha(20),
+          color: isJpy
+              ? widget.colors.surface
+              : widget.colors.primary.withAlpha(20),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isJpy ? widget.colors.surfaceBorder : widget.colors.primary.withAlpha(80),
+            color: isJpy
+                ? widget.colors.surfaceBorder
+                : widget.colors.primary.withAlpha(80),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.currency_exchange, size: 16,
-                color: isJpy ? widget.colors.textMuted : widget.colors.primary),
+            Icon(
+              Icons.currency_exchange,
+              size: 16,
+              color: isJpy ? widget.colors.textMuted : widget.colors.primary,
+            ),
             const SizedBox(width: 6),
             Text(
-              isJpy ? '通貨: JPY（日本円）' : '通貨: ${widget.currency}  1${widget.currency} ≈ ¥${widget.exchangeRate.toStringAsFixed(widget.exchangeRate < 1 ? 4 : 2)}',
-              style: camillBodyStyle(13, isJpy ? widget.colors.textMuted : widget.colors.primary),
+              isJpy
+                  ? '通貨: JPY（日本円）'
+                  : '通貨: ${widget.currency}  1${widget.currency} ≈ ¥${widget.exchangeRate.toStringAsFixed(widget.exchangeRate < 1 ? 4 : 2)}',
+              style: camillBodyStyle(
+                13,
+                isJpy ? widget.colors.textMuted : widget.colors.primary,
+              ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.expand_more, size: 16,
-                color: isJpy ? widget.colors.textMuted : widget.colors.primary),
+            Icon(
+              Icons.expand_more,
+              size: 16,
+              color: isJpy ? widget.colors.textMuted : widget.colors.primary,
+            ),
           ],
         ),
       ),

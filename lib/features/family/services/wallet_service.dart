@@ -8,9 +8,7 @@ class WalletService {
   Future<List<Wallet>> fetchWallets() async {
     final data = await _api.getAny('/wallets');
     final list = data as List? ?? [];
-    return list
-        .map((e) => Wallet.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return list.map((e) => Wallet.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Wallet> createWallet({
@@ -18,11 +16,14 @@ class WalletService {
     String? ownerUid,
     String? guardianUid,
   }) async {
-    final data = await _api.postAny('/wallets', body: {
-      'name': name,
-      'owner_uid': ?ownerUid,
-      'guardian_uid': ?guardianUid,
-    });
+    final data = await _api.postAny(
+      '/wallets',
+      body: {
+        'name': name,
+        'owner_uid': ?ownerUid,
+        'guardian_uid': ?guardianUid,
+      },
+    );
     return Wallet.fromJson(data as Map<String, dynamic>);
   }
 
@@ -45,11 +46,14 @@ class WalletService {
     required String matchValue,
     required String walletId,
   }) async {
-    final data = await _api.postAny('/wallet-rules', body: {
-      'match_type': matchType,
-      'match_value': matchValue,
-      'wallet_id': walletId,
-    });
+    final data = await _api.postAny(
+      '/wallet-rules',
+      body: {
+        'match_type': matchType,
+        'match_value': matchValue,
+        'wallet_id': walletId,
+      },
+    );
     return WalletRule.fromJson(data as Map<String, dynamic>);
   }
 

@@ -29,7 +29,9 @@ class _PlanScreenState extends State<PlanScreen> {
     super.initState();
     _purchaseService.onPurchaseComplete = _onPurchaseComplete;
     _purchaseService.onPurchaseError = _onPurchaseError;
-    _purchaseService.init().then((_) { if (mounted) setState(() {}); });
+    _purchaseService.init().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadBilling();
   }
 
@@ -43,7 +45,12 @@ class _PlanScreenState extends State<PlanScreen> {
     setState(() => _loadingBilling = true);
     try {
       final data = await _api.get('/billing/status');
-      if (mounted) setState(() { _billing = data; _loadingBilling = false; });
+      if (mounted) {
+        setState(() {
+          _billing = data;
+          _loadingBilling = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingBilling = false);
     }
@@ -104,7 +111,11 @@ class _PlanScreenState extends State<PlanScreen> {
   DateTime? get _trialEndsAt {
     final s = _billing?['trial_ends_at'] as String?;
     if (s == null) return null;
-    try { return DateTime.parse(s).toLocal(); } catch (_) { return null; }
+    try {
+      return DateTime.parse(s).toLocal();
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -117,10 +128,17 @@ class _PlanScreenState extends State<PlanScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: colors.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: colors.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('プランと課金', style: camillHeadingStyle(17, colors.textPrimary)),
+        title: Text(
+          'プランと課金',
+          style: camillHeadingStyle(17, colors.textPrimary),
+        ),
         actions: [
           TextButton(
             onPressed: _purchasing ? null : _restore,
@@ -136,8 +154,11 @@ class _PlanScreenState extends State<PlanScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
                   children: [
                     // 現在のプランカード
-                    _CardLabel(icon: Icons.workspace_premium_outlined,
-                        title: '現在のプラン', colors: colors),
+                    _CardLabel(
+                      icon: Icons.workspace_premium_outlined,
+                      title: '現在のプラン',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 8),
                     _CurrentPlanCard(
                       plan: _currentPlan,
@@ -167,8 +188,11 @@ class _PlanScreenState extends State<PlanScreen> {
                     ],
 
                     // プラン一覧
-                    _CardLabel(icon: Icons.compare_outlined,
-                        title: 'プランを選択', colors: colors),
+                    _CardLabel(
+                      icon: Icons.compare_outlined,
+                      title: 'プランを選択',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 8),
 
                     // 無料プランカード（非課金者 or デベロッパーのみ）
@@ -216,7 +240,11 @@ class _PlanScreenState extends State<PlanScreen> {
                       _PlanCard(
                         planId: 'pro',
                         name: 'Pro プラン',
-                        price: _purchaseService.product(PurchaseService.proMonthlyId)?.price ?? '¥480/月',
+                        price:
+                            _purchaseService
+                                .product(PurchaseService.proMonthlyId)
+                                ?.price ??
+                            '¥480/月',
                         priceNote: '月50枚スキャン可能',
                         features: const [
                           '月50枚スキャン',
@@ -234,7 +262,11 @@ class _PlanScreenState extends State<PlanScreen> {
                       _PlanCard(
                         planId: 'pro_annual',
                         name: 'Pro プラン',
-                        price: _purchaseService.product(PurchaseService.proAnnualId)?.price ?? '¥4,600/年',
+                        price:
+                            _purchaseService
+                                .product(PurchaseService.proAnnualId)
+                                ?.price ??
+                            '¥4,600/年',
                         priceNote: '月60枚スキャン可能',
                         annualBadge: '¥383/月相当',
                         features: const [
@@ -243,7 +275,8 @@ class _PlanScreenState extends State<PlanScreen> {
                           '医療明細・請求書対応',
                           '優先サポート',
                         ],
-                        isCurrent: !_isDeveloper && _currentPlan == 'pro_annual',
+                        isCurrent:
+                            !_isDeveloper && _currentPlan == 'pro_annual',
                         showTrial: !_isPaying,
                         isPurchasing: _purchasing,
                         colors: colors,
@@ -256,7 +289,11 @@ class _PlanScreenState extends State<PlanScreen> {
                       _PlanCard(
                         planId: 'family',
                         name: 'ファミリープラン',
-                        price: _purchaseService.product(PurchaseService.familyMonthlyId)?.price ?? '¥980/月',
+                        price:
+                            _purchaseService
+                                .product(PurchaseService.familyMonthlyId)
+                                ?.price ??
+                            '¥980/月',
                         priceNote: 'ファミリー共有150枚/月',
                         features: const [
                           'ファミリー共有150枚/月',
@@ -274,7 +311,11 @@ class _PlanScreenState extends State<PlanScreen> {
                       _PlanCard(
                         planId: 'family_annual',
                         name: 'ファミリープラン',
-                        price: _purchaseService.product(PurchaseService.familyAnnualId)?.price ?? '¥11,100/年',
+                        price:
+                            _purchaseService
+                                .product(PurchaseService.familyAnnualId)
+                                ?.price ??
+                            '¥11,100/年',
                         priceNote: 'ファミリー共有200枚/月',
                         annualBadge: '¥925/月相当',
                         features: const [
@@ -283,7 +324,8 @@ class _PlanScreenState extends State<PlanScreen> {
                           '振り分けルール',
                           '全機能利用可能',
                         ],
-                        isCurrent: !_isDeveloper && _currentPlan == 'family_annual',
+                        isCurrent:
+                            !_isDeveloper && _currentPlan == 'family_annual',
                         showTrial: !_isPaying,
                         isPurchasing: _purchasing,
                         colors: colors,
@@ -317,7 +359,6 @@ class _PlanScreenState extends State<PlanScreen> {
     );
   }
 }
-
 
 class _ToggleTab extends StatelessWidget {
   final String label;
@@ -417,7 +458,9 @@ class _CurrentPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = isDeveloper ? 'デベロッパーモード' : (_planLabels[plan] ?? plan);
-    final progress = isDeveloper ? 0.0 : (limitCount > 0 ? (usedCount / limitCount).clamp(0.0, 1.0) : 0.0);
+    final progress = isDeveloper
+        ? 0.0
+        : (limitCount > 0 ? (usedCount / limitCount).clamp(0.0, 1.0) : 0.0);
     final remaining = limitCount - usedCount;
     final isNearLimit = progress >= 0.8;
 
@@ -436,8 +479,14 @@ class _CurrentPlanCard extends StatelessWidget {
                   color: colors.primaryLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('現在のプラン',
-                    style: camillBodyStyle(11, colors.primary, weight: FontWeight.w600)),
+                child: Text(
+                  '現在のプラン',
+                  style: camillBodyStyle(
+                    11,
+                    colors.primary,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
@@ -453,11 +502,19 @@ class _CurrentPlanCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.hourglass_top_rounded, size: 12, color: colors.danger),
+                  Icon(
+                    Icons.hourglass_top_rounded,
+                    size: 12,
+                    color: colors.danger,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '無料トライアル中 〜 ${trialEndsAt!.year}/${trialEndsAt!.month}/${trialEndsAt!.day}まで',
-                    style: camillBodyStyle(11, colors.danger, weight: FontWeight.w600),
+                    style: camillBodyStyle(
+                      11,
+                      colors.danger,
+                      weight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -469,8 +526,14 @@ class _CurrentPlanCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('今月のスキャン', style: camillBodyStyle(12, colors.textMuted)),
-                Text('$usedCount / $limitCount 枚',
-                    style: camillBodyStyle(12, colors.textSecondary, weight: FontWeight.w600)),
+                Text(
+                  '$usedCount / $limitCount 枚',
+                  style: camillBodyStyle(
+                    12,
+                    colors.textSecondary,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -488,8 +551,10 @@ class _CurrentPlanCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               remaining > 0 ? '残り$remaining枚' : '今月の上限に達しました',
-              style: camillBodyStyle(11,
-                  isNearLimit ? colors.danger : colors.textMuted),
+              style: camillBodyStyle(
+                11,
+                isNearLimit ? colors.danger : colors.textMuted,
+              ),
             ),
           ],
         ],
@@ -523,11 +588,15 @@ class _TrialBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('今なら1ヶ月無料！',
-                    style: camillHeadingStyle(15, colors.fabIcon)),
+                Text(
+                  '今なら1ヶ月無料！',
+                  style: camillHeadingStyle(15, colors.fabIcon),
+                ),
                 const SizedBox(height: 2),
-                Text('有料プランを初めてご利用の方が対象です',
-                    style: camillBodyStyle(11, colors.fabIcon.withAlpha(200))),
+                Text(
+                  '有料プランを初めてご利用の方が対象です',
+                  style: camillBodyStyle(11, colors.fabIcon.withAlpha(200)),
+                ),
               ],
             ),
           ),
@@ -578,11 +647,13 @@ class _PlanCard extends StatelessWidget {
           width: isCurrent ? 2 : 1,
         ),
         boxShadow: isCurrent
-            ? [BoxShadow(
-                color: colors.primary.withAlpha(30),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              )]
+            ? [
+                BoxShadow(
+                  color: colors.primary.withAlpha(30),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
             : null,
       ),
       padding: const EdgeInsets.all(18),
@@ -592,18 +663,30 @@ class _PlanCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(name, style: camillHeadingStyle(16, colors.textPrimary)),
+                child: Text(
+                  name,
+                  style: camillHeadingStyle(16, colors.textPrimary),
+                ),
               ),
               if (isPaid && showTrial)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.danger.withAlpha(20),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: colors.danger.withAlpha(80)),
                   ),
-                  child: Text('初月無料',
-                      style: camillBodyStyle(11, colors.danger, weight: FontWeight.w700)),
+                  child: Text(
+                    '初月無料',
+                    style: camillBodyStyle(
+                      11,
+                      colors.danger,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -616,35 +699,52 @@ class _PlanCard extends StatelessWidget {
               if (annualBadge != null) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(annualBadge!,
-                      style: camillBodyStyle(10, colors.primary, weight: FontWeight.w600)),
+                  child: Text(
+                    annualBadge!,
+                    style: camillBodyStyle(
+                      10,
+                      colors.primary,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ],
           ),
           if (priceNote != null) ...[
             const SizedBox(height: 2),
-            Text(priceNote!,
-                style: camillBodyStyle(11, colors.textMuted)),
+            Text(priceNote!, style: camillBodyStyle(11, colors.textMuted)),
           ],
           const SizedBox(height: 12),
-          ...features.map((f) => Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle_outline,
+          ...features.map(
+            (f) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
                     size: 15,
-                    color: isCurrent ? colors.primary : colors.textMuted),
-                const SizedBox(width: 6),
-                Expanded(child: Text(f, style: camillBodyStyle(13, colors.textSecondary))),
-              ],
+                    color: isCurrent ? colors.primary : colors.textMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      f,
+                      style: camillBodyStyle(13, colors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
           if (isPaid && !isCurrent) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -660,7 +760,11 @@ class _PlanCard extends StatelessWidget {
                 ),
                 child: Text(
                   showTrial ? '1ヶ月無料で始める' : 'このプランへ',
-                  style: camillBodyStyle(14, colors.fabIcon, weight: FontWeight.bold),
+                  style: camillBodyStyle(
+                    14,
+                    colors.fabIcon,
+                    weight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -669,8 +773,14 @@ class _PlanCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Center(
-                child: Text('現在のプランです',
-                    style: camillBodyStyle(12, colors.primary, weight: FontWeight.w600)),
+                child: Text(
+                  '現在のプランです',
+                  style: camillBodyStyle(
+                    12,
+                    colors.primary,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
         ],
@@ -715,10 +825,12 @@ class _CancelSection extends StatelessWidget {
               color: colors.textMuted,
             ),
             label: Text(
-              Platform.isIOS
-                  ? 'App Storeで解約する'
-                  : 'Google Playで解約する',
-              style: camillBodyStyle(14, colors.textMuted, weight: FontWeight.w600),
+              Platform.isIOS ? 'App Storeで解約する' : 'Google Playで解約する',
+              style: camillBodyStyle(
+                14,
+                colors.textMuted,
+                weight: FontWeight.w600,
+              ),
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -770,9 +882,14 @@ class _DevPlanSwitcher extends StatelessWidget {
             children: [
               const Icon(Icons.developer_mode, size: 15, color: Colors.purple),
               const SizedBox(width: 6),
-              Text('DEV: プラン即切替',
-                  style: camillBodyStyle(13, Colors.purple,
-                      weight: FontWeight.w600)),
+              Text(
+                'DEV: プラン即切替',
+                style: camillBodyStyle(
+                  13,
+                  Colors.purple,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -784,12 +901,18 @@ class _DevPlanSwitcher extends StatelessWidget {
               return GestureDetector(
                 onTap: isCurrent ? null : () => onSelect(p.$1),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: isCurrent ? Colors.purple : Colors.purple.withAlpha(15),
+                    color: isCurrent
+                        ? Colors.purple
+                        : Colors.purple.withAlpha(15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: Colors.purple.withAlpha(isCurrent ? 255 : 80)),
+                      color: Colors.purple.withAlpha(isCurrent ? 255 : 80),
+                    ),
                   ),
                   child: Text(
                     p.$2,
@@ -815,7 +938,11 @@ class _CardLabel extends StatelessWidget {
   final String title;
   final CamillColors colors;
 
-  const _CardLabel({required this.icon, required this.title, required this.colors});
+  const _CardLabel({
+    required this.icon,
+    required this.title,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -823,8 +950,10 @@ class _CardLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: colors.textMuted),
         const SizedBox(width: 6),
-        Text(title,
-            style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600)),
+        Text(
+          title,
+          style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600),
+        ),
       ],
     );
   }

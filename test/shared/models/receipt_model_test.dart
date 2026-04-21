@@ -42,7 +42,12 @@ void main() {
     });
 
     test('copyWith で itemName を変更できる', () {
-      final item = ReceiptItem(itemName: 'A', unitPrice: 100, quantity: 1, amount: 100);
+      final item = ReceiptItem(
+        itemName: 'A',
+        unitPrice: 100,
+        quantity: 1,
+        amount: 100,
+      );
       final updated = item.copyWith(itemName: 'B');
       expect(updated.itemName, 'B');
       expect(updated.unitPrice, 100);
@@ -95,15 +100,15 @@ void main() {
 
   group('ReceiptAnalysis.fromJson', () {
     Map<String, dynamic> minimalAnalysis() => {
-          'store_name': 'テスト店',
-          'purchased_at': '2026-04-21T10:00:00',
-          'total_amount': 1500,
-          'items': [
-            {'item_name': 'りんご', 'unit_price': 150, 'quantity': 2, 'amount': 300},
-          ],
-          'coupons_detected': [],
-          'duplicate_check_hash': 'abc123',
-        };
+      'store_name': 'テスト店',
+      'purchased_at': '2026-04-21T10:00:00',
+      'total_amount': 1500,
+      'items': [
+        {'item_name': 'りんご', 'unit_price': 150, 'quantity': 2, 'amount': 300},
+      ],
+      'coupons_detected': [],
+      'duplicate_check_hash': 'abc123',
+    };
 
     test('必須フィールドをパースする', () {
       final analysis = ReceiptAnalysis.fromJson(minimalAnalysis());
@@ -161,8 +166,18 @@ void main() {
 
   group('Freezed equality', () {
     test('同一 ReceiptItem は等価', () {
-      const a = ReceiptItem(itemName: 'x', unitPrice: 100, quantity: 1, amount: 100);
-      const b = ReceiptItem(itemName: 'x', unitPrice: 100, quantity: 1, amount: 100);
+      const a = ReceiptItem(
+        itemName: 'x',
+        unitPrice: 100,
+        quantity: 1,
+        amount: 100,
+      );
+      const b = ReceiptItem(
+        itemName: 'x',
+        unitPrice: 100,
+        quantity: 1,
+        amount: 100,
+      );
       expect(a, equals(b));
     });
   });

@@ -5,7 +5,6 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/services/api_service.dart';
 
-
 // ─────────────────────────────────────────────────────────
 // サブスク一覧エディターシート
 // ─────────────────────────────────────────────────────────
@@ -24,7 +23,8 @@ class SubscriptionEditorSheet extends StatefulWidget {
   });
 
   @override
-  State<SubscriptionEditorSheet> createState() => SubscriptionEditorSheetState();
+  State<SubscriptionEditorSheet> createState() =>
+      SubscriptionEditorSheetState();
 }
 
 class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
@@ -34,7 +34,8 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
   // pending deletes (ids)
   final Set<String> _pendingDeletes = {};
   // new items being added locally
-  final List<({TextEditingController name, TextEditingController amount})> _newItems = [];
+  final List<({TextEditingController name, TextEditingController amount})>
+  _newItems = [];
   bool _saving = false;
 
   @override
@@ -63,7 +64,8 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
   void _onItemChanged() {
     setState(() {});
     final last = _newItems.last;
-    if (last.name.text.trim().isNotEmpty && last.amount.text.trim().isNotEmpty) {
+    if (last.name.text.trim().isNotEmpty &&
+        last.amount.text.trim().isNotEmpty) {
       setState(() => _addNewRow());
     }
   }
@@ -78,7 +80,9 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
 
   int get _total {
     final existingSum = _subs
-        .where((s) => !_pendingDeletes.contains(s['subscription_id']?.toString()))
+        .where(
+          (s) => !_pendingDeletes.contains(s['subscription_id']?.toString()),
+        )
         .fold(0, (sum, s) => sum + ((s['amount'] as num?)?.toInt() ?? 0));
     final newSum = _newItems.fold(0, (sum, item) {
       return sum + (int.tryParse(item.amount.text) ?? 0);
@@ -91,7 +95,9 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
     try {
       // 削除
       for (final id in _pendingDeletes) {
-        try { await widget.api.delete('/subscriptions/$id'); } catch (_) {}
+        try {
+          await widget.api.delete('/subscriptions/$id');
+        } catch (_) {}
       }
       // 新規追加
       for (final item in _newItems) {
@@ -99,10 +105,10 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
         final amt = int.tryParse(item.amount.text) ?? 0;
         if (name.isEmpty || amt <= 0) continue;
         try {
-          await widget.api.postAny('/subscriptions/manual', body: {
-            'service_name': name,
-            'monthly_amount': amt,
-          });
+          await widget.api.postAny(
+            '/subscriptions/manual',
+            body: {'service_name': name, 'monthly_amount': amt},
+          );
         } catch (_) {}
       }
       if (mounted) Navigator.pop(context, _total);
@@ -118,7 +124,9 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
     final keyboardBottom = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).padding.bottom;
     final visibleSubs = _subs
-        .where((s) => !_pendingDeletes.contains(s['subscription_id']?.toString()))
+        .where(
+          (s) => !_pendingDeletes.contains(s['subscription_id']?.toString()),
+        )
         .toList();
 
     return AnimatedPadding(
@@ -126,81 +134,91 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
       child: ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: sh * 0.88),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ドラッグハンドル
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 36, height: 4,
-            decoration: BoxDecoration(
-              color: colors.surfaceBorder,
-              borderRadius: BorderRadius.circular(2),
+        constraints: BoxConstraints(maxHeight: sh * 0.88),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ドラッグハンドル
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.surfaceBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          // ヘッダー
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: colors.primaryLight,
-                    borderRadius: BorderRadius.circular(12),
+            // ヘッダー
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: colors.primaryLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.subscriptions_outlined,
+                      color: colors.primary,
+                      size: 22,
+                    ),
                   ),
-                  child: Icon(Icons.subscriptions_outlined,
-                      color: colors.primary, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('サブスク',
-                        style: camillBodyStyle(20, colors.textPrimary,
-                            weight: FontWeight.w700)),
-                    Text('固定費', style: camillBodyStyle(12, colors.textMuted)),
-                  ],
-                ),
-              ],
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'サブスク',
+                        style: camillBodyStyle(
+                          20,
+                          colors.textPrimary,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      Text('固定費', style: camillBodyStyle(12, colors.textMuted)),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // リスト
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                // 既存サブスク
-                ...visibleSubs.map((s) {
-                  final id = s['subscription_id']?.toString() ?? '';
-                  final name = s['store_name'] as String? ?? '';
-                  final amount = (s['amount'] as num?)?.toInt() ?? 0;
-                  return SubRow(
-                    name: name,
-                    amount: _fmt.format(amount),
-                    colors: colors,
-                    onDelete: () => setState(() => _pendingDeletes.add(id)),
-                  );
-                }),
-                // 新規入力行
-                ..._newItems.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final item = entry.value;
-                  final radius = BorderRadius.circular(10);
-                  final enabledBorder = OutlineInputBorder(
-                    borderRadius: radius,
-                    borderSide: BorderSide(color: colors.surfaceBorder),
-                  );
-                  final focusedBorder = OutlineInputBorder(
-                    borderRadius: radius,
-                    borderSide: BorderSide(color: colors.primary, width: 1.5),
-                  );
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
+            const SizedBox(height: 16),
+            // リスト
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  // 既存サブスク
+                  ...visibleSubs.map((s) {
+                    final id = s['subscription_id']?.toString() ?? '';
+                    final name = s['store_name'] as String? ?? '';
+                    final amount = (s['amount'] as num?)?.toInt() ?? 0;
+                    return SubRow(
+                      name: name,
+                      amount: _fmt.format(amount),
+                      colors: colors,
+                      onDelete: () => setState(() => _pendingDeletes.add(id)),
+                    );
+                  }),
+                  // 新規入力行
+                  ..._newItems.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final item = entry.value;
+                    final radius = BorderRadius.circular(10);
+                    final enabledBorder = OutlineInputBorder(
+                      borderRadius: radius,
+                      borderSide: BorderSide(color: colors.surfaceBorder),
+                    );
+                    final focusedBorder = OutlineInputBorder(
+                      borderRadius: radius,
+                      borderSide: BorderSide(color: colors.primary, width: 1.5),
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
                         children: [
                           Expanded(
                             child: TextField(
@@ -208,14 +226,19 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
                               style: camillBodyStyle(14, colors.textPrimary),
                               decoration: InputDecoration(
                                 hintText: 'サービス名',
-                                hintStyle: camillBodyStyle(14, colors.textMuted),
+                                hintStyle: camillBodyStyle(
+                                  14,
+                                  colors.textMuted,
+                                ),
                                 enabledBorder: enabledBorder,
                                 focusedBorder: focusedBorder,
                                 filled: true,
                                 fillColor: colors.surface,
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 12),
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                               ),
                               onChanged: (_) => _onItemChanged(),
                             ),
@@ -225,23 +248,39 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
                             width: 100,
                             child: TextField(
                               controller: item.amount,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                  signed: false, decimal: false),
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              style: camillBodyStyle(14, colors.primary,
-                                  weight: FontWeight.w600),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    signed: false,
+                                    decimal: false,
+                                  ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              style: camillBodyStyle(
+                                14,
+                                colors.primary,
+                                weight: FontWeight.w600,
+                              ),
                               decoration: InputDecoration(
                                 hintText: '月額',
-                                hintStyle: camillBodyStyle(14, colors.textMuted),
+                                hintStyle: camillBodyStyle(
+                                  14,
+                                  colors.textMuted,
+                                ),
                                 prefixText: '¥',
-                                prefixStyle: camillBodyStyle(14, colors.textMuted),
+                                prefixStyle: camillBodyStyle(
+                                  14,
+                                  colors.textMuted,
+                                ),
                                 enabledBorder: enabledBorder,
                                 focusedBorder: focusedBorder,
                                 filled: true,
                                 fillColor: colors.surface,
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 12),
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                               ),
                               onChanged: (_) => _onItemChanged(),
                             ),
@@ -250,63 +289,74 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
                             onTap: () => _removeNewRow(i),
                             child: Padding(
                               padding: const EdgeInsets.only(left: 6),
-                              child: Icon(Icons.close,
-                                  size: 18, color: colors.textMuted),
+                              child: Icon(
+                                Icons.close,
+                                size: 18,
+                                color: colors.textMuted,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          // 合計バー
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.surfaceBorder),
-            ),
-            child: Row(
-              children: [
-                Text('合計 / 月',
-                    style: camillBodyStyle(13, colors.textMuted)),
-                const Spacer(),
-                Text(_fmt.format(_total),
-                    style: camillBodyStyle(20, colors.textPrimary,
-                        weight: FontWeight.w700)),
-              ],
-            ),
-          ),
-          // 設定するボタン
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, safeBottom + 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _saving ? null : _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: Text('設定する',
-                    style: camillBodyStyle(16, Colors.white,
-                        weight: FontWeight.w600)),
+                    );
+                  }),
+                ],
               ),
             ),
-          ),
-        ],
+            // 合計バー
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.surfaceBorder),
+              ),
+              child: Row(
+                children: [
+                  Text('合計 / 月', style: camillBodyStyle(13, colors.textMuted)),
+                  const Spacer(),
+                  Text(
+                    _fmt.format(_total),
+                    style: camillBodyStyle(
+                      20,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 設定するボタン
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, safeBottom + 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    '設定する',
+                    style: camillBodyStyle(
+                      16,
+                      Colors.white,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
-
 }
 
 class SubRow extends StatelessWidget {
@@ -337,17 +387,31 @@ class SubRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(name,
-                  style: camillBodyStyle(14, colors.textPrimary,
-                      weight: FontWeight.w500)),
+              child: Text(
+                name,
+                style: camillBodyStyle(
+                  14,
+                  colors.textPrimary,
+                  weight: FontWeight.w500,
+                ),
+              ),
             ),
-            Text(amount,
-                style: camillBodyStyle(14, colors.primary,
-                    weight: FontWeight.w600)),
+            Text(
+              amount,
+              style: camillBodyStyle(
+                14,
+                colors.primary,
+                weight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: onDelete,
-              child: Icon(Icons.delete_outline, size: 18, color: colors.textMuted),
+              child: Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: colors.textMuted,
+              ),
             ),
           ],
         ),
@@ -386,9 +450,11 @@ class HolidayRulePill extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: camillBodyStyle(12,
-              selected ? Colors.white : colors.textMuted,
-              weight: FontWeight.w600),
+          style: camillBodyStyle(
+            12,
+            selected ? Colors.white : colors.textMuted,
+            weight: FontWeight.w600,
+          ),
         ),
       ),
     );

@@ -20,17 +20,24 @@ class FamilyInviteScreen extends StatelessWidget {
         backgroundColor: colors.surface,
         foregroundColor: colors.textPrimary,
         elevation: 0,
-        title: Text('招待QRコード',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
+        title: Text(
+          '招待QRコード',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('このQRコードを読み取ってもらってください',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                textAlign: TextAlign.center),
+            Text(
+              'このQRコードを読み取ってもらってください',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(16),
@@ -54,13 +61,21 @@ class FamilyInviteScreen extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(invite.role == 'child'
-                      ? Icons.child_care_outlined
-                      : Icons.person_outline,
-                      color: colors.primary, size: 16),
+                  Icon(
+                    invite.role == 'child'
+                        ? Icons.child_care_outlined
+                        : Icons.person_outline,
+                    color: colors.primary,
+                    size: 16,
+                  ),
                   const SizedBox(width: 6),
-                  Text(roleLabel,
-                      style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600)),
+                  Text(
+                    roleLabel,
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),

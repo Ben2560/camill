@@ -29,12 +29,11 @@ class ThemeState {
     CamillThemeMode? selectedBase,
     bool? isDarkNow,
     bool? autoSwitch,
-  }) =>
-      ThemeState(
-        selectedBase: selectedBase ?? this.selectedBase,
-        isDarkNow:    isDarkNow    ?? this.isDarkNow,
-        autoSwitch:   autoSwitch   ?? this.autoSwitch,
-      );
+  }) => ThemeState(
+    selectedBase: selectedBase ?? this.selectedBase,
+    isDarkNow: isDarkNow ?? this.isDarkNow,
+    autoSwitch: autoSwitch ?? this.autoSwitch,
+  );
 
   /// 現在の状態から実効カラーセットを返す
   CamillColors get colors =>
@@ -43,21 +42,23 @@ class ThemeState {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-final themeProvider =
-    StateNotifierProvider<ThemeNotifier, ThemeState>((ref) {
+final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeState>((ref) {
   return ThemeNotifier();
 });
 
 // ── Notifier ──────────────────────────────────────────────────────────────────
 
-class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserver {
+class ThemeNotifier extends StateNotifier<ThemeState>
+    with WidgetsBindingObserver {
   Timer? _timer;
 
   ThemeNotifier()
-      : super(ThemeState(
+    : super(
+        ThemeState(
           selectedBase: CamillThemeMode.sakura,
-          isDarkNow:    _guessIsDarkByHour(),
-        )) {
+          isDarkNow: _guessIsDarkByHour(),
+        ),
+      ) {
     WidgetsBinding.instance.addObserver(this);
     _init();
   }
@@ -117,17 +118,17 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     // UID付きキーを優先し、なければ旧キー（後方互換）にフォールバック
-    final name = await UserPrefs.getString(prefs, 'camill_theme_base')
-               ?? prefs.getString('camill_theme');
+    final name =
+        await UserPrefs.getString(prefs, 'camill_theme_base') ??
+        prefs.getString('camill_theme');
     final auto = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
     CamillThemeMode? base;
     if (name != null) {
-      try { base = CamillThemeMode.values.byName(name); } catch (_) {}
+      try {
+        base = CamillThemeMode.values.byName(name);
+      } catch (_) {}
     }
-    state = state.copyWith(
-      selectedBase: base,
-      autoSwitch:   auto,
-    );
+    state = state.copyWith(selectedBase: base, autoSwitch: auto);
   }
 
   // ── 日の出・日の入りベースのスケジューリング ──────────────────────────────
@@ -135,14 +136,14 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
   Future<void> _scheduleFromSunTimes() async {
     _timer?.cancel();
 
-    final pos     = await _getPosition();
-    final lat     = pos?.latitude  ?? _defaultLat;
-    final lng     = pos?.longitude ?? _defaultLng;
-    final now     = DateTime.now();
-    final times   = SunTimes.calculate(latitude: lat, longitude: lng, date: now);
+    final pos = await _getPosition();
+    final lat = pos?.latitude ?? _defaultLat;
+    final lng = pos?.longitude ?? _defaultLng;
+    final now = DateTime.now();
+    final times = SunTimes.calculate(latitude: lat, longitude: lng, date: now);
 
     final sunrise = times.sunrise;
-    final sunset  = times.sunset;
+    final sunset = times.sunset;
 
     // 日の出・日の入りが取れない場合は時刻ベースフォールバック
     if (sunrise == null || sunset == null) {
@@ -165,8 +166,9 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
           : SunTimes.calculate(
                   latitude: lat,
                   longitude: lng,
-                  date: now.add(const Duration(days: 1)))
-              .sunrise ?? now.add(const Duration(hours: 12));
+                  date: now.add(const Duration(days: 1)),
+                ).sunrise ??
+                now.add(const Duration(hours: 12));
     } else {
       // 日中 → 次は日の入り
       nextSwitch = sunset;
@@ -186,7 +188,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> with WidgetsBindingObserve
     if (isDark != state.isDarkNow) {
       state = state.copyWith(isDarkNow: isDark);
     }
-    final now  = DateTime.now();
+    final now = DateTime.now();
     final hour = now.hour;
     DateTime next;
     if (hour >= 22 || hour < 6) {

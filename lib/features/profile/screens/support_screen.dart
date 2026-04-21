@@ -80,8 +80,10 @@ class _SupportScreenState extends State<SupportScreen> {
       appBar: AppBar(
         backgroundColor: colors.surface,
         elevation: 0,
-        title: Text('お問い合わせ',
-            style: camillHeadingStyle(17, colors.textPrimary)),
+        title: Text(
+          'お問い合わせ',
+          style: camillHeadingStyle(17, colors.textPrimary),
+        ),
         iconTheme: IconThemeData(color: colors.textPrimary),
         actions: [
           IconButton(
@@ -97,8 +99,8 @@ class _SupportScreenState extends State<SupportScreen> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _inquiries.isEmpty
-                ? _buildEmpty(colors)
-                : _buildList(colors),
+            ? _buildEmpty(colors)
+            : _buildList(colors),
       ),
     );
   }
@@ -117,15 +119,22 @@ class _SupportScreenState extends State<SupportScreen> {
                 color: colors.primaryLight,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.support_agent_outlined,
-                  size: 36, color: colors.primary),
+              child: Icon(
+                Icons.support_agent_outlined,
+                size: 36,
+                color: colors.primary,
+              ),
             ),
             const SizedBox(height: 16),
-            Text('お問い合わせ履歴はありません',
-                style: camillBodyStyle(15, colors.textSecondary)),
+            Text(
+              'お問い合わせ履歴はありません',
+              style: camillBodyStyle(15, colors.textSecondary),
+            ),
             const SizedBox(height: 6),
-            Text('右上のボタンから問い合わせを送信できます',
-                style: camillBodyStyle(13, colors.textMuted)),
+            Text(
+              '右上のボタンから問い合わせを送信できます',
+              style: camillBodyStyle(13, colors.textMuted),
+            ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
               onPressed: _openNewInquiry,
@@ -135,7 +144,8 @@ class _SupportScreenState extends State<SupportScreen> {
                 foregroundColor: colors.primary,
                 side: BorderSide(color: colors.primary),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             ),
           ],
@@ -153,12 +163,10 @@ class _SupportScreenState extends State<SupportScreen> {
         final lastMsg = messages.isNotEmpty
             ? messages.last as Map<String, dynamic>
             : null;
-        final lastBody = lastMsg?['body'] as String? ??
-            inq['body'] as String? ??
-            '';
+        final lastBody =
+            lastMsg?['body'] as String? ?? inq['body'] as String? ?? '';
         final lastTime = _formatTime(
-          lastMsg?['created_at'] as String? ??
-              inq['created_at'] as String?,
+          lastMsg?['created_at'] as String? ?? inq['created_at'] as String?,
         );
         final status = inq['status'] as String? ?? 'pending';
         final hasNewReply = status == 'replied';
@@ -166,13 +174,13 @@ class _SupportScreenState extends State<SupportScreen> {
         return Column(
           children: [
             InkWell(
-              onTap: () => context.push(
-                '/support/${inq['inquiry_id']}',
-                extra: inq,
-              ),
+              onTap: () =>
+                  context.push('/support/${inq['inquiry_id']}', extra: inq),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     // アバター
@@ -183,8 +191,11 @@ class _SupportScreenState extends State<SupportScreen> {
                         color: colors.primaryLight,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.support_agent_outlined,
-                          size: 26, color: colors.primary),
+                      child: Icon(
+                        Icons.support_agent_outlined,
+                        size: 26,
+                        color: colors.primary,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     // コンテンツ
@@ -200,16 +211,19 @@ class _SupportScreenState extends State<SupportScreen> {
                                 child: Text(
                                   inq['subject'] as String? ?? '',
                                   style: camillBodyStyle(
-                                      15, colors.textPrimary,
-                                      weight: FontWeight.w600),
+                                    15,
+                                    colors.textPrimary,
+                                    weight: FontWeight.w600,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(lastTime,
-                                  style:
-                                      camillBodyStyle(12, colors.textMuted)),
+                              Text(
+                                lastTime,
+                                style: camillBodyStyle(12, colors.textMuted),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 3),
@@ -219,7 +233,9 @@ class _SupportScreenState extends State<SupportScreen> {
                                 child: Text(
                                   lastBody,
                                   style: camillBodyStyle(
-                                      13, colors.textSecondary),
+                                    13,
+                                    colors.textSecondary,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -228,15 +244,21 @@ class _SupportScreenState extends State<SupportScreen> {
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: colors.success,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Text('返信',
-                                      style: camillBodyStyle(
-                                          11, Colors.white,
-                                          weight: FontWeight.w600)),
+                                  child: Text(
+                                    '返信',
+                                    style: camillBodyStyle(
+                                      11,
+                                      Colors.white,
+                                      weight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ],
@@ -264,9 +286,7 @@ class _SupportScreenState extends State<SupportScreen> {
     try {
       final dt = DateTime.parse(iso).toLocal();
       final now = DateTime.now();
-      if (dt.year == now.year &&
-          dt.month == now.month &&
-          dt.day == now.day) {
+      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
         return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
       }
       return '${dt.month}/${dt.day}';
@@ -319,11 +339,10 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
     }
     setState(() => _sending = true);
     try {
-      final result = await _api.post('/users/inquiries', body: {
-        'category': _category,
-        'subject': subject,
-        'body': body,
-      });
+      final result = await _api.post(
+        '/users/inquiries',
+        body: {'category': _category, 'subject': subject, 'body': body},
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
       showTopNotification(context, 'お問い合わせを送信しました');
@@ -363,12 +382,16 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('新しい問い合わせ',
-              style: camillHeadingStyle(17, colors.textPrimary)),
+          Text('新しい問い合わせ', style: camillHeadingStyle(17, colors.textPrimary)),
           const SizedBox(height: 16),
-          Text('カテゴリ',
-              style: camillBodyStyle(12, colors.textMuted,
-                  weight: FontWeight.w600)),
+          Text(
+            'カテゴリ',
+            style: camillBodyStyle(
+              12,
+              colors.textMuted,
+              weight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -376,14 +399,14 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
               final (key, label) = entry;
               final selected = _category == key;
               return ChoiceChip(
-                label: Text(label,
-                    style: camillBodyStyle(
-                      13,
-                      selected ? colors.primary : colors.textSecondary,
-                      weight: selected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    )),
+                label: Text(
+                  label,
+                  style: camillBodyStyle(
+                    13,
+                    selected ? colors.primary : colors.textSecondary,
+                    weight: selected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
                 selected: selected,
                 selectedColor: colors.primaryLight,
                 backgroundColor: colors.background,
@@ -397,9 +420,14 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          Text('件名',
-              style: camillBodyStyle(12, colors.textMuted,
-                  weight: FontWeight.w600)),
+          Text(
+            '件名',
+            style: camillBodyStyle(
+              12,
+              colors.textMuted,
+              weight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 6),
           TextField(
             controller: _subjectCtrl,
@@ -421,14 +449,21 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                 borderSide: BorderSide(color: colors.surfaceBorder),
               ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
+                horizontal: 12,
+                vertical: 10,
+              ),
               counterStyle: camillBodyStyle(11, colors.textMuted),
             ),
           ),
           const SizedBox(height: 12),
-          Text('内容',
-              style: camillBodyStyle(12, colors.textMuted,
-                  weight: FontWeight.w600)),
+          Text(
+            '内容',
+            style: camillBodyStyle(
+              12,
+              colors.textMuted,
+              weight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 6),
           TextField(
             controller: _bodyCtrl,
@@ -450,7 +485,9 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                 borderSide: BorderSide(color: colors.surfaceBorder),
               ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
+                horizontal: 12,
+                vertical: 10,
+              ),
               counterStyle: camillBodyStyle(11, colors.textMuted),
             ),
           ),
@@ -464,7 +501,8 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: _sending
@@ -472,11 +510,18 @@ class _NewInquirySheetState extends State<_NewInquirySheet> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : Text('送信する',
-                      style: camillBodyStyle(15, Colors.white,
-                          weight: FontWeight.w700)),
+                  : Text(
+                      '送信する',
+                      style: camillBodyStyle(
+                        15,
+                        Colors.white,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
             ),
           ),
         ],

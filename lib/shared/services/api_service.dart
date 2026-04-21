@@ -31,30 +31,37 @@ class ApiService {
   }
 
   /// data が Map の場合に使う
-  Future<Map<String, dynamic>> get(String path,
-      {Map<String, String>? query}) async {
+  Future<Map<String, dynamic>> get(
+    String path, {
+    Map<String, String>? query,
+  }) async {
     final data = await getAny(path, query: query);
     return data as Map<String, dynamic>;
   }
 
   /// data が List または Map の場合に使う
   Future<dynamic> getAny(String path, {Map<String, String>? query}) async {
-    final uri = Uri.parse('${AppConstants.apiBaseUrl}$path')
-        .replace(queryParameters: query);
+    final uri = Uri.parse(
+      '${AppConstants.apiBaseUrl}$path',
+    ).replace(queryParameters: query);
     final headers = await _authHeaders();
     final response = await _client.get(uri, headers: headers);
     return _handleResponse(response);
   }
 
-  Future<Map<String, dynamic>> post(String path,
-      {required Map<String, dynamic> body}) async {
+  Future<Map<String, dynamic>> post(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
     final data = await postAny(path, body: body);
     if (data is Map<String, dynamic>) return data;
     return {};
   }
 
-  Future<dynamic> postAny(String path,
-      {required Map<String, dynamic> body}) async {
+  Future<dynamic> postAny(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
     final uri = Uri.parse('${AppConstants.apiBaseUrl}$path');
     final headers = await _authHeaders();
     final response = await _client.post(
@@ -65,8 +72,10 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  Future<Map<String, dynamic>> patch(String path,
-      {required Map<String, dynamic> body}) async {
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
     final uri = Uri.parse('${AppConstants.apiBaseUrl}$path');
     final headers = await _authHeaders();
     final response = await _client.patch(
@@ -87,7 +96,8 @@ class ApiService {
       if (response.bodyBytes.isNotEmpty) {
         try {
           final body =
-              jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+              jsonDecode(utf8.decode(response.bodyBytes))
+                  as Map<String, dynamic>;
           final detail = body['detail'];
           if (detail is Map) {
             code = detail['code'] as String? ?? code;
@@ -115,8 +125,12 @@ class ApiService {
       // カスタムエラー形式
       code = detail['code'] as String? ?? code;
       message = detail['message'] as String? ?? message;
-      throw ApiException(response.statusCode, code, message,
-          extra: Map<String, dynamic>.from(detail));
+      throw ApiException(
+        response.statusCode,
+        code,
+        message,
+        extra: Map<String, dynamic>.from(detail),
+      );
     } else if (detail is List && detail.isNotEmpty) {
       // FastAPI バリデーションエラー（422）
       code = response.statusCode == 422 ? 'VALIDATION_ERROR' : code;

@@ -65,5 +65,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'smartreceipt-8ba6f.firebasestorage.app',
     iosBundleId: 'app.smartreceipt.smartreceipt',
   );
-
 }

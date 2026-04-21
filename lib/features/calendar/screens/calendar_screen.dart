@@ -20,7 +20,11 @@ import '../widgets/calendar_day_panel.dart';
 import '../widgets/calendar_receipt_detail_sheet.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key, this.returnToTodayNotifier, this.refreshNotifier});
+  const CalendarScreen({
+    super.key,
+    this.returnToTodayNotifier,
+    this.refreshNotifier,
+  });
 
   final ValueNotifier<int>? returnToTodayNotifier;
   final ValueNotifier<int>? refreshNotifier;
@@ -54,7 +58,9 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   // 日送りPageView
   static const int _kMiddlePage = 10000;
-  late final PageController _dayPageController = PageController(initialPage: _kMiddlePage);
+  late final PageController _dayPageController = PageController(
+    initialPage: _kMiddlePage,
+  );
   final DateTime _baseDate = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -91,8 +97,7 @@ class _CalendarScreenState extends State<CalendarScreen>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    _yearScrollController = ScrollController()
-      ..addListener(_onYearScroll);
+    _yearScrollController = ScrollController()..addListener(_onYearScroll);
     _loadSummary(_focusedDay);
     _loadCoupons();
     _loadBills();
@@ -198,9 +203,11 @@ class _CalendarScreenState extends State<CalendarScreen>
           final todayKey = DateTime(now.year, now.month, now.day);
           setState(() {
             _bills = _bills
-                .map((b) => b.billId == bill.billId
-                    ? b.copyWith(status: BillStatus.paid, paidAt: now)
-                    : b)
+                .map(
+                  (b) => b.billId == bill.billId
+                      ? b.copyWith(status: BillStatus.paid, paidAt: now)
+                      : b,
+                )
                 .toList();
             _dailyTotals[todayKey] =
                 (_dailyTotals[todayKey] ?? 0) + bill.amount;
@@ -227,9 +234,10 @@ class _CalendarScreenState extends State<CalendarScreen>
         onMemoUpdated: (newMemo) {
           setState(() {
             _bills = _bills
-                .map((b) => b.billId == bill.billId
-                    ? b.copyWith(memo: newMemo)
-                    : b)
+                .map(
+                  (b) =>
+                      b.billId == bill.billId ? b.copyWith(memo: newMemo) : b,
+                )
                 .toList();
           });
         },
@@ -278,12 +286,15 @@ class _CalendarScreenState extends State<CalendarScreen>
       final m = DateTime(month.year, month.month + offset);
       final key = DateFormat('yyyy-MM').format(m);
       if (!_summaryCache.containsKey(key)) {
-        _api.get('/summary/monthly', query: {'year_month': key}).then((data) {
-          _summaryCache[key] = MonthlySummary.fromJson(data);
-        }).catchError((e) {
-          // prefetch 失敗は無視（次回スクロール時に正規ロードが走る）
-          debugPrint('[Calendar] prefetch $key 失敗: $e');
-        });
+        _api
+            .get('/summary/monthly', query: {'year_month': key})
+            .then((data) {
+              _summaryCache[key] = MonthlySummary.fromJson(data);
+            })
+            .catchError((e) {
+              // prefetch 失敗は無視（次回スクロール時に正規ロードが走る）
+              debugPrint('[Calendar] prefetch $key 失敗: $e');
+            });
       }
     }
   }
@@ -299,7 +310,9 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   // その日に有効なクーポンを返す共通ロジック
-  List<({Coupon coupon, DateTime from, DateTime? until})> _validCouponsForDay(DateTime day) {
+  List<({Coupon coupon, DateTime from, DateTime? until})> _validCouponsForDay(
+    DateTime day,
+  ) {
     final d = DateTime(day.year, day.month, day.day);
     final result = <({Coupon coupon, DateTime from, DateTime? until})>[];
     for (final c in _coupons) {
@@ -322,13 +335,20 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   // その日に有効なクーポンとバーの左右キャップ情報を返す（最大2件）
-  List<({Coupon coupon, bool isStart, bool isEnd})> _couponBarsForDay(DateTime day) {
+  List<({Coupon coupon, bool isStart, bool isEnd})> _couponBarsForDay(
+    DateTime day,
+  ) {
     final d = DateTime(day.year, day.month, day.day);
-    return _validCouponsForDay(day).take(2).map((e) => (
-      coupon: e.coupon,
-      isStart: d == e.from,
-      isEnd: e.until != null && d == e.until,
-    )).toList();
+    return _validCouponsForDay(day)
+        .take(2)
+        .map(
+          (e) => (
+            coupon: e.coupon,
+            isStart: d == e.from,
+            isEnd: e.until != null && d == e.until,
+          ),
+        )
+        .toList();
   }
 
   // その日に使えるクーポン一覧
@@ -380,8 +400,10 @@ class _CalendarScreenState extends State<CalendarScreen>
         onDeleted: () {
           CalendarScreen.receiptRefreshSignal.value++;
         },
-        onEdit: (receiptListItem, {bool focusMemo = false}) =>
-            context.push('/receipt-edit', extra: (receipt: receiptListItem, focusMemo: focusMemo)),
+        onEdit: (receiptListItem, {bool focusMemo = false}) => context.push(
+          '/receipt-edit',
+          extra: (receipt: receiptListItem, focusMemo: focusMemo),
+        ),
       ),
     );
   }
@@ -576,16 +598,13 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   void _onYearScroll() {
     // debugPrint('[onYearScroll] offset=${_yearScrollController.offset}');
-    final idx =
-        (_yearScrollController.offset / _yearItemExtent).round();
+    final idx = (_yearScrollController.offset / _yearItemExtent).round();
     final yr = (_kBaseYear + idx).clamp(
       _kBaseYear,
       _kBaseYear + _kYearCount - 1,
     );
     if (yr != _yearViewYear) setState(() => _yearViewYear = yr);
   }
-
-
 
   Future<void> _tapMiniCalendar(
     int year,
@@ -665,7 +684,10 @@ class _CalendarScreenState extends State<CalendarScreen>
                   child: IgnorePointer(
                     ignoring: p > 0.3,
                     child: IconButton(
-                      icon: Icon(Icons.chevron_left, color: colors.textSecondary),
+                      icon: Icon(
+                        Icons.chevron_left,
+                        color: colors.textSecondary,
+                      ),
                       onPressed: () {
                         final prev = DateTime(
                           _focusedDay.year,
@@ -686,7 +708,10 @@ class _CalendarScreenState extends State<CalendarScreen>
                   child: IgnorePointer(
                     ignoring: p > 0.3,
                     child: IconButton(
-                      icon: Icon(Icons.chevron_right, color: colors.textSecondary),
+                      icon: Icon(
+                        Icons.chevron_right,
+                        color: colors.textSecondary,
+                      ),
                       onPressed: () {
                         final next = DateTime(
                           _focusedDay.year,
@@ -707,21 +732,29 @@ class _CalendarScreenState extends State<CalendarScreen>
                   child: IgnorePointer(
                     ignoring: p > 0.3,
                     child: IconButton(
-                      icon: Icon(Icons.calendar_view_month, color: colors.textSecondary),
+                      icon: Icon(
+                        Icons.calendar_view_month,
+                        color: colors.textSecondary,
+                      ),
                       onPressed: () {
-                        if (_isYearView || _transitionController.isAnimating) return;
+                        if (_isYearView || _transitionController.isAnimating) {
+                          return;
+                        }
                         // アニメーション開始前に ScrollController を準備
                         // （p > 0.15 で _buildYearView が使われるため）
                         _yearItemExtent = _calcYearItemExtent();
-                        final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+                        final targetOffset =
+                            (_focusedDay.year - _kBaseYear) * _yearItemExtent;
                         _rebuildYearScrollController(targetOffset);
-                        _transitionController.animateTo(
-                          1.0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                        ).then((_) {
-                          if (mounted) _enterYearView();
-                        });
+                        _transitionController
+                            .animateTo(
+                              1.0,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            )
+                            .then((_) {
+                              if (mounted) _enterYearView();
+                            });
                       },
                     ),
                   ),
@@ -792,8 +825,10 @@ class _CalendarScreenState extends State<CalendarScreen>
         //   TableCalendar を SizedBox で囲み bounded constraints を与えることで
         //   _pageHeight タイミング競合によるオーバーフローを防止
         final minDetailH = constraints.maxHeight < 700 ? 120.0 : 180.0;
-        final rowH = ((constraints.maxHeight - 16.0 - minDetailH) / 6)
-            .clamp(40.0, 60.0);
+        final rowH = ((constraints.maxHeight - 16.0 - minDetailH) / 6).clamp(
+          40.0,
+          60.0,
+        );
         return ClipRect(child: _buildMonthColumn(colors, rowH));
       },
     );
@@ -817,7 +852,8 @@ class _CalendarScreenState extends State<CalendarScreen>
             onDaySelected: (selected, focused) => _goToDay(selected),
             onPageChanged: (focusedDay) {
               final now = DateTime.now();
-              final isCurrentMonth = focusedDay.year == now.year && focusedDay.month == now.month;
+              final isCurrentMonth =
+                  focusedDay.year == now.year && focusedDay.month == now.month;
               final targetDay = isCurrentMonth
                   ? DateTime(now.year, now.month, now.day)
                   : focusedDay;
@@ -825,7 +861,11 @@ class _CalendarScreenState extends State<CalendarScreen>
                 _focusedDay = targetDay;
                 _selectedDay = targetDay;
               });
-              final localTarget = DateTime(targetDay.year, targetDay.month, targetDay.day);
+              final localTarget = DateTime(
+                targetDay.year,
+                targetDay.month,
+                targetDay.day,
+              );
               final diff = localTarget.difference(_baseDate).inDays;
               _dayPageController.jumpToPage(_kMiddlePage + diff);
               _loadSummary(targetDay);
@@ -859,13 +899,13 @@ class _CalendarScreenState extends State<CalendarScreen>
             child: AnimatedBuilder(
               animation: _slideController,
               builder: (context, child) {
-                final slide = Tween<Offset>(
-                  begin: _slideBegin,
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: _slideController,
-                  curve: Curves.easeOut,
-                ));
+                final slide =
+                    Tween<Offset>(begin: _slideBegin, end: Offset.zero).animate(
+                      CurvedAnimation(
+                        parent: _slideController,
+                        curve: Curves.easeOut,
+                      ),
+                    );
                 return SlideTransition(position: slide, child: child);
               },
               child: Material(
@@ -875,48 +915,51 @@ class _CalendarScreenState extends State<CalendarScreen>
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: PageView.builder(
-              controller: _dayPageController,
-              physics: const BouncingScrollPhysics(),
-              onPageChanged: (index) {
-                final newDay =
-                    _baseDate.add(Duration(days: index - _kMiddlePage));
-                // _goToDay から jumpToPage された場合は既に更新済み
-                if (isSameDay(_selectedDay, newDay)) return;
-                final needsReload = _summaryMonth == null ||
-                    newDay.month != _summaryMonth!.month ||
-                    newDay.year != _summaryMonth!.year;
-                setState(() {
-                  _selectedDay = newDay;
-                  _focusedDay = newDay;
-                });
-                if (needsReload) _loadSummary(newDay);
-                // 高速スワイプで haptic が連打されないよう、日付が変わったときだけ発火
-                if (!isSameDay(_lastHapticDay, newDay)) {
-                  _lastHapticDay = newDay;
-                  HapticFeedback.selectionClick();
-                }
-              },
-              itemBuilder: (context, index) {
-                final day =
-                    _baseDate.add(Duration(days: index - _kMiddlePage));
-                return CalendarDayPanel(
-                  day: day,
-                  receipts: _receiptsForDay(day),
-                  activeCoupons: _couponsForDay(day),
-                  dueBills: _billsDueOnDay(day),
-                  loading: _loading,
-                  fmt: _fmt,
-                  colors: colors,
-                  onTapReceipt: _showReceiptDetail,
-                  onTapCoupon: _showCouponSheet,
-                  onTapBill: _showBillDetailSheet,
-                );
-              },
+                  controller: _dayPageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (index) {
+                    final newDay = _baseDate.add(
+                      Duration(days: index - _kMiddlePage),
+                    );
+                    // _goToDay から jumpToPage された場合は既に更新済み
+                    if (isSameDay(_selectedDay, newDay)) return;
+                    final needsReload =
+                        _summaryMonth == null ||
+                        newDay.month != _summaryMonth!.month ||
+                        newDay.year != _summaryMonth!.year;
+                    setState(() {
+                      _selectedDay = newDay;
+                      _focusedDay = newDay;
+                    });
+                    if (needsReload) _loadSummary(newDay);
+                    // 高速スワイプで haptic が連打されないよう、日付が変わったときだけ発火
+                    if (!isSameDay(_lastHapticDay, newDay)) {
+                      _lastHapticDay = newDay;
+                      HapticFeedback.selectionClick();
+                    }
+                  },
+                  itemBuilder: (context, index) {
+                    final day = _baseDate.add(
+                      Duration(days: index - _kMiddlePage),
+                    );
+                    return CalendarDayPanel(
+                      day: day,
+                      receipts: _receiptsForDay(day),
+                      activeCoupons: _couponsForDay(day),
+                      dueBills: _billsDueOnDay(day),
+                      loading: _loading,
+                      fmt: _fmt,
+                      colors: colors,
+                      onTapReceipt: _showReceiptDetail,
+                      onTapCoupon: _showCouponSheet,
+                      onTapBill: _showBillDetailSheet,
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    ),
       ],
     );
   }
@@ -979,7 +1022,6 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
-
   Widget _buildMiniCalendar(
     int year,
     int month,
@@ -997,7 +1039,9 @@ class _CalendarScreenState extends State<CalendarScreen>
       ...List.filled(firstWeekday, null),
       ...List.generate(daysInMonth, (i) => i + 1),
     ];
-    while (cells.length < 42) { cells.add(null); } // 常に6行
+    while (cells.length < 42) {
+      cells.add(null);
+    } // 常に6行
     final weeks = List.generate(6, (r) => cells.sublist(r * 7, r * 7 + 7));
 
     final labelColor = isCurrentMonth || isFocused
@@ -1058,7 +1102,8 @@ class _CalendarScreenState extends State<CalendarScreen>
                             ? const SizedBox()
                             : _buildMiniDayCell(
                                 day,
-                                isToday: year == now.year &&
+                                isToday:
+                                    year == now.year &&
                                     month == now.month &&
                                     day == now.day,
                                 colors: colors,
@@ -1108,78 +1153,95 @@ class _CalendarScreenState extends State<CalendarScreen>
       backgroundColor: colors.background,
       resizeToAvoidBottomInset: false,
       body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, statusBarH + 15, 8, 4),
-              child: Text(
-                'カレンダー',
-                style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, statusBarH + 15, 8, 4),
+            child: Text(
+              'カレンダー',
+              style: camillBodyStyle(
+                30,
+                colors.textPrimary,
+                weight: FontWeight.w800,
               ),
             ),
-            // ── カスタムヘッダー（アニメーション付き）──
-            _buildAnimatedHeader(colors),
-            // ── 月ビュー / 年ビュー の切り替え ──
-            Expanded(
-              child: GestureDetector(
-                onScaleStart: (d) {
-                  if (d.pointerCount < 2 || _isYearView) return;
-                  _pinchActive = true;
+          ),
+          // ── カスタムヘッダー（アニメーション付き）──
+          _buildAnimatedHeader(colors),
+          // ── 月ビュー / 年ビュー の切り替え ──
+          Expanded(
+            child: GestureDetector(
+              onScaleStart: (d) {
+                if (d.pointerCount < 2 || _isYearView) return;
+                _pinchActive = true;
+                final screenW = MediaQuery.sizeOf(context).width;
+                final cellW = (screenW - 20 - 16) / 3;
+                final cellH = cellW / 0.85;
+                final gridH = 4 * cellH + 3 * 8.0;
+                _yearItemExtent = 28.0 + gridH + 16.0;
+                final targetOffset =
+                    (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+                _yearScrollController.removeListener(_onYearScroll);
+                _yearScrollController.dispose();
+                _yearScrollController = ScrollController(
+                  initialScrollOffset: targetOffset,
+                );
+                _yearScrollController.addListener(_onYearScroll);
+                _yearViewYear = _focusedDay.year;
+              },
+              onScaleUpdate: (d) {
+                if (!_pinchActive || d.pointerCount < 2) return;
+                final pinchIn = (1.0 - d.scale).clamp(0.0, double.infinity);
+                final progress = (pinchIn / 0.5).clamp(0.0, 1.0);
+                _transitionController.value = progress;
+              },
+              onScaleEnd: (d) {
+                if (!_pinchActive) return;
+                _pinchActive = false;
+                final p = _transitionController.value;
+                final velocity = d.velocity.pixelsPerSecond.distance;
+                final shouldCommit = p >= 0.6 || (p >= 0.3 && velocity > 800);
+                if (shouldCommit) {
+                  // アニメーション開始前に ScrollController を準備
                   final screenW = MediaQuery.sizeOf(context).width;
                   final cellW = (screenW - 20 - 16) / 3;
                   final cellH = cellW / 0.85;
                   final gridH = 4 * cellH + 3 * 8.0;
                   _yearItemExtent = 28.0 + gridH + 16.0;
-                  final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
+                  final targetOffset =
+                      (_focusedDay.year - _kBaseYear) * _yearItemExtent;
                   _yearScrollController.removeListener(_onYearScroll);
                   _yearScrollController.dispose();
                   _yearScrollController = ScrollController(
                     initialScrollOffset: targetOffset,
                   );
                   _yearScrollController.addListener(_onYearScroll);
-                  _yearViewYear = _focusedDay.year;
-                },
-                onScaleUpdate: (d) {
-                  if (!_pinchActive || d.pointerCount < 2) return;
-                  final pinchIn = (1.0 - d.scale).clamp(0.0, double.infinity);
-                  final progress = (pinchIn / 0.5).clamp(0.0, 1.0);
-                  _transitionController.value = progress;
-                },
-                onScaleEnd: (d) {
-                  if (!_pinchActive) return;
-                  _pinchActive = false;
-                  final p = _transitionController.value;
-                  final velocity = d.velocity.pixelsPerSecond.distance;
-                  final shouldCommit = p >= 0.6 || (p >= 0.3 && velocity > 800);
-                  if (shouldCommit) {
-                    // アニメーション開始前に ScrollController を準備
-                    final screenW = MediaQuery.sizeOf(context).width;
-                    final cellW = (screenW - 20 - 16) / 3;
-                    final cellH = cellW / 0.85;
-                    final gridH = 4 * cellH + 3 * 8.0;
-                    _yearItemExtent = 28.0 + gridH + 16.0;
-                    final targetOffset = (_focusedDay.year - _kBaseYear) * _yearItemExtent;
-                    _yearScrollController.removeListener(_onYearScroll);
-                    _yearScrollController.dispose();
-                    _yearScrollController = ScrollController(
-                      initialScrollOffset: targetOffset,
-                    );
-                    _yearScrollController.addListener(_onYearScroll);
-                    _transitionController.animateTo(
-                      1.0,
-                      duration: Duration(milliseconds: (300 * (1.0 - p)).round().clamp(150, 300)),
-                      curve: Curves.easeOut,
-                    ).then((_) { if (mounted) _enterYearView(); });
-                    HapticFeedback.mediumImpact();
-                  } else {
-                    _transitionController.animateTo(
-                      0.0,
-                      duration: Duration(milliseconds: (250 * p).round().clamp(100, 250)),
-                      curve: Curves.easeOut,
-                    );
-                  }
-                },
-                child: AnimatedBuilder(
+                  _transitionController
+                      .animateTo(
+                        1.0,
+                        duration: Duration(
+                          milliseconds: (300 * (1.0 - p)).round().clamp(
+                            150,
+                            300,
+                          ),
+                        ),
+                        curve: Curves.easeOut,
+                      )
+                      .then((_) {
+                        if (mounted) _enterYearView();
+                      });
+                  HapticFeedback.mediumImpact();
+                } else {
+                  _transitionController.animateTo(
+                    0.0,
+                    duration: Duration(
+                      milliseconds: (250 * p).round().clamp(100, 250),
+                    ),
+                    curve: Curves.easeOut,
+                  );
+                }
+              },
+              child: AnimatedBuilder(
                 animation: _transitionController,
                 builder: (context, _) {
                   final p = _transitionController.value;
@@ -1189,16 +1251,18 @@ class _CalendarScreenState extends State<CalendarScreen>
                   // ウィジェット差し替えによるフラッシュを完全に防ぐ。
                   if (_isYearView || _isReturningFromYearView) {
                     final screenW = MediaQuery.sizeOf(context).width;
-                    final availableH = MediaQuery.sizeOf(context).height
-                        - kToolbarHeight
-                        - MediaQuery.paddingOf(context).top
-                        - 44.0;
+                    final availableH =
+                        MediaQuery.sizeOf(context).height -
+                        kToolbarHeight -
+                        MediaQuery.paddingOf(context).top -
+                        44.0;
                     final miniWidth = (screenW - 36) / 3;
                     final targetScale = miniWidth / screenW;
                     final col = (_focusedDay.month - 1) % 3;
                     final row = (_focusedDay.month - 1) ~/ 3;
                     final cellH = miniWidth / 0.85;
-                    final targetX = 10.0 + col * (miniWidth + 8) + miniWidth / 2;
+                    final targetX =
+                        10.0 + col * (miniWidth + 8) + miniWidth / 2;
                     final targetY = 28.0 + 8.0 + row * (cellH + 8) + cellH / 2;
                     final centerX = screenW / 2;
                     final centerY = availableH / 2;
@@ -1249,10 +1313,11 @@ class _CalendarScreenState extends State<CalendarScreen>
 
                   // ━━ 月ビュー表示中 or 順再生中（月→年）━━
                   final screenW = MediaQuery.sizeOf(context).width;
-                  final availableH = MediaQuery.sizeOf(context).height
-                      - kToolbarHeight
-                      - MediaQuery.paddingOf(context).top
-                      - 44.0;
+                  final availableH =
+                      MediaQuery.sizeOf(context).height -
+                      kToolbarHeight -
+                      MediaQuery.paddingOf(context).top -
+                      44.0;
                   final miniWidth = (screenW - 36) / 3;
                   final targetScale = miniWidth / screenW;
                   final col = (_focusedDay.month - 1) % 3;
@@ -1309,8 +1374,8 @@ class _CalendarScreenState extends State<CalendarScreen>
               ),
             ),
           ),
-          ],
-        ),
+        ],
+      ),
     );
   }
 }

@@ -23,25 +23,30 @@ class BillService {
     String? paidAt,
     String? memo,
   }) async {
-    final data = await _api.postAny('/bills', body: {
-      'title': title,
-      'amount': amount,
-      'due_date': dueDate,
-      'status': status,
-      'category': category,
-      'is_tax_exempt': isTaxExempt,
-      'paid_at': paidAt,
-      'memo': memo,
-    });
+    final data = await _api.postAny(
+      '/bills',
+      body: {
+        'title': title,
+        'amount': amount,
+        'due_date': dueDate,
+        'status': status,
+        'category': category,
+        'is_tax_exempt': isTaxExempt,
+        'paid_at': paidAt,
+        'memo': memo,
+      },
+    );
     return Bill.fromJson(data as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> analyzeBill(
-      String imageBase64, String imageType) async {
-    return _api.post('/bills/analyze', body: {
-      'image_base64': imageBase64,
-      'image_type': imageType,
-    });
+    String imageBase64,
+    String imageType,
+  ) async {
+    return _api.post(
+      '/bills/analyze',
+      body: {'image_base64': imageBase64, 'image_type': imageType},
+    );
   }
 
   Future<void> updateMemo(String billId, String? memo) async {

@@ -104,7 +104,9 @@ class _ReportScreenState extends State<ReportScreen>
       }).toList();
 
       // 開いた月は常に含める
-      if (!months.any((m) => m.year == openedMonth.year && m.month == openedMonth.month)) {
+      if (!months.any(
+        (m) => m.year == openedMonth.year && m.month == openedMonth.month,
+      )) {
         months.add(openedMonth);
       }
       months.sort((a, b) => a.compareTo(b));
@@ -244,7 +246,8 @@ class _ReportPageState extends State<_ReportPage> {
     if (!silent) setState(() => _loading = true);
     try {
       final data = await _api.get(
-          '/reports/monthly/${widget.year}/${widget.month}');
+        '/reports/monthly/${widget.year}/${widget.month}',
+      );
       setState(() => _report = data);
     } catch (e) {
       if (mounted) {
@@ -312,13 +315,16 @@ class _ReportPageState extends State<_ReportPage> {
               ),
             ),
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: IgnorePointer(
               child: Container(
                 height: 32,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                     colors: [colors.background, colors.background.withAlpha(0)],
                   ),
                 ),
@@ -342,20 +348,32 @@ class _ReportPageState extends State<_ReportPage> {
         children: [
           Row(
             children: [
-              Text('収支サマリー',
-                  style: camillBodyStyle(14, colors.textPrimary,
-                      weight: FontWeight.bold)),
+              Text(
+                '収支サマリー',
+                style: camillBodyStyle(
+                  14,
+                  colors.textPrimary,
+                  weight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: colors.primaryLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text('スコア $score点',
-                    style: camillBodyStyle(12, colors.primary,
-                        weight: FontWeight.bold)),
+                child: Text(
+                  'スコア $score点',
+                  style: camillBodyStyle(
+                    12,
+                    colors.primary,
+                    weight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -375,10 +393,14 @@ class _ReportPageState extends State<_ReportPage> {
                 size: 16,
               ),
               const SizedBox(width: 6),
-              Text('予算達成率 $rate%',
-                  style: camillBodyStyle(
-                      13, rate >= 80 ? colors.success : colors.danger,
-                      weight: FontWeight.bold)),
+              Text(
+                '予算達成率 $rate%',
+                style: camillBodyStyle(
+                  13,
+                  rate >= 80 ? colors.success : colors.danger,
+                  weight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ],
@@ -397,9 +419,14 @@ class _ReportPageState extends State<_ReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('割引・クーポン実績',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            '割引・クーポン実績',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -440,13 +467,18 @@ class _ReportPageState extends State<_ReportPage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, size: 14, color: colors.danger),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 14,
+                    color: colors.danger,
+                  ),
                   const SizedBox(width: 6),
-                  Text('未使用クーポン損失',
-                      style: camillBodyStyle(12, colors.danger)),
+                  Text('未使用クーポン損失', style: camillBodyStyle(12, colors.danger)),
                   const Spacer(),
-                  Text(_currencyFmt.format(loss),
-                      style: camillAmountStyle(13, colors.danger)),
+                  Text(
+                    _currencyFmt.format(loss),
+                    style: camillAmountStyle(13, colors.danger),
+                  ),
                 ],
               ),
             ),
@@ -466,9 +498,14 @@ class _ReportPageState extends State<_ReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('スキャン実績',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            'スキャン実績',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -504,16 +541,22 @@ class _ReportPageState extends State<_ReportPage> {
 
   Widget _buildTopStoresCard(CamillColors colors) {
     final r = _report!;
-    final stores = (r['top_stores'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final stores =
+        (r['top_stores'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     if (stores.isEmpty) return const SizedBox.shrink();
 
     return CamillCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('よく使ったお店',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            'よく使ったお店',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           ...stores.asMap().entries.map((e) {
             final i = e.key;
@@ -521,7 +564,11 @@ class _ReportPageState extends State<_ReportPage> {
             final name = s['store_name'] as String? ?? '';
             final amount = (s['amount'] as num?)?.toInt() ?? 0;
             final visits = (s['visit_count'] as num?)?.toInt() ?? 0;
-            final rankColors = [colors.primary, colors.textSecondary, colors.textMuted];
+            final rankColors = [
+              colors.primary,
+              colors.textSecondary,
+              colors.textMuted,
+            ];
             final color = rankColors[i < 3 ? i : 2];
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -535,23 +582,32 @@ class _ReportPageState extends State<_ReportPage> {
                       color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text('${i + 1}',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: color)),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(name,
-                        style: camillBodyStyle(13, colors.textPrimary),
-                        overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      name,
+                      style: camillBodyStyle(13, colors.textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  Text('$visits回',
-                      style: camillBodyStyle(12, colors.textMuted)),
+                  Text(
+                    '$visits回',
+                    style: camillBodyStyle(12, colors.textMuted),
+                  ),
                   const SizedBox(width: 10),
-                  Text(_currencyFmt.format(amount),
-                      style: camillAmountStyle(14, colors.textPrimary)),
+                  Text(
+                    _currencyFmt.format(amount),
+                    style: camillAmountStyle(14, colors.textPrimary),
+                  ),
                 ],
               ),
             );
@@ -580,12 +636,20 @@ class _ReportPageState extends State<_ReportPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, size: 16,
-                  color: isQuotaError ? colors.textMuted : colors.primary),
+              Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: isQuotaError ? colors.textMuted : colors.primary,
+              ),
               const SizedBox(width: 6),
-              Text('AIアドバイス',
-                  style: camillBodyStyle(14, colors.textPrimary,
-                      weight: FontWeight.bold)),
+              Text(
+                'AIアドバイス',
+                style: camillBodyStyle(
+                  14,
+                  colors.textPrimary,
+                  weight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -596,14 +660,22 @@ class _ReportPageState extends State<_ReportPage> {
               decoration: BoxDecoration(
                 color: colors.danger.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: colors.danger.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: colors.danger.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, size: 14, color: colors.danger),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 14,
+                    color: colors.danger,
+                  ),
                   const SizedBox(width: 8),
-                  Text('APIの上限に達しました。しばらくお待ちください。',
-                      style: camillBodyStyle(12, colors.danger)),
+                  Text(
+                    'APIの上限に達しました。しばらくお待ちください。',
+                    style: camillBodyStyle(12, colors.danger),
+                  ),
                 ],
               ),
             )
@@ -624,8 +696,10 @@ class _ReportPageState extends State<_ReportPage> {
                     Icon(Icons.flag_outlined, size: 14, color: colors.primary),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(goal,
-                          style: camillBodyStyle(12, colors.primary)),
+                      child: Text(
+                        goal,
+                        style: camillBodyStyle(12, colors.primary),
+                      ),
                     ),
                   ],
                 ),
@@ -658,7 +732,8 @@ class _ReportPageState extends State<_ReportPage> {
   Widget _buildFixedVariableCard(CamillColors colors) {
     final r = _report!;
     final total = (r['total_expense'] as num?)?.toInt() ?? 0;
-    final cats = (r['top_categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final cats =
+        (r['top_categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     int fixedTotal = 0;
     for (final cat in cats) {
@@ -668,7 +743,9 @@ class _ReportPageState extends State<_ReportPage> {
     }
     final variableTotal = total - fixedTotal;
     final fixedRatio = total > 0 ? (fixedTotal / total).clamp(0.0, 1.0) : 0.0;
-    final variableRatio = total > 0 ? (variableTotal / total).clamp(0.0, 1.0) : 0.0;
+    final variableRatio = total > 0
+        ? (variableTotal / total).clamp(0.0, 1.0)
+        : 0.0;
 
     const fixedColor = Color(0xFF8D6E63);
 
@@ -676,8 +753,14 @@ class _ReportPageState extends State<_ReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('固定費 / 変動費',
-              style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
+          Text(
+            '固定費 / 変動費',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 14),
           // 積み上げバー
           ClipRRect(
@@ -692,7 +775,9 @@ class _ReportPageState extends State<_ReportPage> {
                   ),
                   Flexible(
                     flex: ((1 - fixedRatio) * 1000).round(),
-                    child: Container(color: colors.primary.withValues(alpha: 0.7)),
+                    child: Container(
+                      color: colors.primary.withValues(alpha: 0.7),
+                    ),
                   ),
                 ],
               ),
@@ -705,8 +790,13 @@ class _ReportPageState extends State<_ReportPage> {
               const SizedBox(width: 12),
               Container(width: 1, height: 40, color: colors.surfaceBorder),
               const SizedBox(width: 12),
-              _buildFVItem('変動費', variableTotal, variableRatio,
-                  colors.primary.withValues(alpha: 0.7), colors),
+              _buildFVItem(
+                '変動費',
+                variableTotal,
+                variableRatio,
+                colors.primary.withValues(alpha: 0.7),
+                colors,
+              ),
             ],
           ),
         ],
@@ -714,7 +804,13 @@ class _ReportPageState extends State<_ReportPage> {
     );
   }
 
-  Widget _buildFVItem(String label, int amount, double ratio, Color color, CamillColors colors) {
+  Widget _buildFVItem(
+    String label,
+    int amount,
+    double ratio,
+    Color color,
+    CamillColors colors,
+  ) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -722,7 +818,8 @@ class _ReportPageState extends State<_ReportPage> {
           Row(
             children: [
               Container(
-                width: 8, height: 8,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(2),
@@ -731,13 +828,21 @@ class _ReportPageState extends State<_ReportPage> {
               const SizedBox(width: 6),
               Text(label, style: camillBodyStyle(12, colors.textMuted)),
               const Spacer(),
-              Text('${(ratio * 100).round()}%',
-                  style: camillBodyStyle(12, colors.textMuted)),
+              Text(
+                '${(ratio * 100).round()}%',
+                style: camillBodyStyle(12, colors.textMuted),
+              ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(_currencyFmt.format(amount),
-              style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.w700)),
+          Text(
+            _currencyFmt.format(amount),
+            style: camillBodyStyle(
+              16,
+              colors.textPrimary,
+              weight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -745,7 +850,8 @@ class _ReportPageState extends State<_ReportPage> {
 
   Widget _buildCategoryRanking(CamillColors colors) {
     final r = _report!;
-    final cats = (r['top_categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final cats =
+        (r['top_categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final medals = ['🥇', '🥈', '🥉'];
     final medalColors = [
       const Color(0xFFFFB300),
@@ -757,9 +863,14 @@ class _ReportPageState extends State<_ReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('支出TOP3',
-              style: camillBodyStyle(14, colors.textPrimary,
-                  weight: FontWeight.bold)),
+          Text(
+            '支出TOP3',
+            style: camillBodyStyle(
+              14,
+              colors.textPrimary,
+              weight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           ...cats.asMap().entries.map((e) {
             final i = e.key;
@@ -771,16 +882,24 @@ class _ReportPageState extends State<_ReportPage> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  Text(medals[i < 3 ? i : 2],
-                      style: const TextStyle(fontSize: 22)),
+                  Text(
+                    medals[i < 3 ? i : 2],
+                    style: const TextStyle(fontSize: 22),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(label,
-                        style: camillBodyStyle(14, colors.textPrimary)),
+                    child: Text(
+                      label,
+                      style: camillBodyStyle(14, colors.textPrimary),
+                    ),
                   ),
-                  Text(_currencyFmt.format(amount),
-                      style: camillAmountStyle(
-                          15, i < 3 ? medalColors[i] : colors.textPrimary)),
+                  Text(
+                    _currencyFmt.format(amount),
+                    style: camillAmountStyle(
+                      15,
+                      i < 3 ? medalColors[i] : colors.textPrimary,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -789,7 +908,6 @@ class _ReportPageState extends State<_ReportPage> {
       ),
     );
   }
-
 }
 
 class _AnimatedAmount extends StatefulWidget {
@@ -817,11 +935,14 @@ class _AnimatedAmountState extends State<_AnimatedAmount>
   @override
   void initState() {
     super.initState();
-    _ctrl =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    _anim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
     );
+    _anim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _ctrl.forward();
   }
 
@@ -841,8 +962,7 @@ class _AnimatedAmountState extends State<_AnimatedAmount>
         AnimatedBuilder(
           animation: _anim,
           builder: (context2, child) => Text(
-            widget.currencyFmt
-                .format((_anim.value * widget.amount).toInt()),
+            widget.currencyFmt.format((_anim.value * widget.amount).toInt()),
             style: widget.style,
           ),
         ),
@@ -874,9 +994,14 @@ class _StatBox extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(value,
-              style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(label, style: camillBodyStyle(11, colors.textMuted)),
         ],

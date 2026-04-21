@@ -39,7 +39,10 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
         title: const Text('ファミリーに参加しますか？'),
         content: const Text('スキャンしたQRコードでファミリーに参加します。'),
         actions: [
-          TextButton(onPressed: () => ctx.pop(false), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(onPressed: () => ctx.pop(true), child: const Text('参加する')),
         ],
       ),
@@ -60,15 +63,15 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
       final family = await _service.joinFamily(parts[0], parts[1]);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${family.name} に参加しました')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${family.name} に参加しました')));
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('参加に失敗しました。QRコードを確認してください')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('参加に失敗しました。QRコードを確認してください')));
       setState(() => _processing = false);
       await _controller.start();
     }
@@ -83,15 +86,14 @@ class _FamilyJoinScreenState extends State<FamilyJoinScreen> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('QRコードをスキャン',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'QRコードをスキャン',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _handleScan,
-          ),
+          MobileScanner(controller: _controller, onDetect: _handleScan),
           Center(
             child: Container(
               width: 240,

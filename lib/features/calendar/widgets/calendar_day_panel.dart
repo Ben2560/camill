@@ -243,11 +243,19 @@ class CalendarDayPanel extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
                     child: Row(
                       children: [
-                        const Icon(Icons.description_outlined, size: 14, color: Color(0xFFE53935)),
+                        const Icon(
+                          Icons.description_outlined,
+                          size: 14,
+                          color: Color(0xFFE53935),
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '支払期限の請求書',
-                          style: camillBodyStyle(12, const Color(0xFFE53935), weight: FontWeight.w600),
+                          style: camillBodyStyle(
+                            12,
+                            const Color(0xFFE53935),
+                            weight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -256,45 +264,86 @@ class CalendarDayPanel extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: dueBills.map((b) {
-                        final catColor = AppConstants.categoryColors[b.category] ?? const Color(0xFF90A4AE);
-                        final catLabel = AppConstants.categoryLabels[b.category] ?? 'その他';
+                        final catColor =
+                            AppConstants.categoryColors[b.category] ??
+                            const Color(0xFF90A4AE);
+                        final catLabel =
+                            AppConstants.categoryLabels[b.category] ?? 'その他';
                         return GestureDetector(
                           onTap: () => onTapBill(b),
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE53935).withAlpha(12),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFE53935).withAlpha(80)),
+                              border: Border.all(
+                                color: const Color(0xFFE53935).withAlpha(80),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.description_outlined, size: 18, color: Color(0xFFE53935)),
+                                const Icon(
+                                  Icons.description_outlined,
+                                  size: 18,
+                                  color: Color(0xFFE53935),
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(b.title, style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w600)),
+                                      Text(
+                                        b.title,
+                                        style: camillBodyStyle(
+                                          14,
+                                          colors.textPrimary,
+                                          weight: FontWeight.w600,
+                                        ),
+                                      ),
                                       Row(
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 1,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: catColor.withAlpha(30),
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
-                                            child: Text(catLabel, style: TextStyle(fontSize: 10, color: catColor, fontWeight: FontWeight.w600)),
+                                            child: Text(
+                                              catLabel,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: catColor,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
                                 ),
-                                Text(fmt.format(b.amount), style: camillAmountStyle(14, const Color(0xFFE53935))),
+                                Text(
+                                  fmt.format(b.amount),
+                                  style: camillAmountStyle(
+                                    14,
+                                    const Color(0xFFE53935),
+                                  ),
+                                ),
                                 const SizedBox(width: 4),
-                                const Icon(Icons.chevron_right, size: 16, color: Color(0xFFE53935)),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  size: 16,
+                                  color: Color(0xFFE53935),
+                                ),
                               ],
                             ),
                           ),
@@ -315,7 +364,9 @@ class CalendarDayPanel extends StatelessWidget {
                 else
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
                     child: Column(
                       children: receipts.map((r) {
                         final isFirst = receipts.first == r;
@@ -332,14 +383,20 @@ class CalendarDayPanel extends StatelessWidget {
                                   color: colors.primaryLight,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Icon(Icons.receipt_outlined,
-                                    color: colors.primary, size: 20),
+                                child: Icon(
+                                  Icons.receipt_outlined,
+                                  color: colors.primary,
+                                  size: 20,
+                                ),
                               ),
-                              title: Text(r.storeName,
-                                  style: camillBodyStyle(
-                                      14, colors.textPrimary)),
+                              title: Text(
+                                r.storeName,
+                                style: camillBodyStyle(14, colors.textPrimary),
+                              ),
                               subtitle: () {
-                                final dt = DateTime.parse(r.purchasedAt).toLocal();
+                                final dt = DateTime.parse(
+                                  r.purchasedAt,
+                                ).toLocal();
                                 if (dt.hour == 0 && dt.minute == 0) return null;
                                 return Text(
                                   DateFormat('HH:mm').format(dt),
@@ -349,12 +406,19 @@ class CalendarDayPanel extends StatelessWidget {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(fmt.format(r.totalAmount),
-                                      style: camillAmountStyle(
-                                          14, colors.textPrimary)),
+                                  Text(
+                                    fmt.format(r.totalAmount),
+                                    style: camillAmountStyle(
+                                      14,
+                                      colors.textPrimary,
+                                    ),
+                                  ),
                                   const SizedBox(width: 4),
-                                  Icon(Icons.chevron_right,
-                                      size: 16, color: colors.textMuted),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    size: 16,
+                                    color: colors.textMuted,
+                                  ),
                                 ],
                               ),
                               onTap: () => onTapReceipt(r),

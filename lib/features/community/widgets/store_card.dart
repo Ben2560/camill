@@ -35,7 +35,9 @@ class StoreCard extends StatelessWidget {
             width: isHighlighted ? 1.5 : 1,
           ),
         ),
-        child: store.isLocked ? _buildLockedContent(colors) : _buildContent(colors),
+        child: store.isLocked
+            ? _buildLockedContent(colors)
+            : _buildContent(colors),
       ),
     );
   }
@@ -59,7 +61,11 @@ class StoreCard extends StatelessWidget {
             children: [
               Text(
                 store.storeName,
-                style: camillBodyStyle(14, colors.textMuted, weight: FontWeight.w600),
+                style: camillBodyStyle(
+                  14,
+                  colors.textMuted,
+                  weight: FontWeight.w600,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.fade,
                 softWrap: false,
@@ -67,7 +73,11 @@ class StoreCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'タップしてプランを確認',
-                style: camillBodyStyle(12, colors.primary, weight: FontWeight.w500),
+                style: camillBodyStyle(
+                  12,
+                  colors.primary,
+                  weight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -79,8 +89,8 @@ class StoreCard extends StatelessWidget {
 
   Widget _buildContent(CamillColors colors) {
     // 有効なクーポンが1枚もない場合（全部期限切れ）
-    final allExpired = store.coupons.isNotEmpty &&
-        store.coupons.every((c) => c.isExpired);
+    final allExpired =
+        store.coupons.isNotEmpty && store.coupons.every((c) => c.isExpired);
 
     return Opacity(
       opacity: allExpired ? 0.5 : 1.0,
@@ -110,12 +120,18 @@ class StoreCard extends StatelessWidget {
                   children: [
                     if (store.isFeatured && !allExpired) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: colors.accent.withAlpha(30),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('\u{1F525}', style: TextStyle(fontSize: 10)),
+                        child: const Text(
+                          '\u{1F525}',
+                          style: TextStyle(fontSize: 10),
+                        ),
                       ),
                       const SizedBox(width: 4),
                     ],
@@ -147,7 +163,10 @@ class StoreCard extends StatelessWidget {
                 if (store.coupons.isNotEmpty)
                   _buildCouponPreview(colors, allExpired)
                 else
-                  Text('クーポンあり', style: camillBodyStyle(12, colors.textSecondary)),
+                  Text(
+                    'クーポンあり',
+                    style: camillBodyStyle(12, colors.textSecondary),
+                  ),
               ],
             ),
           ),
@@ -194,8 +213,14 @@ class StoreCard extends StatelessWidget {
               color: colors.danger.withAlpha(25),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text('まもなく終了',
-                style: camillBodyStyle(10, colors.danger, weight: FontWeight.w600)),
+            child: Text(
+              'まもなく終了',
+              style: camillBodyStyle(
+                10,
+                colors.danger,
+                weight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ],

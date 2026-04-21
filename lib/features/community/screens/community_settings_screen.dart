@@ -158,17 +158,17 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
     setState(() => _notifiedStoreIds = newList);
 
     try {
-      final settings =
-          await _service.updateSettings(notifiedStoreIds: newList);
+      final settings = await _service.updateSettings(notifiedStoreIds: newList);
       if (!mounted) return;
       setState(() => _notifiedStoreIds = settings.notifiedStoreIds);
     } catch (_) {
       // ロールバック
       if (!mounted) return;
-      setState(() =>
-          _notifiedStoreIds = enabled
-              ? newList.where((id) => id != storeId).toList()
-              : [...newList, storeId]);
+      setState(
+        () => _notifiedStoreIds = enabled
+            ? newList.where((id) => id != storeId).toList()
+            : [...newList, storeId],
+      );
       notif.showTopNotification(context, '設定の更新に失敗しました');
     }
   }
@@ -186,41 +186,30 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
           backgroundColor: colors.background,
         ),
         body: _loading
-            ? Center(
-                child: CircularProgressIndicator(color: colors.primary),
-              )
+            ? Center(child: CircularProgressIndicator(color: colors.primary))
             : ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
-                  _buildSection(
-                    colors,
-                    'クーポンシェア',
-                    [
-                      _buildSwitchTile(
-                        colors,
-                        icon: Icons.share_outlined,
-                        title: 'クーポン情報をシェア',
-                        subtitle:
-                            'OCRで検出したクーポンを地域のユーザーと匿名で共有します',
-                        value: _shareEnabled,
-                        onChanged: (v) => _updateSetting(shareEnabled: v),
-                      ),
-                    ],
-                  ),
-                  _buildSection(
-                    colors,
-                    '通知',
-                    [
-                      _buildSwitchTile(
-                        colors,
-                        icon: Icons.notifications_outlined,
-                        title: '全クーポン通知',
-                        subtitle: '近くの店舗に新しいクーポンが共有されたら通知',
-                        value: _notifyAll,
-                        onChanged: (v) => _updateSetting(notifyAll: v),
-                      ),
-                    ],
-                  ),
+                  _buildSection(colors, 'クーポンシェア', [
+                    _buildSwitchTile(
+                      colors,
+                      icon: Icons.share_outlined,
+                      title: 'クーポン情報をシェア',
+                      subtitle: 'OCRで検出したクーポンを地域のユーザーと匿名で共有します',
+                      value: _shareEnabled,
+                      onChanged: (v) => _updateSetting(shareEnabled: v),
+                    ),
+                  ]),
+                  _buildSection(colors, '通知', [
+                    _buildSwitchTile(
+                      colors,
+                      icon: Icons.notifications_outlined,
+                      title: '全クーポン通知',
+                      subtitle: '近くの店舗に新しいクーポンが共有されたら通知',
+                      value: _notifyAll,
+                      onChanged: (v) => _updateSetting(notifyAll: v),
+                    ),
+                  ]),
                   _buildNearbyStoresSection(colors),
                   if (!_isPremium) _buildFreeStoreSelectionSection(colors),
                 ],
@@ -258,11 +247,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
               else
                 GestureDetector(
                   onTap: _loadNearbyStores,
-                  child: Icon(
-                    Icons.refresh,
-                    size: 18,
-                    color: colors.primary,
-                  ),
+                  child: Icon(Icons.refresh, size: 18, color: colors.primary),
                 ),
             ],
           ),
@@ -284,10 +269,9 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
             ),
           )
         else
-          ..._nearbyStores.map((store) => _buildStoreNotificationTile(
-                colors,
-                store,
-              )),
+          ..._nearbyStores.map(
+            (store) => _buildStoreNotificationTile(colors, store),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Text(
@@ -301,7 +285,9 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
   }
 
   Widget _buildStoreNotificationTile(
-      CamillColors colors, CommunityStore store) {
+    CamillColors colors,
+    CommunityStore store,
+  ) {
     final isNotified = _notifiedStoreIds.contains(store.storeId);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -348,80 +334,79 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
   }
 
   Widget _buildFreeStoreSelectionSection(CamillColors colors) {
-    return _buildSection(
-      colors,
-      '店舗選択（無料プラン）',
-      [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 8,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    '選択中の店舗: ${_selectedStoreIds.length}/2',
-                    style: camillBodyStyle(
-                      14,
-                      colors.textPrimary,
-                      weight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '残り変更回数: $_remainingChanges回',
-                    style: camillBodyStyle(13, colors.textSecondary),
-                  ),
-                ],
-              ),
-              if (_nextResetDate != null) ...[
-                const SizedBox(height: 2),
+    return _buildSection(colors, '店舗選択（無料プラン）', [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Text(
-                  '次のリセット: ${_nextResetDate!.month}/${_nextResetDate!.day}',
-                  style: camillBodyStyle(12, colors.textMuted),
+                  '選択中の店舗: ${_selectedStoreIds.length}/2',
+                  style: camillBodyStyle(
+                    14,
+                    colors.textPrimary,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '残り変更回数: $_remainingChanges回',
+                  style: camillBodyStyle(13, colors.textSecondary),
                 ),
               ],
-              const SizedBox(height: 12),
-              if (_selectedStoreIds.isEmpty)
-                Text(
-                  'コミュニティ画面でロックされた店舗をタップして選択できます。',
-                  style: camillBodyStyle(13, colors.textMuted),
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: _selectedStoreIds.map((storeId) {
-                    return Chip(
-                      label: Text(
-                        storeId,
-                        style: camillBodyStyle(13, colors.primary,
-                            weight: FontWeight.w600),
-                      ),
-                      backgroundColor: colors.primaryLight,
-                      deleteIcon:
-                          Icon(Icons.close, size: 14, color: colors.primary),
-                      onDeleted: _remainingChanges > 0
-                          ? () => _deselectStore(storeId)
-                          : null,
-                      side: BorderSide.none,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                    );
-                  }).toList(),
-                ),
-              const SizedBox(height: 8),
+            ),
+            if (_nextResetDate != null) ...[
+              const SizedBox(height: 2),
               Text(
-                'コミュニティ画面でロックされた店舗をタップして追加・入れ替えができます。チップの×での解除も変更回数を1回消費します。3ヶ月に3回まで変更可能です。',
+                '次のリセット: ${_nextResetDate!.month}/${_nextResetDate!.day}',
                 style: camillBodyStyle(12, colors.textMuted),
               ),
             ],
-          ),
+            const SizedBox(height: 12),
+            if (_selectedStoreIds.isEmpty)
+              Text(
+                'コミュニティ画面でロックされた店舗をタップして選択できます。',
+                style: camillBodyStyle(13, colors.textMuted),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: _selectedStoreIds.map((storeId) {
+                  return Chip(
+                    label: Text(
+                      storeId,
+                      style: camillBodyStyle(
+                        13,
+                        colors.primary,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                    backgroundColor: colors.primaryLight,
+                    deleteIcon: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: colors.primary,
+                    ),
+                    onDeleted: _remainingChanges > 0
+                        ? () => _deselectStore(storeId)
+                        : null,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  );
+                }).toList(),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              'コミュニティ画面でロックされた店舗をタップして追加・入れ替えができます。チップの×での解除も変更回数を1回消費します。3ヶ月に3回まで変更可能です。',
+              style: camillBodyStyle(12, colors.textMuted),
+            ),
+          ],
         ),
-      ],
-    );
+      ),
+    ]);
   }
 
   Widget _buildSection(

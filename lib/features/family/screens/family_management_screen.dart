@@ -108,7 +108,12 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
   Future<void> _load() async {
     try {
       final family = await _service.fetchMyFamily();
-      if (mounted) setState(() { _family = family; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _family = family;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -144,11 +149,16 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isLastMember ? 'ファミリーを削除しますか？' : 'ファミリーから離脱しますか？'),
-        content: Text(isLastMember
-            ? 'あなたが最後のメンバーです。ファミリー自体が削除されます。この操作は取り消せません。'
-            : 'この操作は取り消せません。'),
+        content: Text(
+          isLastMember
+              ? 'あなたが最後のメンバーです。ファミリー自体が削除されます。この操作は取り消せません。'
+              : 'この操作は取り消せません。',
+        ),
         actions: [
-          TextButton(onPressed: () => ctx.pop(false), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(
             onPressed: () => ctx.pop(true),
             child: Text(
@@ -188,7 +198,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
         title: const Text('ファミリーを解散しますか？'),
         content: const Text('全メンバーがファミリーから外れます。この操作は取り消せません。'),
         actions: [
-          TextButton(onPressed: () => ctx.pop(false), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(
             onPressed: () => ctx.pop(true),
             child: const Text('解散する', style: TextStyle(color: Colors.red)),
@@ -278,14 +291,19 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
           backgroundColor: colors.surface,
           foregroundColor: colors.textPrimary,
           elevation: 0,
-          title: Text('ファミリー管理',
-              style: TextStyle(
-                  color: colors.textPrimary, fontWeight: FontWeight.bold)),
+          title: Text(
+            'ファミリー管理',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
         body: Listener(
           onPointerMove: (e) {
             if (_isDismissing) return;
-            final atTop = !_scrollController.hasClients ||
+            final atTop =
+                !_scrollController.hasClients ||
                 _scrollController.position.pixels <= 0;
             if (atTop && e.delta.dy > 0) {
               _pullDistance += e.delta.dy;
@@ -303,8 +321,8 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _family == null
-                  ? _buildEmpty(colors)
-                  : _buildFamily(colors),
+              ? _buildEmpty(colors)
+              : _buildFamily(colors),
         ),
       ),
     );
@@ -319,13 +337,20 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
           children: [
             Icon(Icons.group_outlined, size: 64, color: colors.textSecondary),
             const SizedBox(height: 16),
-            Text('ファミリーに参加していません',
-                style: TextStyle(color: colors.textPrimary, fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              'ファミリーに参加していません',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('家族でcamilを使って、支出を共有しましょう',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                textAlign: TextAlign.center),
+            Text(
+              '家族でcamilを使って、支出を共有しましょう',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: _createFamily,
@@ -366,11 +391,21 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(family.name,
-                        style: TextStyle(color: colors.textPrimary,
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('${family.members.length}人 / ${family.maxMembers}人',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                    Text(
+                      family.name,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '${family.members.length}人 / ${family.maxMembers}人',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -379,8 +414,14 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
         ),
         const SizedBox(height: 16),
 
-        Text('メンバー', style: TextStyle(color: colors.textSecondary,
-            fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(
+          'メンバー',
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
         _SectionCard(
           colors: colors,
@@ -389,15 +430,25 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
               ...family.members.map((m) => _buildMemberRow(m, colors)),
               const Divider(),
               ListTile(
-                leading: Icon(Icons.person_add_outlined,
-                    color: isFull ? colors.textSecondary : colors.primary),
-                title: Text('メンバーを招待',
-                    style: TextStyle(
-                        color: isFull ? colors.textSecondary : colors.primary,
-                        fontWeight: FontWeight.w600)),
+                leading: Icon(
+                  Icons.person_add_outlined,
+                  color: isFull ? colors.textSecondary : colors.primary,
+                ),
+                title: Text(
+                  'メンバーを招待',
+                  style: TextStyle(
+                    color: isFull ? colors.textSecondary : colors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 subtitle: isFull
-                    ? Text('定員に達しています',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12))
+                    ? Text(
+                        '定員に達しています',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      )
                     : null,
                 contentPadding: EdgeInsets.zero,
                 onTap: isFull ? null : () => _showInviteSheet(),
@@ -407,20 +458,34 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
         ),
         const SizedBox(height: 24),
 
-        Text('財布・仕分けルール', style: TextStyle(color: colors.textSecondary,
-            fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(
+          '財布・仕分けルール',
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
         _SectionCard(
           colors: colors,
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.account_balance_wallet_outlined,
-                color: colors.primary),
-            title: Text('財布管理',
-                style: TextStyle(color: colors.textPrimary,
-                    fontWeight: FontWeight.w600)),
-            subtitle: Text('お小遣いや仕分けルールを管理',
-                style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+            leading: Icon(
+              Icons.account_balance_wallet_outlined,
+              color: colors.primary,
+            ),
+            title: Text(
+              '財布管理',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              'お小遣いや仕分けルールを管理',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
             trailing: Icon(Icons.chevron_right, color: colors.textSecondary),
             onTap: () => context.push('/family/wallets', extra: family),
           ),
@@ -434,7 +499,10 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
           ),
           title: Text(
             isOwner ? 'ファミリーを解散する' : 'ファミリーから離脱する',
-            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           shape: RoundedRectangleBorder(
             side: const BorderSide(color: Colors.red, width: 1),
@@ -447,29 +515,36 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
   }
 
   Widget _buildMemberRow(FamilyMember member, CamillColors colors) {
-    final roleLabel = {
-      'owner': 'オーナー',
-      'parent': '大人',
-      'child': '子供',
-    }[member.role] ?? member.role;
+    final roleLabel =
+        {'owner': 'オーナー', 'parent': '大人', 'child': '子供'}[member.role] ??
+        member.role;
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
         backgroundColor: colors.primary.withAlpha(30),
-        child: Text(member.displayName.isNotEmpty ? member.displayName[0] : '?',
-            style: TextStyle(color: colors.primary)),
+        child: Text(
+          member.displayName.isNotEmpty ? member.displayName[0] : '?',
+          style: TextStyle(color: colors.primary),
+        ),
       ),
-      title: Text(member.displayName,
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
+      title: Text(
+        member.displayName,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: colors.primary.withAlpha(20),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(roleLabel,
-            style: TextStyle(color: colors.primary, fontSize: 12)),
+        child: Text(
+          roleLabel,
+          style: TextStyle(color: colors.primary, fontSize: 12),
+        ),
       ),
     );
   }
@@ -490,9 +565,13 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
             children: [
               Icon(Icons.info_outline, color: colors.primary, size: 18),
               const SizedBox(width: 8),
-              Text('ファミリープランでできること',
-                  style: TextStyle(color: colors.primary,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                'ファミリープランでできること',
+                style: TextStyle(
+                  color: colors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               GestureDetector(
                 onTap: _dismissBanner,
@@ -515,22 +594,30 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('招待する人を選択',
-                style: TextStyle(color: colors.textPrimary,
-                    fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              '招待する人を選択',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('大人（パートナー）'),
               subtitle: const Text('支出をカテゴリ単位で共有できます'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               tileColor: colors.surface,
               onTap: () {
                 ctx.pop();
@@ -542,7 +629,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen>
               leading: const Icon(Icons.child_care_outlined),
               title: const Text('子供'),
               subtitle: const Text('お小遣いや貯金を代理管理できます'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               tileColor: colors.surface,
               onTap: () {
                 ctx.pop();

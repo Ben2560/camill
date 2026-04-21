@@ -291,10 +291,7 @@ class _MainShellState extends State<MainShell>
           AnimatedOpacity(
             opacity: pageIndex == i ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
-            child: IgnorePointer(
-              ignoring: pageIndex != i,
-              child: pages[i],
-            ),
+            child: IgnorePointer(ignoring: pageIndex != i, child: pages[i]),
           ),
       ],
     );
@@ -482,7 +479,10 @@ class _MainShellState extends State<MainShell>
                     _speedDialOpen = false;
                     _speedDialVisible = false;
                   });
-                  context.push('/camera', extra: {'source': 'camera', 'hint': hint});
+                  context.push(
+                    '/camera',
+                    extra: {'source': 'camera', 'hint': hint},
+                  );
                 },
               ),
               const SizedBox(height: 10),
@@ -687,7 +687,11 @@ class _ScanInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final types = [
       (icon: Icons.receipt_long_outlined, label: 'レシート', hint: 'receipt'),
-      (icon: Icons.medical_information_outlined, label: '医療明細', hint: 'medical'),
+      (
+        icon: Icons.medical_information_outlined,
+        label: '医療明細',
+        hint: 'medical',
+      ),
       (icon: Icons.description_outlined, label: '請求書', hint: 'bill'),
     ];
     return Container(
@@ -745,7 +749,11 @@ class _ScanInfoCard extends StatelessWidget {
                               color: colors.primary.withAlpha(20),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Icon(t.icon, color: colors.primary, size: 22),
+                            child: Icon(
+                              t.icon,
+                              color: colors.primary,
+                              size: 22,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(

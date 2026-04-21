@@ -23,8 +23,11 @@ void main() {
   group('AppConstants.categoryColors', () {
     test('全カテゴリに対応する色が存在する', () {
       for (final key in AppConstants.categoryLabels.keys) {
-        expect(AppConstants.categoryColors.containsKey(key), isTrue,
-            reason: 'missing color for $key');
+        expect(
+          AppConstants.categoryColors.containsKey(key),
+          isTrue,
+          reason: 'missing color for $key',
+        );
       }
     });
   });

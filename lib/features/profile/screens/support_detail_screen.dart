@@ -242,7 +242,9 @@ class _MessageBubble extends StatelessWidget {
     if (imageDataUri != null && imageDataUri.isNotEmpty) {
       try {
         final comma = imageDataUri.indexOf(',');
-        final b64 = comma >= 0 ? imageDataUri.substring(comma + 1) : imageDataUri;
+        final b64 = comma >= 0
+            ? imageDataUri.substring(comma + 1)
+            : imageDataUri;
         imageBytes = base64Decode(b64);
       } catch (_) {}
     }
@@ -295,10 +297,7 @@ class _MessageBubble extends StatelessWidget {
                   children: [
                     // 画像（添付がある場合）
                     if (imageBytes != null)
-                      Image.memory(
-                        imageBytes,
-                        fit: BoxFit.cover,
-                      ),
+                      Image.memory(imageBytes, fit: BoxFit.cover),
                     // テキスト本文
                     if (body.isNotEmpty)
                       Container(

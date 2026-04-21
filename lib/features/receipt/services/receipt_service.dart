@@ -20,12 +20,17 @@ class ReceiptService {
     return result ?? await imageFile.readAsBytes();
   }
 
-  Future<List<ReceiptAnalysis>> analyzeReceipt(File imageFile, {String? documentHint}) async {
+  Future<List<ReceiptAnalysis>> analyzeReceipt(
+    File imageFile, {
+    String? documentHint,
+  }) async {
     final compressed = await _compressImage(imageFile);
     final base64Image = base64Encode(compressed);
     final overseasService = OverseasService(_api);
     final isOverseas = await overseasService.getIsOverseas();
-    final overseasCurrency = isOverseas ? await overseasService.getCurrentCurrency() : 'JPY';
+    final overseasCurrency = isOverseas
+        ? await overseasService.getCurrentCurrency()
+        : 'JPY';
     final body = <String, dynamic>{
       'image_base64': 'data:image/jpeg;base64,$base64Image',
       'image_type': 'jpeg',
@@ -35,7 +40,8 @@ class ReceiptService {
         'current_currency': overseasCurrency,
       },
     };
-    final data = await _api.post('/receipts/analyze', body: body)
+    final data = await _api
+        .post('/receipts/analyze', body: body)
         .timeout(const Duration(seconds: 120));
     List<ReceiptAnalysis> receipts;
     if (data.containsKey('receipts')) {
@@ -48,7 +54,9 @@ class ReceiptService {
     return _mergeReceiptsAndCoupons(receipts);
   }
 
-  List<ReceiptAnalysis> _mergeReceiptsAndCoupons(List<ReceiptAnalysis> receipts) {
+  List<ReceiptAnalysis> _mergeReceiptsAndCoupons(
+    List<ReceiptAnalysis> receipts,
+  ) {
     if (receipts.length <= 1) return receipts;
     final groups = <String, List<ReceiptAnalysis>>{};
     for (final r in receipts) {
@@ -100,7 +108,9 @@ class ReceiptService {
 
   // 既存レシートを削除してから再登録（上書き）、新しい receipt_id を返す
   Future<String> overwriteReceipt(
-      String existingReceiptId, ReceiptAnalysis analysis) async {
+    String existingReceiptId,
+    ReceiptAnalysis analysis,
+  ) async {
     await _api.delete('/receipts/$existingReceiptId');
     final body = analysis.toJson();
     body['duplicate_check_hash'] = '';
@@ -130,15 +140,17 @@ class ReceiptService {
 
   // メモのみ更新
   Future<void> updateMemo(String receiptId, String memo) async {
-    await _api.patch('/receipts/$receiptId', body: {
-      'memo': memo.isEmpty ? null : memo,
-    });
+    await _api.patch(
+      '/receipts/$receiptId',
+      body: {'memo': memo.isEmpty ? null : memo},
+    );
   }
 
   /// データが存在する月の一覧を取得（"yyyy-MM" 形式、昇順）
   Future<List<String>> getActiveMonths() async {
     final data = await _api.getAny('/receipts/active-months');
-    final list = ((data as Map<String, dynamic>)['months'] as List<dynamic>?) ?? [];
+    final list =
+        ((data as Map<String, dynamic>)['months'] as List<dynamic>?) ?? [];
     return list.cast<String>();
   }
 }

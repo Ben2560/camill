@@ -61,9 +61,11 @@ void main() async {
 
   // テーマを起動前に読み込んでフラッシュを防ぐ（UID 別キーを優先）
   final prefs = await SharedPreferences.getInstance();
-  final baseName = await UserPrefs.getString(prefs, 'camill_theme_base')
-                ?? prefs.getString('camill_theme'); // 旧キー後方互換
-  final autoSwitch = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
+  final baseName =
+      await UserPrefs.getString(prefs, 'camill_theme_base') ??
+      prefs.getString('camill_theme'); // 旧キー後方互換
+  final autoSwitch =
+      await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
 
   CamillThemeMode initialBase = CamillThemeMode.sakura;
   if (baseName != null) {
@@ -73,12 +75,12 @@ void main() async {
   }
 
   // 起動直後の暫定判定 (sun times は ThemeNotifier が非同期で取得)
-  final hour    = DateTime.now().hour;
-  final isDark  = hour >= 22 || hour < 6;
+  final hour = DateTime.now().hour;
+  final isDark = hour >= 22 || hour < 6;
   final initialThemeState = ThemeState(
     selectedBase: initialBase,
-    isDarkNow:    isDark,
-    autoSwitch:   autoSwitch,
+    isDarkNow: isDark,
+    autoSwitch: autoSwitch,
   );
 
   await SentryFlutter.init(
@@ -128,7 +130,7 @@ final _router = GoRouter(
       builder: (_, state) {
         final extra = state.extra as Map<String, dynamic>;
         return PhoneVerifyScreen(
-          email:       extra['email']       as String,
+          email: extra['email'] as String,
           displayName: extra['displayName'] as String,
         );
       },
@@ -145,7 +147,11 @@ final _router = GoRouter(
           initialImage = extra['file'] as File?;
           documentHint = extra['hint'] as String?;
         } else {
-          autoSource = extra == 'camera' ? ImageSource.camera : extra == 'gallery' ? ImageSource.gallery : null;
+          autoSource = extra == 'camera'
+              ? ImageSource.camera
+              : extra == 'gallery'
+              ? ImageSource.gallery
+              : null;
           initialImage = extra is File ? extra : null;
           documentHint = null;
         }
@@ -153,21 +159,34 @@ final _router = GoRouter(
         return CustomTransitionPage(
           key: state.pageKey,
           opaque: !transparent,
-          barrierColor: transparent ? Colors.transparent : Colors.black.withAlpha(60),
-          child: CameraScreen(autoSource: autoSource, initialImage: initialImage, documentHint: documentHint),
-          transitionDuration: transparent ? Duration.zero : const Duration(milliseconds: 380),
-          reverseTransitionDuration: transparent ? Duration.zero : const Duration(milliseconds: 260),
+          barrierColor: transparent
+              ? Colors.transparent
+              : Colors.black.withAlpha(60),
+          child: CameraScreen(
+            autoSource: autoSource,
+            initialImage: initialImage,
+            documentHint: documentHint,
+          ),
+          transitionDuration: transparent
+              ? Duration.zero
+              : const Duration(milliseconds: 380),
+          reverseTransitionDuration: transparent
+              ? Duration.zero
+              : const Duration(milliseconds: 260),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             if (transparent) return child;
             return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    ),
+                  ),
               child: child,
             );
           },
@@ -182,7 +201,8 @@ final _router = GoRouter(
       path: '/receipt-preview',
       pageBuilder: (_, state) {
         final extra = state.extra;
-        final screen = extra is ({List<ReceiptAnalysis> analyses, int maxReceipts})
+        final screen =
+            extra is ({List<ReceiptAnalysis> analyses, int maxReceipts})
             ? AnalysisPreviewScreen(
                 analyses: extra.analyses,
                 maxReceipts: extra.maxReceipts,
@@ -222,7 +242,10 @@ final _router = GoRouter(
       pageBuilder: (_, state) {
         final extra = state.extra;
         final screen = extra is ({ReceiptListItem receipt, bool focusMemo})
-            ? ReceiptEditScreen(receipt: extra.receipt, focusMemo: extra.focusMemo)
+            ? ReceiptEditScreen(
+                receipt: extra.receipt,
+                focusMemo: extra.focusMemo,
+              )
             : ReceiptEditScreen(receipt: extra as ReceiptListItem);
         return CustomTransitionPage(
           key: state.pageKey,
@@ -231,14 +254,17 @@ final _router = GoRouter(
           reverseTransitionDuration: const Duration(milliseconds: 260),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    ),
+                  ),
               child: child,
             );
           },
@@ -262,7 +288,7 @@ final _router = GoRouter(
       builder: (_, state) {
         final extra = state.extra as Map<String, dynamic>;
         return ReportScreen(
-          year:  extra['year']  as int,
+          year: extra['year'] as int,
           month: extra['month'] as int,
         );
       },
@@ -305,13 +331,11 @@ final _router = GoRouter(
       path: '/account',
       builder: (context, state) => const AccountSettingsScreen(),
     ),
-    GoRoute(
-      path: '/plan',
-      builder: (context, state) => const PlanScreen(),
-    ),
+    GoRoute(path: '/plan', builder: (context, state) => const PlanScreen()),
     GoRoute(
       path: '/category-budget',
-      builder: (context, state) => const CategoryBudgetScreen(dismissible: false),
+      builder: (context, state) =>
+          const CategoryBudgetScreen(dismissible: false),
     ),
     GoRoute(
       path: '/support',
@@ -323,10 +347,7 @@ final _router = GoRouter(
         final id = state.pathParameters['id']!;
         final inquiry =
             (state.extra as Map<String, dynamic>?) ?? {'inquiry_id': id};
-        return SupportDetailScreen(
-          inquiryId: id,
-          initialInquiry: inquiry,
-        );
+        return SupportDetailScreen(inquiryId: id, initialInquiry: inquiry);
       },
     ),
   ],
@@ -345,9 +366,9 @@ class SmartReceiptApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeState = ref.watch(themeProvider);
     return MaterialApp.router(
-      title:                  'camill',
-      theme:                  CamillThemeData.build(themeState.colors),
-      routerConfig:           _router,
+      title: 'camill',
+      theme: CamillThemeData.build(themeState.colors),
+      routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );
   }

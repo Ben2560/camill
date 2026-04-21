@@ -171,12 +171,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (mounted) _loadIncome();
   }
 
-String get _displayName =>
+  String get _displayName =>
       FirebaseAuth.instance.currentUser?.displayName ?? 'ユーザー';
 
   Future<void> _openAccountSettings() async {
     await context.push('/account');
-    if (mounted) { setState(() {}); _loadAvatar(); }
+    if (mounted) {
+      setState(() {});
+      _loadAvatar();
+    }
   }
 
   // ── URL起動 ─────────────────────────────────────────────────────────────────
@@ -227,7 +230,10 @@ String get _displayName =>
       await _driveService.exportToDrive(
         onStep: (step, _) {
           if (mounted) {
-            setState(() => _exportProgress = progressMap[step]?.toDouble() ?? _exportProgress);
+            setState(
+              () => _exportProgress =
+                  progressMap[step]?.toDouble() ?? _exportProgress,
+            );
           }
         },
       );
@@ -255,7 +261,9 @@ String get _displayName =>
         _exportDone = false;
         _exportProgress = 0.0;
       });
-      final msg = e.toString().contains('キャンセル') ? 'キャンセルされました' : 'エクスポートに失敗しました';
+      final msg = e.toString().contains('キャンセル')
+          ? 'キャンセルされました'
+          : 'エクスポートに失敗しました';
       showTopNotification(context, msg);
     }
   }
@@ -266,7 +274,9 @@ String get _displayName =>
     if (diff.inMinutes < 1) return 'たった今';
     if (diff.inHours < 1) return '${diff.inMinutes}分前';
     if (diff.inDays < 1) return '${diff.inHours}時間前';
-    if (diff.inDays < 2) return '昨日 ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (diff.inDays < 2) {
+      return '昨日 ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
     return '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
@@ -291,8 +301,7 @@ String get _displayName =>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('退会確認',
-            style: camillHeadingStyle(16, colors.textPrimary)),
+        title: Text('退会確認', style: camillHeadingStyle(16, colors.textPrimary)),
         content: Text(
           'アカウントを削除すると、すべてのデータが失われます。本当に退会しますか？',
           style: camillBodyStyle(14, colors.textSecondary),
@@ -300,14 +309,21 @@ String get _displayName =>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('キャンセル',
-                style: camillBodyStyle(14, colors.textSecondary)),
+            child: Text(
+              'キャンセル',
+              style: camillBodyStyle(14, colors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('退会する',
-                style: camillBodyStyle(14, colors.danger,
-                    weight: FontWeight.w700)),
+            child: Text(
+              '退会する',
+              style: camillBodyStyle(
+                14,
+                colors.danger,
+                weight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -340,7 +356,11 @@ String get _displayName =>
             padding: const EdgeInsets.fromLTRB(20, 15, 8, 4),
             child: Text(
               'マイページ',
-              style: camillBodyStyle(30, colors.textPrimary, weight: FontWeight.w800),
+              style: camillBodyStyle(
+                30,
+                colors.textPrimary,
+                weight: FontWeight.w800,
+              ),
             ),
           ),
           // ユーザー情報ヘッダー
@@ -367,12 +387,16 @@ String get _displayName =>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_displayName,
-                          style: camillHeadingStyle(18, colors.textPrimary)),
+                      Text(
+                        _displayName,
+                        style: camillHeadingStyle(18, colors.textPrimary),
+                      ),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _isDeveloper
                               ? Colors.purple.withAlpha(20)
@@ -418,22 +442,43 @@ String get _displayName =>
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.storage_outlined, size: 16, color: colors.textMuted),
+                        Icon(
+                          Icons.storage_outlined,
+                          size: 16,
+                          color: colors.textMuted,
+                        ),
                         const SizedBox(width: 6),
-                        Text('使用データ量', style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600)),
+                        Text(
+                          '使用データ量',
+                          style: camillBodyStyle(
+                            12,
+                            colors.textMuted,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _DataStatItem(label: 'レシート', value: '$_receiptCount件', colors: colors),
-                        _DataStatItem(label: '概算サイズ', value: _formatBytes(_estimatedBytes), colors: colors),
+                        _DataStatItem(
+                          label: 'レシート',
+                          value: '$_receiptCount件',
+                          colors: colors,
+                        ),
+                        _DataStatItem(
+                          label: '概算サイズ',
+                          value: _formatBytes(_estimatedBytes),
+                          colors: colors,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
                     AnimatedSlide(
-                      offset: _isExporting ? const Offset(0, -0.15) : Offset.zero,
+                      offset: _isExporting
+                          ? const Offset(0, -0.15)
+                          : Offset.zero,
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                       child: SizedBox(
@@ -444,26 +489,39 @@ String get _displayName =>
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
                               : Icon(
-                                  _exportDone ? Icons.check_circle_outline : Icons.cloud_upload_outlined,
+                                  _exportDone
+                                      ? Icons.check_circle_outline
+                                      : Icons.cloud_upload_outlined,
                                   size: 18,
                                 ),
                           label: Text(
                             _exportDone
                                 ? 'バックアップが完了しました'
                                 : _isExporting
-                                    ? 'バックアップ中...'
-                                    : _driveConnected
-                                        ? 'Google Driveにバックアップ'
-                                        : 'Google Driveに接続してバックアップ',
-                            style: camillBodyStyle(13, Colors.white, weight: FontWeight.w600),
+                                ? 'バックアップ中...'
+                                : _driveConnected
+                                ? 'Google Driveにバックアップ'
+                                : 'Google Driveに接続してバックアップ',
+                            style: camillBodyStyle(
+                              13,
+                              Colors.white,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: _exportDone ? const Color(0xFF34A853) : const Color(0xFF4285F4),
+                            backgroundColor: _exportDone
+                                ? const Color(0xFF34A853)
+                                : const Color(0xFF4285F4),
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -480,7 +538,9 @@ String get _displayName =>
                                   value: _exportProgress,
                                   minHeight: 4,
                                   backgroundColor: colors.surfaceBorder,
-                                  color: _exportDone ? const Color(0xFF34A853) : const Color(0xFF4285F4),
+                                  color: _exportDone
+                                      ? const Color(0xFF34A853)
+                                      : const Color(0xFF4285F4),
                                 ),
                               ),
                             )
@@ -511,7 +571,8 @@ String get _displayName =>
           _SettingsItem(
             icon: Icons.account_balance_wallet_outlined,
             title: '月の予算',
-            subtitle: '¥${_budget.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
+            subtitle:
+                '¥${_budget.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
             colors: colors,
             onTap: () async {
               await context.push('/category-budget');
@@ -665,8 +726,7 @@ class _SettingsItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon,
-          color: titleColor ?? colors.textSecondary, size: 22),
+      leading: Icon(icon, color: titleColor ?? colors.textSecondary, size: 22),
       title: Text(
         title,
         style: camillBodyStyle(15, titleColor ?? colors.textPrimary),
@@ -679,7 +739,6 @@ class _SettingsItem extends StatelessWidget {
     );
   }
 }
-
 
 // ── 旅行モード デバッグパネル（開発者専用） ────────────────────────────────────
 
@@ -698,11 +757,11 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
   bool _loading = false;
 
   static const _testCountries = [
-    ('🇯🇵 日本（JPY）',  false, 'JPY', 'JP'),
-    ('🇹🇭 タイ（THB）',  true,  'THB', 'TH'),
+    ('🇯🇵 日本（JPY）', false, 'JPY', 'JP'),
+    ('🇹🇭 タイ（THB）', true, 'THB', 'TH'),
     ('🇺🇸 アメリカ（USD）', true, 'USD', 'US'),
-    ('🇰🇷 韓国（KRW）',  true,  'KRW', 'KR'),
-    ('🇨🇳 中国（CNY）',  true,  'CNY', 'CN'),
+    ('🇰🇷 韓国（KRW）', true, 'KRW', 'KR'),
+    ('🇨🇳 中国（CNY）', true, 'CNY', 'CN'),
     ('🇸🇬 シンガポール（SGD）', true, 'SGD', 'SG'),
   ];
 
@@ -715,10 +774,19 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
   Future<void> _load() async {
     final overseas = await _service.getIsOverseas();
     final currency = await _service.getCurrentCurrency();
-    if (mounted) setState(() { _isOverseas = overseas; _currency = currency; });
+    if (mounted) {
+      setState(() {
+        _isOverseas = overseas;
+        _currency = currency;
+      });
+    }
   }
 
-  Future<void> _apply(bool isOverseas, String currency, String countryCode) async {
+  Future<void> _apply(
+    bool isOverseas,
+    String currency,
+    String countryCode,
+  ) async {
     setState(() => _loading = true);
     await _service.applyOverseasStatus(
       isOverseas: isOverseas,
@@ -726,7 +794,11 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
       countryCode: countryCode,
     );
     if (mounted) {
-      setState(() { _isOverseas = isOverseas; _currency = currency; _loading = false; });
+      setState(() {
+        _isOverseas = isOverseas;
+        _currency = currency;
+        _loading = false;
+      });
       HomeScreen.overseasRefreshSignal.value++;
       showTopNotification(
         context,
@@ -745,8 +817,11 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
         children: [
           Text(
             '現在: ${_isOverseas ? "✈️ 海外モード ($_currency)" : "🏠 国内モード (JPY)"}',
-            style: camillBodyStyle(13, _isOverseas ? colors.primary : colors.textMuted,
-                weight: FontWeight.w600),
+            style: camillBodyStyle(
+              13,
+              _isOverseas ? colors.primary : colors.textMuted,
+              weight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -758,9 +833,14 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
               return GestureDetector(
                 onTap: _loading ? null : () => _apply(overseas, currency, code),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? colors.primary.withAlpha(30) : colors.surface,
+                    color: isSelected
+                        ? colors.primary.withAlpha(30)
+                        : colors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isSelected ? colors.primary : colors.surfaceBorder,
@@ -768,9 +848,11 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
                   ),
                   child: Text(
                     label,
-                    style: camillBodyStyle(12,
-                        isSelected ? colors.primary : colors.textSecondary,
-                        weight: isSelected ? FontWeight.w700 : FontWeight.w400),
+                    style: camillBodyStyle(
+                      12,
+                      isSelected ? colors.primary : colors.textSecondary,
+                      weight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    ),
                   ),
                 ),
               );
@@ -778,7 +860,10 @@ class _OverseasDebugPanelState extends State<_OverseasDebugPanel> {
           ),
           if (_loading) ...[
             const SizedBox(height: 8),
-            LinearProgressIndicator(color: colors.primary, backgroundColor: colors.primaryLight),
+            LinearProgressIndicator(
+              color: colors.primary,
+              backgroundColor: colors.primaryLight,
+            ),
           ],
         ],
       ),
@@ -791,13 +876,24 @@ class _DataStatItem extends StatelessWidget {
   final String value;
   final CamillColors colors;
 
-  const _DataStatItem({required this.label, required this.value, required this.colors});
+  const _DataStatItem({
+    required this.label,
+    required this.value,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.w700)),
+        Text(
+          value,
+          style: camillBodyStyle(
+            16,
+            colors.textPrimary,
+            weight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 2),
         Text(label, style: camillBodyStyle(11, colors.textMuted)),
       ],

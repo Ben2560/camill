@@ -37,8 +37,17 @@ void main() {
 
   group('ApiService._handleResponse（postAny 経由）', () {
     test('200 レスポンスの data を返す', () async {
-      when(() => mockClient.post(any(), headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _jsonResponse({'data': {'id': '123'}}, 200));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => _jsonResponse({
+          'data': {'id': '123'},
+        }, 200),
+      );
 
       // _authHeaders をバイパスするため直接 _handleResponse をテストできないので
       // 外部から _handleResponse の動作を確認できる構造テストに留める
@@ -46,15 +55,28 @@ void main() {
     });
 
     test('カスタムエラー形式（detail が Map）は ApiException をスローする', () async {
-      when(() => mockClient.post(any(), headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _jsonResponse({
-                'data': null,
-                'detail': {'code': 'LIMIT_EXCEEDED', 'message': '上限超過'},
-              }, 400));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => _jsonResponse({
+          'data': null,
+          'detail': {'code': 'LIMIT_EXCEEDED', 'message': '上限超過'},
+        }, 400),
+      );
 
       // Firebase 認証なしでは _authHeaders で止まるため、
       // client が呼ばれないことだけ確認（auth 依存の境界テスト）
-      verifyNever(() => mockClient.post(any(), headers: any(named: 'headers'), body: any(named: 'body')));
+      verifyNever(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      );
     });
   });
 

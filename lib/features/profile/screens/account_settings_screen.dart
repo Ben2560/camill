@@ -100,7 +100,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 400);
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 400,
+    );
     if (picked == null || !mounted) return;
 
     final dir = await getApplicationDocumentsDirectory();
@@ -126,7 +130,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: colors.textMuted.withAlpha(80),
                 borderRadius: BorderRadius.circular(2),
@@ -134,14 +139,29 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: Icon(Icons.photo_library_outlined, color: colors.primary),
-              title: Text('ライブラリから選ぶ', style: camillBodyStyle(15, colors.textPrimary)),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+              leading: Icon(
+                Icons.photo_library_outlined,
+                color: colors.primary,
+              ),
+              title: Text(
+                'ライブラリから選ぶ',
+                style: camillBodyStyle(15, colors.textPrimary),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
             ),
             ListTile(
               leading: Icon(Icons.camera_alt_outlined, color: colors.primary),
-              title: Text('カメラで撮る', style: camillBodyStyle(15, colors.textPrimary)),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+              title: Text(
+                'カメラで撮る',
+                style: camillBodyStyle(15, colors.textPrimary),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
             ),
             if (_avatarPath != null)
               ListTile(
@@ -205,7 +225,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().contains('既に使用') ? 'この電話番号は既に登録されています' : '保存に失敗しました';
+        final msg = e.toString().contains('既に使用')
+            ? 'この電話番号は既に登録されています'
+            : '保存に失敗しました';
         showTopNotification(context, msg);
       }
     } finally {
@@ -227,14 +249,28 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: colors.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: colors.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('アカウントの設定', style: camillHeadingStyle(17, colors.textPrimary)),
+        title: Text(
+          'アカウントの設定',
+          style: camillHeadingStyle(17, colors.textPrimary),
+        ),
         actions: [
           TextButton(
             onPressed: _saving ? null : () => _save(colors),
-            child: Text('保存', style: camillBodyStyle(15, colors.primary, weight: FontWeight.bold)),
+            child: Text(
+              '保存',
+              style: camillBodyStyle(
+                15,
+                colors.primary,
+                weight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -247,7 +283,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                 children: [
                   // プロフィール画像
-                  _CardLabel(icon: Icons.person_outline, title: 'プロフィール画像', colors: colors),
+                  _CardLabel(
+                    icon: Icons.person_outline,
+                    title: 'プロフィール画像',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 8),
                   CamillCard(
                     padding: const EdgeInsets.symmetric(vertical: 24),
@@ -263,7 +303,13 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                                   ? FileImage(File(_avatarPath!))
                                   : null,
                               child: _avatarPath == null
-                                  ? Text(initials, style: camillHeadingStyle(36, colors.primary))
+                                  ? Text(
+                                      initials,
+                                      style: camillHeadingStyle(
+                                        36,
+                                        colors.primary,
+                                      ),
+                                    )
                                   : null,
                             ),
                             Positioned(
@@ -275,9 +321,16 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: colors.primary,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: colors.background, width: 2),
+                                  border: Border.all(
+                                    color: colors.background,
+                                    width: 2,
+                                  ),
                                 ),
-                                child: Icon(Icons.camera_alt, size: 14, color: colors.fabIcon),
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 14,
+                                  color: colors.fabIcon,
+                                ),
                               ),
                             ),
                           ],
@@ -288,7 +341,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   const SizedBox(height: 20),
 
                   // 本名
-                  _CardLabel(icon: Icons.account_circle_outlined, title: '本名', colors: colors),
+                  _CardLabel(
+                    icon: Icons.account_circle_outlined,
+                    title: '本名',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -308,7 +365,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   const SizedBox(height: 20),
 
                   // 表示名
-                  _CardLabel(icon: Icons.badge_outlined, title: '表示名', colors: colors),
+                  _CardLabel(
+                    icon: Icons.badge_outlined,
+                    title: '表示名',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 8),
                   CamillCard(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -321,7 +382,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   const SizedBox(height: 20),
 
                   // 電話番号
-                  _CardLabel(icon: Icons.phone_outlined, title: '電話番号', colors: colors),
+                  _CardLabel(
+                    icon: Icons.phone_outlined,
+                    title: '電話番号',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -342,7 +407,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   const SizedBox(height: 20),
 
                   // メールアドレス
-                  _CardLabel(icon: Icons.mail_outline, title: 'メールアドレス', colors: colors),
+                  _CardLabel(
+                    icon: Icons.mail_outline,
+                    title: 'メールアドレス',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 8),
                   CamillCard(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -375,7 +444,11 @@ class _CardLabel extends StatelessWidget {
   final String title;
   final CamillColors colors;
 
-  const _CardLabel({required this.icon, required this.title, required this.colors});
+  const _CardLabel({
+    required this.icon,
+    required this.title,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -383,7 +456,10 @@ class _CardLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: colors.textMuted),
         const SizedBox(width: 6),
-        Text(title, style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600)),
+        Text(
+          title,
+          style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600),
+        ),
       ],
     );
   }

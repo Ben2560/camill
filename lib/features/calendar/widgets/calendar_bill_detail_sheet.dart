@@ -24,7 +24,8 @@ class CalendarBillDetailSheet extends StatefulWidget {
   });
 
   @override
-  State<CalendarBillDetailSheet> createState() => _CalendarBillDetailSheetState();
+  State<CalendarBillDetailSheet> createState() =>
+      _CalendarBillDetailSheetState();
 }
 
 class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
@@ -48,7 +49,10 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: colors.surface,
-          title: Text('メモを編集', style: camillHeadingStyle(16, colors.textPrimary)),
+          title: Text(
+            'メモを編集',
+            style: camillHeadingStyle(16, colors.textPrimary),
+          ),
           content: TextField(
             controller: ctrl,
             autofocus: true,
@@ -62,14 +66,24 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('キャンセル', style: camillBodyStyle(14, colors.textMuted)),
+              child: Text(
+                'キャンセル',
+                style: camillBodyStyle(14, colors.textMuted),
+              ),
             ),
             TextButton(
               onPressed: () {
                 final text = ctrl.text;
                 Navigator.pop(ctx, text);
               },
-              child: Text('保存', style: camillBodyStyle(14, colors.primary, weight: FontWeight.w700)),
+              child: Text(
+                '保存',
+                style: camillBodyStyle(
+                  14,
+                  colors.primary,
+                  weight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         );
@@ -98,7 +112,8 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
     final bill = widget.bill;
     final fmt = widget.fmt;
     final colors = widget.colors;
-    final catColor = AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
+    final catColor =
+        AppConstants.categoryColors[bill.category] ?? const Color(0xFF90A4AE);
     final catLabel = AppConstants.categoryLabels[bill.category] ?? 'その他';
     final isPaid = bill.status == BillStatus.paid;
     final days = bill.daysUntilDue;
@@ -146,8 +161,12 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          isPaid ? Icons.check_circle_outline : Icons.description_outlined,
-                          color: isPaid ? colors.success : const Color(0xFFE53935),
+                          isPaid
+                              ? Icons.check_circle_outline
+                              : Icons.description_outlined,
+                          color: isPaid
+                              ? colors.success
+                              : const Color(0xFFE53935),
                           size: 22,
                         ),
                       ),
@@ -156,28 +175,55 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(bill.title, style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700)),
+                            Text(
+                              bill.title,
+                              style: camillBodyStyle(
+                                17,
+                                colors.textPrimary,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
                             Row(
                               children: [
                                 Container(
                                   margin: const EdgeInsets.only(top: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: catColor.withAlpha(30),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Text(catLabel, style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w600)),
+                                  child: Text(
+                                    catLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: catColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
                                 if (isPaid) ...[
                                   const SizedBox(width: 6),
                                   Container(
                                     margin: const EdgeInsets.only(top: 4),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: colors.success.withAlpha(25),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: Text('支払済み', style: TextStyle(fontSize: 11, color: colors.success, fontWeight: FontWeight.w600)),
+                                    child: Text(
+                                      '支払済み',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: colors.success,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ],
@@ -192,17 +238,30 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('金額', style: camillBodyStyle(13, colors.textMuted)),
-                      Text(fmt.format(bill.amount), style: camillAmountStyle(20, colors.textPrimary)),
+                      Text(
+                        fmt.format(bill.amount),
+                        style: camillAmountStyle(20, colors.textPrimary),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text('メモ', style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600)),
+                  Text(
+                    'メモ',
+                    style: camillBodyStyle(
+                      12,
+                      colors.textMuted,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   GestureDetector(
                     onTap: _editMemo,
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.surface,
                         borderRadius: BorderRadius.circular(10),
@@ -212,14 +271,22 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                         children: [
                           Expanded(
                             child: Text(
-                              _memo != null && _memo!.isNotEmpty ? _memo! : 'メモを追加...',
+                              _memo != null && _memo!.isNotEmpty
+                                  ? _memo!
+                                  : 'メモを追加...',
                               style: camillBodyStyle(
                                 13,
-                                _memo != null && _memo!.isNotEmpty ? colors.textSecondary : colors.textMuted,
+                                _memo != null && _memo!.isNotEmpty
+                                    ? colors.textSecondary
+                                    : colors.textMuted,
                               ),
                             ),
                           ),
-                          Icon(Icons.edit_outlined, size: 14, color: colors.textMuted),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 14,
+                            color: colors.textMuted,
+                          ),
                         ],
                       ),
                     ),
@@ -230,10 +297,17 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('支払日', style: camillBodyStyle(13, colors.textMuted)),
+                          Text(
+                            '支払日',
+                            style: camillBodyStyle(13, colors.textMuted),
+                          ),
                           Text(
                             '${bill.paidAt!.year}/${bill.paidAt!.month.toString().padLeft(2, '0')}/${bill.paidAt!.day.toString().padLeft(2, '0')}',
-                            style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w600),
+                            style: camillBodyStyle(
+                              14,
+                              colors.textPrimary,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -242,7 +316,10 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                          Text(
+                            '支払期限',
+                            style: camillBodyStyle(13, colors.textMuted),
+                          ),
                           Text(
                             '${bill.dueDate!.year}/${bill.dueDate!.month.toString().padLeft(2, '0')}/${bill.dueDate!.day.toString().padLeft(2, '0')}',
                             style: camillBodyStyle(14, colors.textMuted),
@@ -262,9 +339,20 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check_circle, color: colors.success, size: 18),
+                          Icon(
+                            Icons.check_circle,
+                            color: colors.success,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
-                          Text('支払い済みです', style: camillBodyStyle(15, colors.success, weight: FontWeight.w600)),
+                          Text(
+                            '支払い済みです',
+                            style: camillBodyStyle(
+                              15,
+                              colors.success,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -273,17 +361,30 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                          Text(
+                            '支払期限',
+                            style: camillBodyStyle(13, colors.textMuted),
+                          ),
                           Row(
                             children: [
                               if (urgent)
                                 const Padding(
                                   padding: EdgeInsets.only(right: 4),
-                                  child: Icon(Icons.warning_amber_outlined, size: 14, color: Color(0xFFE53935)),
+                                  child: Icon(
+                                    Icons.warning_amber_outlined,
+                                    size: 14,
+                                    color: Color(0xFFE53935),
+                                  ),
                                 ),
                               Text(
                                 '${bill.dueDate!.year}/${bill.dueDate!.month.toString().padLeft(2, '0')}/${bill.dueDate!.day.toString().padLeft(2, '0')}',
-                                style: camillBodyStyle(14, urgent ? const Color(0xFFE53935) : colors.textPrimary, weight: FontWeight.w600),
+                                style: camillBodyStyle(
+                                  14,
+                                  urgent
+                                      ? const Color(0xFFE53935)
+                                      : colors.textPrimary,
+                                  weight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
@@ -295,7 +396,12 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                           alignment: Alignment.centerRight,
                           child: Text(
                             days >= 0 ? '残り$days日' : '期限切れ',
-                            style: camillBodyStyle(12, urgent ? const Color(0xFFE53935) : colors.textMuted),
+                            style: camillBodyStyle(
+                              12,
+                              urgent
+                                  ? const Color(0xFFE53935)
+                                  : colors.textMuted,
+                            ),
                           ),
                         ),
                       ],
@@ -307,14 +413,26 @@ class _CalendarBillDetailSheetState extends State<CalendarBillDetailSheet> {
                         style: FilledButton.styleFrom(
                           backgroundColor: colors.success,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         onPressed: () {
                           Navigator.of(context).pop();
                           widget.onPaid();
                         },
-                        icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                        label: Text('支払いました', style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600)),
+                        icon: const Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          '支払いました',
+                          style: camillBodyStyle(
+                            15,
+                            Colors.white,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ],

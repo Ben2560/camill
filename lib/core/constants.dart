@@ -28,7 +28,11 @@ class AppConstants {
   };
 
   // Fixed cost categories (毎月ほぼ固定の支出)
-  static const Set<String> fixedCategories = {'housing', 'utility', 'subscription'};
+  static const Set<String> fixedCategories = {
+    'housing',
+    'utility',
+    'subscription',
+  };
 
   // Category colors (badge background: withAlpha(30), text/border: full color)
   static const Map<String, Color> categoryColors = {

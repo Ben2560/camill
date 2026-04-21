@@ -52,8 +52,9 @@ class _BudgetSheetState extends State<BudgetSheet> {
     final hasCatTotal = catTotal > 0;
 
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
@@ -71,8 +72,7 @@ class _BudgetSheetState extends State<BudgetSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('月の予算を設定',
-                style: camillHeadingStyle(16, colors.textPrimary)),
+            Text('月の予算を設定', style: camillHeadingStyle(16, colors.textPrimary)),
             const SizedBox(height: 16),
             TextField(
               controller: _controller,
@@ -96,8 +96,10 @@ class _BudgetSheetState extends State<BudgetSheet> {
             if (hasCatTotal) ...[
               const SizedBox(height: 16),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: colors.surface,
                   borderRadius: BorderRadius.circular(12),
@@ -105,12 +107,19 @@ class _BudgetSheetState extends State<BudgetSheet> {
                 ),
                 child: Row(
                   children: [
-                    Text('カテゴリ合計',
-                        style: camillBodyStyle(13, colors.textMuted)),
+                    Text(
+                      'カテゴリ合計',
+                      style: camillBodyStyle(13, colors.textMuted),
+                    ),
                     const SizedBox(width: 6),
-                    Text(_fmt.format(catTotal),
-                        style: camillBodyStyle(13, colors.textSecondary,
-                            weight: FontWeight.w600)),
+                    Text(
+                      _fmt.format(catTotal),
+                      style: camillBodyStyle(
+                        13,
+                        colors.textSecondary,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
                     const Spacer(),
                     _DiffBadge(diff: diff, fmt: _fmt, colors: colors),
                   ],
@@ -125,7 +134,8 @@ class _BudgetSheetState extends State<BudgetSheet> {
                   backgroundColor: colors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _saving
                     ? null
@@ -138,9 +148,14 @@ class _BudgetSheetState extends State<BudgetSheet> {
                         if (!mounted) return;
                         nav.pop();
                       },
-                child: Text('保存',
-                    style: camillBodyStyle(15, colors.fabIcon,
-                        weight: FontWeight.bold)),
+                child: Text(
+                  '保存',
+                  style: camillBodyStyle(
+                    15,
+                    colors.fabIcon,
+                    weight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -155,8 +170,11 @@ class _DiffBadge extends StatelessWidget {
   final NumberFormat fmt;
   final CamillColors colors;
 
-  const _DiffBadge(
-      {required this.diff, required this.fmt, required this.colors});
+  const _DiffBadge({
+    required this.diff,
+    required this.fmt,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -165,13 +183,13 @@ class _DiffBadge extends StatelessWidget {
     final color = isZero
         ? colors.success
         : isOver
-            ? colors.danger
-            : colors.primary;
+        ? colors.danger
+        : colors.primary;
     final label = isZero
         ? '±¥0'
         : isOver
-            ? '-${fmt.format(diff.abs())}'
-            : '+${fmt.format(diff)}';
+        ? '-${fmt.format(diff.abs())}'
+        : '+${fmt.format(diff)}';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -180,8 +198,10 @@ class _DiffBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withAlpha(80)),
       ),
-      child: Text(label,
-          style: camillBodyStyle(12, color, weight: FontWeight.w700)),
+      child: Text(
+        label,
+        style: camillBodyStyle(12, color, weight: FontWeight.w700),
+      ),
     );
   }
 }

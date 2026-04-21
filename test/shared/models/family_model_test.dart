@@ -5,11 +5,11 @@ void main() {
   final now = DateTime.now();
 
   Map<String, dynamic> memberJson({String role = 'parent'}) => {
-        'user_id': 'u1',
-        'display_name': '渡邉',
-        'role': role,
-        'joined_at': now.toIso8601String(),
-      };
+    'user_id': 'u1',
+    'display_name': '渡邉',
+    'role': role,
+    'joined_at': now.toIso8601String(),
+  };
 
   group('FamilyMember.fromJson', () {
     test('全フィールドをパースする', () {

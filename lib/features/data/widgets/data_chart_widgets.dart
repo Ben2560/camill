@@ -252,98 +252,100 @@ class MonthPageContentState extends State<MonthPageContent> {
     final categories = _summary?.byCategory ?? [];
     final recentReceipts = _summary?.recentReceipts ?? [];
     // totalExpense を使うことでカテゴリ合計と支出合計を一致させる
-    final int total = _summary?.totalExpense ?? categories.fold<int>(0, (s, e) => s + e.amount);
+    final int total =
+        _summary?.totalExpense ??
+        categories.fold<int>(0, (s, e) => s + e.amount);
 
     return LoadingOverlay(
       isLoading: _loading,
       child: Stack(
-      children: [
-        Listener(
-          onPointerMove: (e) {
-            if (widget.isDismissing()) return;
-            if (_scrollController.hasClients &&
-                _scrollController.position.pixels <= 0 &&
-                e.delta.dy > 0) {
-              _pullDistance += e.delta.dy;
-              widget.dismissOffset.value = _pullDistance;
-            } else if (e.delta.dy < 0 && _pullDistance > 0) {
+        children: [
+          Listener(
+            onPointerMove: (e) {
+              if (widget.isDismissing()) return;
+              if (_scrollController.hasClients &&
+                  _scrollController.position.pixels <= 0 &&
+                  e.delta.dy > 0) {
+                _pullDistance += e.delta.dy;
+                widget.dismissOffset.value = _pullDistance;
+              } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                _pullDistance = 0;
+                widget.dismissOffset.value = 0;
+              }
+            },
+            onPointerUp: (_) {
+              if (widget.isDismissing()) return;
+              widget.onDismissEnd();
+              _pullDistance = 0;
+            },
+            onPointerCancel: (_) {
+              if (widget.isDismissing()) return;
               _pullDistance = 0;
               widget.dismissOffset.value = 0;
-            }
-          },
-          onPointerUp: (_) {
-            if (widget.isDismissing()) return;
-            widget.onDismissEnd();
-            _pullDistance = 0;
-          },
-          onPointerCancel: (_) {
-            if (widget.isDismissing()) return;
-            _pullDistance = 0;
-            widget.dismissOffset.value = 0;
-          },
-          child: ListView(
-            controller: _scrollController,
-            physics: const DismissScrollPhysicsWithTopBounce(),
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-            children: [
-              DateNavRow(
-                label: DateFormat('yyyy年M月').format(widget.month),
-                onPrev: widget.onPrev,
-                onNext: widget.onNext,
-                colors: colors,
-              ),
-              const SizedBox(height: 12),
-              SummaryCard(
-                totalExpense: _summary?.totalExpense ?? 0,
-                totalIncome: _summary?.totalIncome ?? 0,
-                currencyFmt: widget.currencyFmt,
-                colors: colors,
-              ),
-              if (categories.isNotEmpty) ...[
+            },
+            child: ListView(
+              controller: _scrollController,
+              physics: const DismissScrollPhysicsWithTopBounce(),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+              children: [
+                DateNavRow(
+                  label: DateFormat('yyyy年M月').format(widget.month),
+                  onPrev: widget.onPrev,
+                  onNext: widget.onNext,
+                  colors: colors,
+                ),
                 const SizedBox(height: 12),
-                CategoryPieCard(
-                  categories: categories,
-                  total: total,
+                SummaryCard(
+                  totalExpense: _summary?.totalExpense ?? 0,
+                  totalIncome: _summary?.totalIncome ?? 0,
                   currencyFmt: widget.currencyFmt,
                   colors: colors,
                 ),
+                if (categories.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  CategoryPieCard(
+                    categories: categories,
+                    total: total,
+                    currencyFmt: widget.currencyFmt,
+                    colors: colors,
+                  ),
+                ],
+                if (recentReceipts.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  RecentReceiptsCard(
+                    receipts: recentReceipts,
+                    currencyFmt: widget.currencyFmt,
+                    colors: colors,
+                  ),
+                ],
+                if (categories.isEmpty && recentReceipts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: EmptyState()),
+                  ),
               ],
-              if (recentReceipts.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                RecentReceiptsCard(
-                  receipts: recentReceipts,
-                  currencyFmt: widget.currencyFmt,
-                  colors: colors,
-                ),
-              ],
-              if (categories.isEmpty && recentReceipts.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Center(child: EmptyState()),
-                ),
-            ],
+            ),
           ),
-        ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: IgnorePointer(
-            child: Container(
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [colors.background, colors.background.withAlpha(0)],
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [colors.background, colors.background.withAlpha(0)],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
-      ),    // Stack
-    );      // LoadingOverlay
+        ],
+      ), // Stack
+    ); // LoadingOverlay
   }
 }
 
@@ -460,92 +462,92 @@ class WeekViewState extends State<WeekView> {
           child: LoadingOverlay(
             isLoading: _loading,
             child: Stack(
-                  children: [
-                    Listener(
-                      onPointerMove: (e) {
-                        if (widget.isDismissing()) return;
-                        if (_scrollController.hasClients &&
-                            _scrollController.position.pixels <= 0 &&
-                            e.delta.dy > 0) {
-                          _pullDistance += e.delta.dy;
-                          widget.dismissOffset.value = _pullDistance;
-                        } else if (e.delta.dy < 0 && _pullDistance > 0) {
-                          _pullDistance = 0;
-                          widget.dismissOffset.value = 0;
-                        }
-                      },
-                      onPointerUp: (_) {
-                        if (widget.isDismissing()) return;
-                        widget.onDismissEnd();
-                        _pullDistance = 0;
-                      },
-                      onPointerCancel: (_) {
-                        if (widget.isDismissing()) return;
-                        _pullDistance = 0;
-                        widget.dismissOffset.value = 0;
-                      },
-                      child: ListView(
-                        controller: _scrollController,
-                        physics: const DismissScrollPhysicsWithTopBounce(),
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                        children: [
-                          if (_summary == null) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 48),
-                              child: Center(child: EmptyState()),
-                            ),
-                          ] else ...[
-                            SummaryCard(
-                              totalExpense: _summary!.totalExpense,
-                              totalIncome: _summary!.totalIncome,
-                              currencyFmt: widget.currencyFmt,
-                              colors: colors,
-                            ),
-                            if (_summary!.byDay.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              DayBarChartCard(
-                                days: _summary!.byDay,
-                                weekStart: _weekStart,
-                                colors: colors,
-                              ),
-                            ],
-                            if (_summary!.byCategory.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              CategoryPieCard(
-                                categories: _summary!.byCategory,
-                                total: _summary!.totalExpense,
-                                currencyFmt: widget.currencyFmt,
-                                colors: colors,
-                              ),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                colors.background,
-                                colors.background.withAlpha(0),
-                              ],
-                            ),
+              children: [
+                Listener(
+                  onPointerMove: (e) {
+                    if (widget.isDismissing()) return;
+                    if (_scrollController.hasClients &&
+                        _scrollController.position.pixels <= 0 &&
+                        e.delta.dy > 0) {
+                      _pullDistance += e.delta.dy;
+                      widget.dismissOffset.value = _pullDistance;
+                    } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                      _pullDistance = 0;
+                      widget.dismissOffset.value = 0;
+                    }
+                  },
+                  onPointerUp: (_) {
+                    if (widget.isDismissing()) return;
+                    widget.onDismissEnd();
+                    _pullDistance = 0;
+                  },
+                  onPointerCancel: (_) {
+                    if (widget.isDismissing()) return;
+                    _pullDistance = 0;
+                    widget.dismissOffset.value = 0;
+                  },
+                  child: ListView(
+                    controller: _scrollController,
+                    physics: const DismissScrollPhysicsWithTopBounce(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                    children: [
+                      if (_summary == null) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: EmptyState()),
+                        ),
+                      ] else ...[
+                        SummaryCard(
+                          totalExpense: _summary!.totalExpense,
+                          totalIncome: _summary!.totalIncome,
+                          currencyFmt: widget.currencyFmt,
+                          colors: colors,
+                        ),
+                        if (_summary!.byDay.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          DayBarChartCard(
+                            days: _summary!.byDay,
+                            weekStart: _weekStart,
+                            colors: colors,
                           ),
+                        ],
+                        if (_summary!.byCategory.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          CategoryPieCard(
+                            categories: _summary!.byCategory,
+                            total: _summary!.totalExpense,
+                            currencyFmt: widget.currencyFmt,
+                            colors: colors,
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            colors.background,
+                            colors.background.withAlpha(0),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),     // Stack
-            ),         // LoadingOverlay
-          ),           // Expanded
+                  ),
+                ),
+              ],
+            ), // Stack
+          ), // LoadingOverlay
+        ), // Expanded
       ],
     );
   }
@@ -635,91 +637,91 @@ class YearViewState extends State<YearView> {
           child: LoadingOverlay(
             isLoading: _loading,
             child: Stack(
-                  children: [
-                    Listener(
-                      onPointerMove: (e) {
-                        if (widget.isDismissing()) return;
-                        if (_scrollController.hasClients &&
-                            _scrollController.position.pixels <= 0 &&
-                            e.delta.dy > 0) {
-                          _pullDistance += e.delta.dy;
-                          widget.dismissOffset.value = _pullDistance;
-                        } else if (e.delta.dy < 0 && _pullDistance > 0) {
-                          _pullDistance = 0;
-                          widget.dismissOffset.value = 0;
-                        }
-                      },
-                      onPointerUp: (_) {
-                        if (widget.isDismissing()) return;
-                        widget.onDismissEnd();
-                        _pullDistance = 0;
-                      },
-                      onPointerCancel: (_) {
-                        if (widget.isDismissing()) return;
-                        _pullDistance = 0;
-                        widget.dismissOffset.value = 0;
-                      },
-                      child: ListView(
-                        controller: _scrollController,
-                        physics: const DismissScrollPhysicsWithTopBounce(),
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                        children: [
-                          if (_summary == null) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 48),
-                              child: Center(child: EmptyState()),
-                            ),
-                          ] else ...[
-                            SummaryCard(
-                              totalExpense: _summary!.totalExpense,
-                              totalIncome: _summary!.totalIncome,
-                              currencyFmt: widget.currencyFmt,
-                              colors: colors,
-                            ),
-                            if (_summary!.byMonth.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              MonthBarChartCard(
-                                months: _summary!.byMonth,
-                                colors: colors,
-                              ),
-                            ],
-                            if (_summary!.byCategory.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              CategoryPieCard(
-                                categories: _summary!.byCategory,
-                                total: _summary!.totalExpense,
-                                currencyFmt: widget.currencyFmt,
-                                colors: colors,
-                              ),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                colors.background,
-                                colors.background.withAlpha(0),
-                              ],
-                            ),
+              children: [
+                Listener(
+                  onPointerMove: (e) {
+                    if (widget.isDismissing()) return;
+                    if (_scrollController.hasClients &&
+                        _scrollController.position.pixels <= 0 &&
+                        e.delta.dy > 0) {
+                      _pullDistance += e.delta.dy;
+                      widget.dismissOffset.value = _pullDistance;
+                    } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                      _pullDistance = 0;
+                      widget.dismissOffset.value = 0;
+                    }
+                  },
+                  onPointerUp: (_) {
+                    if (widget.isDismissing()) return;
+                    widget.onDismissEnd();
+                    _pullDistance = 0;
+                  },
+                  onPointerCancel: (_) {
+                    if (widget.isDismissing()) return;
+                    _pullDistance = 0;
+                    widget.dismissOffset.value = 0;
+                  },
+                  child: ListView(
+                    controller: _scrollController,
+                    physics: const DismissScrollPhysicsWithTopBounce(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                    children: [
+                      if (_summary == null) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: EmptyState()),
+                        ),
+                      ] else ...[
+                        SummaryCard(
+                          totalExpense: _summary!.totalExpense,
+                          totalIncome: _summary!.totalIncome,
+                          currencyFmt: widget.currencyFmt,
+                          colors: colors,
+                        ),
+                        if (_summary!.byMonth.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          MonthBarChartCard(
+                            months: _summary!.byMonth,
+                            colors: colors,
                           ),
+                        ],
+                        if (_summary!.byCategory.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          CategoryPieCard(
+                            categories: _summary!.byCategory,
+                            total: _summary!.totalExpense,
+                            currencyFmt: widget.currencyFmt,
+                            colors: colors,
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            colors.background,
+                            colors.background.withAlpha(0),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),     // Stack
-            ),         // LoadingOverlay
-          ),           // Expanded
+                  ),
+                ),
+              ],
+            ), // Stack
+          ), // LoadingOverlay
+        ), // Expanded
       ],
     );
   }
@@ -1155,7 +1157,11 @@ class MonthBarChartCard extends StatelessWidget {
   final List<MonthlyPoint> months;
   final CamillColors colors;
 
-  const MonthBarChartCard({super.key, required this.months, required this.colors});
+  const MonthBarChartCard({
+    super.key,
+    required this.months,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {

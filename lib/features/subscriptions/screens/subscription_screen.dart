@@ -15,32 +15,32 @@ import '../../../shared/widgets/camill_card.dart';
 // サブスク種別の定義
 const _subTypeLabel = {
   'streaming': '動画・音楽',
-  'app':       'アプリ・クラウド',
-  'shopping':  '通販・EC',
-  'news':      'ニュース・書籍',
-  'game':      'ゲーム',
-  'fitness':   'フィットネス',
-  'other':     'その他',
+  'app': 'アプリ・クラウド',
+  'shopping': '通販・EC',
+  'news': 'ニュース・書籍',
+  'game': 'ゲーム',
+  'fitness': 'フィットネス',
+  'other': 'その他',
 };
 
 const _subTypeIcon = {
   'streaming': Icons.play_circle_outline,
-  'app':       Icons.cloud_outlined,
-  'shopping':  Icons.shopping_bag_outlined,
-  'news':      Icons.article_outlined,
-  'game':      Icons.sports_esports_outlined,
-  'fitness':   Icons.fitness_center_outlined,
-  'other':     Icons.subscriptions_outlined,
+  'app': Icons.cloud_outlined,
+  'shopping': Icons.shopping_bag_outlined,
+  'news': Icons.article_outlined,
+  'game': Icons.sports_esports_outlined,
+  'fitness': Icons.fitness_center_outlined,
+  'other': Icons.subscriptions_outlined,
 };
 
 const _subTypeColor = {
-  'streaming': Color(0xFFE50914),  // 赤
-  'app':       Color(0xFF007AFF),  // 青
-  'shopping':  Color(0xFFFF9500),  // オレンジ
-  'news':      Color(0xFF34C759),  // 緑
-  'game':      Color(0xFF5856D6),  // 紫
-  'fitness':   Color(0xFFFF2D55),  // ピンク
-  'other':     Color(0xFF8E8E93),  // グレー
+  'streaming': Color(0xFFE50914), // 赤
+  'app': Color(0xFF007AFF), // 青
+  'shopping': Color(0xFFFF9500), // オレンジ
+  'news': Color(0xFF34C759), // 緑
+  'game': Color(0xFF5856D6), // 紫
+  'fitness': Color(0xFFFF2D55), // ピンク
+  'other': Color(0xFF8E8E93), // グレー
 };
 
 class SubscriptionScreen extends StatefulWidget {
@@ -103,13 +103,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
   void _startSilentRefresh() {
     if (_isRefreshing) return;
-    setState(() { _isRefreshing = true; _dotsVisible = 3; _ignoreUntilTop = true; });
+    setState(() {
+      _isRefreshing = true;
+      _dotsVisible = 3;
+      _ignoreUntilTop = true;
+    });
     if (!_bounceController.isAnimating) _bounceController.repeat();
     _loadAll(silent: true).then((_) {
       if (!mounted) return;
       _bounceController.stop();
       _bounceController.reset();
-      setState(() { _isRefreshing = false; _dotsVisible = 0; });
+      setState(() {
+        _isRefreshing = false;
+        _dotsVisible = 0;
+      });
     });
   }
 
@@ -130,11 +137,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
         content: const Text('このサブスクリプションを削除しますか？'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('キャンセル')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('削除', style: TextStyle(color: Colors.red))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('削除', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -167,11 +176,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     );
 
     try {
-      final bytes = await FlutterImageCompress.compressWithFile(
-        picked.path,
-        minWidth: 1000,
-        quality: 75,
-      ) ?? await File(picked.path).readAsBytes();
+      final bytes =
+          await FlutterImageCompress.compressWithFile(
+            picked.path,
+            minWidth: 1000,
+            quality: 75,
+          ) ??
+          await File(picked.path).readAsBytes();
 
       final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       final result = await _api.postAny(
@@ -180,13 +191,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       );
 
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // dismiss scanning dialog
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop(); // dismiss scanning dialog
 
       final items = (result as List).cast<Map<String, dynamic>>();
       if (items.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('サブスクが検出されませんでした')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('サブスクが検出されませんでした')));
         return;
       }
 
@@ -214,17 +228,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       if (added == true) {
         await _loadAll();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('サブスクを登録しました')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('サブスクを登録しました')));
         }
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('解析に失敗しました: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('解析に失敗しました: $e')));
       }
     }
   }
@@ -238,11 +252,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
         backgroundColor: colors.background,
         appBar: AppBar(
           backgroundColor: colors.background,
-          title: Text('サブスク管理', style: camillHeadingStyle(17, colors.textPrimary)),
+          title: Text(
+            'サブスク管理',
+            style: camillHeadingStyle(17, colors.textPrimary),
+          ),
           iconTheme: IconThemeData(color: colors.textSecondary),
           actions: [
             IconButton(
-              icon: Icon(Icons.document_scanner_outlined, color: colors.primary),
+              icon: Icon(
+                Icons.document_scanner_outlined,
+                color: colors.primary,
+              ),
               tooltip: 'スクショから追加',
               onPressed: _scanFromImage,
             ),
@@ -268,8 +288,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                   if (pixels >= 0) _ignoreUntilTop = false;
                   if (_ignoreUntilTop) return false;
                   if (pixels < 0) {
-                    final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
-                    if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
+                    final newDots = pixels < -85
+                        ? 3
+                        : pixels < -55
+                        ? 2
+                        : pixels < -25
+                        ? 1
+                        : 0;
+                    if (newDots != _dotsVisible) {
+                      setState(() => _dotsVisible = newDots);
+                    }
                   } else if (_dotsVisible > 0) {
                     _ignoreUntilTop = true;
                     setState(() => _dotsVisible = 0);
@@ -295,21 +323,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
               ),
             ),
             Positioned(
-              top: 0, left: 0, right: 0,
+              top: 0,
+              left: 0,
+              right: 0,
               child: IgnorePointer(
                 child: Container(
                   height: 32,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [colors.background, colors.background.withAlpha(0)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        colors.background,
+                        colors.background.withAlpha(0),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
             Positioned(
-              top: 4, left: 0, right: 0,
+              top: 4,
+              left: 0,
+              right: 0,
               child: IgnorePointer(
                 child: SizedBox(
                   height: 28,
@@ -340,37 +376,48 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     }
 
     final total = _confirmed.fold<int>(
-        0, (s, e) => s + ((e['monthly_amount'] as num?)?.toInt() ?? 0));
+      0,
+      (s, e) => s + ((e['monthly_amount'] as num?)?.toInt() ?? 0),
+    );
 
     return ListView(
       physics: const RefreshScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         CamillCard(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('月額合計',
-                    style: camillBodyStyle(14, colors.textPrimary,
-                        weight: FontWeight.bold)),
-                Text(_currencyFmt.format(total),
-                    style: camillAmountStyle(20, colors.primary)),
-              ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '月額合計',
+                style: camillBodyStyle(
+                  14,
+                  colors.textPrimary,
+                  weight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                _currencyFmt.format(total),
+                style: camillAmountStyle(20, colors.primary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        ..._confirmed.map(
+          (s) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _ConfirmedCard(
+              sub: s,
+              currencyFmt: _currencyFmt,
+              colors: colors,
+              onDelete: () =>
+                  _deleteSubscription(s['subscription_id'] as String),
             ),
           ),
-          const SizedBox(height: 12),
-          ..._confirmed.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ConfirmedCard(
-                  sub: s,
-                  currencyFmt: _currencyFmt,
-                  colors: colors,
-                  onDelete: () =>
-                      _deleteSubscription(s['subscription_id'] as String),
-                ),
-              )),
-        ],
-      );
+        ),
+      ],
+    );
   }
 
   Widget _buildCandidatesTab(CamillColors colors) {
@@ -387,24 +434,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       padding: const EdgeInsets.all(16),
       children: [
         Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              '以下の支払いは定期的なサブスクの可能性があります。\n登録すると月額管理に追加されます。',
-              style: camillBodyStyle(13, colors.textMuted),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            '以下の支払いは定期的なサブスクの可能性があります。\n登録すると月額管理に追加されます。',
+            style: camillBodyStyle(13, colors.textMuted),
+          ),
+        ),
+        ..._candidates.map(
+          (c) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _CandidateCard(
+              candidate: c,
+              currencyFmt: _currencyFmt,
+              colors: colors,
+              onConfirm: () =>
+                  _confirmSubscription(c['subscription_id'] as String),
             ),
           ),
-          ..._candidates.map((c) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _CandidateCard(
-                  candidate: c,
-                  currencyFmt: _currencyFmt,
-                  colors: colors,
-                  onConfirm: () =>
-                      _confirmSubscription(c['subscription_id'] as String),
-                ),
-              )),
-        ],
-      );
+        ),
+      ],
+    );
   }
 }
 
@@ -456,7 +505,7 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
     // confidence >= 0.7 のものを初期選択
     _selected = {
       for (var i = 0; i < widget.items.length; i++)
-        if ((widget.items[i]['confidence'] as num? ?? 0) >= 0.7) i
+        if ((widget.items[i]['confidence'] as num? ?? 0) >= 0.7) i,
     };
   }
 
@@ -471,9 +520,9 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存に失敗しました: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存に失敗しました: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -495,7 +544,8 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
           // ドラッグハンドル
           Container(
             margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 36, height: 4,
+            width: 36,
+            height: 4,
             decoration: BoxDecoration(
               color: colors.surfaceBorder,
               borderRadius: BorderRadius.circular(2),
@@ -505,20 +555,29 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Text('検出されたサブスク',
-                    style: camillBodyStyle(18, colors.textPrimary,
-                        weight: FontWeight.w700)),
+                Text(
+                  '検出されたサブスク',
+                  style: camillBodyStyle(
+                    18,
+                    colors.textPrimary,
+                    weight: FontWeight.w700,
+                  ),
+                ),
                 const Spacer(),
-                Text('${_selected.length}件選択',
-                    style: camillBodyStyle(13, colors.textMuted)),
+                Text(
+                  '${_selected.length}件選択',
+                  style: camillBodyStyle(13, colors.textMuted),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text('追加したいサブスクにチェックを入れてください',
-                style: camillBodyStyle(12, colors.textMuted)),
+            child: Text(
+              '追加したいサブスクにチェックを入れてください',
+              style: camillBodyStyle(12, colors.textMuted),
+            ),
           ),
           const SizedBox(height: 12),
           Expanded(
@@ -531,8 +590,10 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
                 final item = widget.items[i];
                 final isSelected = _selected.contains(i);
                 final subType = item['subscription_type'] as String? ?? 'other';
-                final typeColor = _subTypeColor[subType] ?? const Color(0xFF8E8E93);
-                final typeIcon = _subTypeIcon[subType] ?? Icons.subscriptions_outlined;
+                final typeColor =
+                    _subTypeColor[subType] ?? const Color(0xFF8E8E93);
+                final typeIcon =
+                    _subTypeIcon[subType] ?? Icons.subscriptions_outlined;
                 final typeLabel = _subTypeLabel[subType] ?? 'その他';
                 final cycle = item['billing_cycle'] as String? ?? 'monthly';
 
@@ -550,9 +611,7 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? colors.primaryLight
-                          : colors.surface,
+                      color: isSelected ? colors.primaryLight : colors.surface,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: isSelected
@@ -564,7 +623,8 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
                     child: Row(
                       children: [
                         Container(
-                          width: 44, height: 44,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             color: typeColor.withAlpha(24),
                             borderRadius: BorderRadius.circular(12),
@@ -576,36 +636,54 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item['service_name'] as String? ?? '',
-                                  style: camillBodyStyle(15, colors.textPrimary,
-                                      weight: FontWeight.w600)),
+                              Text(
+                                item['service_name'] as String? ?? '',
+                                style: camillBodyStyle(
+                                  15,
+                                  colors.textPrimary,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
                               const SizedBox(height: 3),
                               Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: typeColor.withAlpha(20),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: Text(typeLabel,
-                                        style: camillBodyStyle(10, typeColor,
-                                            weight: FontWeight.w600)),
+                                    child: Text(
+                                      typeLabel,
+                                      style: camillBodyStyle(
+                                        10,
+                                        typeColor,
+                                        weight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                   if (cycle == 'annual') ...[
                                     const SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: colors.textMuted.withAlpha(20),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: Text('年払い',
-                                          style: camillBodyStyle(10,
-                                              colors.textMuted,
-                                              weight: FontWeight.w600)),
+                                      child: Text(
+                                        '年払い',
+                                        style: camillBodyStyle(
+                                          10,
+                                          colors.textMuted,
+                                          weight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -616,9 +694,14 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(fmt.format(item['monthly_amount'] as int? ?? 0),
-                                style: camillAmountStyle(15, colors.textPrimary)),
-                            Text('/月', style: camillBodyStyle(11, colors.textMuted)),
+                            Text(
+                              fmt.format(item['monthly_amount'] as int? ?? 0),
+                              style: camillAmountStyle(15, colors.textPrimary),
+                            ),
+                            Text(
+                              '/月',
+                              style: camillBodyStyle(11, colors.textMuted),
+                            ),
                           ],
                         ),
                         const SizedBox(width: 8),
@@ -638,7 +721,11 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(
-                16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+              16,
+              12,
+              16,
+              MediaQuery.of(context).padding.bottom + 16,
+            ),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -651,13 +738,21 @@ class _ScanResultSheetState extends State<_ScanResultSheet> {
                 ),
                 child: _saving
                     ? const SizedBox(
-                        width: 20, height: 20,
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : Text('${_selected.length}件を登録する',
-                        style: camillBodyStyle(15, Colors.white,
-                            weight: FontWeight.w600)),
+                    : Text(
+                        '${_selected.length}件を登録する',
+                        style: camillBodyStyle(
+                          15,
+                          Colors.white,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -692,7 +787,9 @@ class _ConfirmedCard extends StatelessWidget {
     final typeIcon = _subTypeIcon[subType] ?? Icons.subscriptions_outlined;
     final typeLabel = _subTypeLabel[subType] ?? 'その他';
     DateTime? date;
-    try { date = DateTime.parse(detectedAt); } catch (_) {}
+    try {
+      date = DateTime.parse(detectedAt);
+    } catch (_) {}
 
     return CamillCard(
       child: Row(
@@ -711,27 +808,41 @@ class _ConfirmedCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(storeName,
-                    style: camillBodyStyle(15, colors.textPrimary,
-                        weight: FontWeight.w600)),
+                Text(
+                  storeName,
+                  style: camillBodyStyle(
+                    15,
+                    colors.textPrimary,
+                    weight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: typeColor.withAlpha(20),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(typeLabel,
-                          style: camillBodyStyle(10, typeColor,
-                              weight: FontWeight.w600)),
+                      child: Text(
+                        typeLabel,
+                        style: camillBodyStyle(
+                          10,
+                          typeColor,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                     if (date != null) ...[
                       const SizedBox(width: 6),
-                      Text('検出: ${DateFormat('yyyy年M月').format(date)}',
-                          style: camillBodyStyle(11, colors.textMuted)),
+                      Text(
+                        '検出: ${DateFormat('yyyy年M月').format(date)}',
+                        style: camillBodyStyle(11, colors.textMuted),
+                      ),
                     ],
                   ],
                 ),
@@ -741,8 +852,10 @@ class _ConfirmedCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(currencyFmt.format(amount),
-                  style: camillAmountStyle(16, colors.primary)),
+              Text(
+                currencyFmt.format(amount),
+                style: camillAmountStyle(16, colors.primary),
+              ),
               Text('/月', style: camillBodyStyle(11, colors.textMuted)),
             ],
           ),
@@ -793,24 +906,32 @@ class _CandidateCard extends StatelessWidget {
                   color: colors.danger.withAlpha(30),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.help_outline,
-                    color: colors.danger, size: 22),
+                child: Icon(Icons.help_outline, color: colors.danger, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(storeName,
-                        style: camillBodyStyle(15, colors.textPrimary,
-                            weight: FontWeight.w600)),
-                    Text('$occurrences ヶ月連続で同額支払い',
-                        style: camillBodyStyle(12, colors.textMuted)),
+                    Text(
+                      storeName,
+                      style: camillBodyStyle(
+                        15,
+                        colors.textPrimary,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '$occurrences ヶ月連続で同額支払い',
+                      style: camillBodyStyle(12, colors.textMuted),
+                    ),
                   ],
                 ),
               ),
-              Text(currencyFmt.format(amount),
-                  style: camillAmountStyle(16, colors.textPrimary)),
+              Text(
+                currencyFmt.format(amount),
+                style: camillAmountStyle(16, colors.textPrimary),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -822,9 +943,14 @@ class _CandidateCard extends StatelessWidget {
                 foregroundColor: colors.primary,
                 side: BorderSide(color: colors.primary),
               ),
-              child: Text('サブスクとして登録',
-                  style: camillBodyStyle(13, colors.primary,
-                      weight: FontWeight.w600)),
+              child: Text(
+                'サブスクとして登録',
+                style: camillBodyStyle(
+                  13,
+                  colors.primary,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],

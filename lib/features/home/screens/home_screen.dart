@@ -301,7 +301,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final budgets = <String, int>{};
     for (final key in HomeMonthPageState.categoryMeta.keys) {
-      budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
+      budgets[key] =
+          (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
     if (!mounted) return;
     setState(() => _categoryBudgets = budgets);
@@ -538,14 +539,18 @@ class _HomeScreenState extends State<HomeScreen> {
               onMemoUpdated: (newMemo) {
                 setState(() {
                   _upcomingBills = _upcomingBills
-                      .map((b) => b.billId == bill.billId
-                          ? b.copyWith(memo: newMemo)
-                          : b)
+                      .map(
+                        (b) => b.billId == bill.billId
+                            ? b.copyWith(memo: newMemo)
+                            : b,
+                      )
                       .toList();
                   _recentBills = _recentBills
-                      .map((b) => b.billId == bill.billId
-                          ? b.copyWith(memo: newMemo)
-                          : b)
+                      .map(
+                        (b) => b.billId == bill.billId
+                            ? b.copyWith(memo: newMemo)
+                            : b,
+                      )
                       .toList();
                 });
               },
@@ -832,7 +837,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final statusBarH = MediaQuery.of(context).padding.top;
     final screenW = MediaQuery.of(context).size.width;
     final maxScale = screenW > 600 ? 1.5 : 1.22;
-    double sp(double base) => (base * screenW / 390.0).clamp(base * 0.82, base * maxScale);
+    double sp(double base) =>
+        (base * screenW / 390.0).clamp(base * 0.82, base * maxScale);
     return Scaffold(
       backgroundColor: colors.background,
       body: Stack(
@@ -912,7 +918,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         child: Container(
                                           padding: const EdgeInsets.all(2),
                                           constraints: const BoxConstraints(
-                                              minWidth: 16, minHeight: 16),
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: colors.danger,
                                             shape: BoxShape.circle,
@@ -1018,4 +1026,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-

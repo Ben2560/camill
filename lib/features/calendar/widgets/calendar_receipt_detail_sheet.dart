@@ -25,10 +25,12 @@ class CalendarReceiptDetailSheet extends StatefulWidget {
   });
 
   @override
-  State<CalendarReceiptDetailSheet> createState() => _CalendarReceiptDetailSheetState();
+  State<CalendarReceiptDetailSheet> createState() =>
+      _CalendarReceiptDetailSheetState();
 }
 
-class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet> {
+class _CalendarReceiptDetailSheetState
+    extends State<CalendarReceiptDetailSheet> {
   Receipt? _receipt;
   bool _loading = true;
   bool _deleting = false;
@@ -45,10 +47,14 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
 
   void _onSheetChange() {
     if (_isClosing) return;
-    if (_sheetController.isAttached && _sheetController.size < 0.15 && mounted) {
+    if (_sheetController.isAttached &&
+        _sheetController.size < 0.15 &&
+        mounted) {
       _isClosing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
       });
     }
   }
@@ -100,7 +106,11 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
         backgroundColor: colors.surface,
         title: Text(
           '削除の確認',
-          style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.w700),
+          style: camillBodyStyle(
+            16,
+            colors.textPrimary,
+            weight: FontWeight.w700,
+          ),
         ),
         content: Text(
           'このレシートを削除しますか？\nこの操作は元に戻せません。',
@@ -115,7 +125,11 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               '削除する',
-              style: camillBodyStyle(14, const Color(0xFFFF3B30), weight: FontWeight.w600),
+              style: camillBodyStyle(
+                14,
+                const Color(0xFFFF3B30),
+                weight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -138,7 +152,9 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
   Widget build(BuildContext context) {
     final colors = context.colors;
     final r = _receipt;
-    final isMedical = r != null && r.items.isNotEmpty &&
+    final isMedical =
+        r != null &&
+        r.items.isNotEmpty &&
         r.items.any((item) => item.category == 'medical');
     final totalPoints = isMedical
         ? r.items.fold<int>(0, (s, e) => s + e.unitPrice ~/ 10)
@@ -172,10 +188,16 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
             color: colors.background,
             borderRadius: decoration,
             clipBehavior: Clip.antiAlias,
-            child: Column(children: [
-              handle,
-              Expanded(child: Center(child: CircularProgressIndicator(color: colors.primary))),
-            ]),
+            child: Column(
+              children: [
+                handle,
+                Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: colors.primary),
+                  ),
+                ),
+              ],
+            ),
           );
         }
         if (r == null) {
@@ -183,10 +205,19 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
             color: colors.background,
             borderRadius: decoration,
             clipBehavior: Clip.antiAlias,
-            child: Column(children: [
-              handle,
-              Expanded(child: Center(child: Text('読み込みに失敗しました', style: camillBodyStyle(14, colors.textMuted)))),
-            ]),
+            child: Column(
+              children: [
+                handle,
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      '読み込みに失敗しました',
+                      style: camillBodyStyle(14, colors.textMuted),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         }
         final purchasedAt = DateTime.parse(r.purchasedAt).toLocal();
@@ -211,9 +242,19 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                     children: [
                       Text('合計', style: camillBodyStyle(13, colors.textMuted)),
                       const SizedBox(width: 6),
-                      Text('$totalPoints点', style: camillBodyStyle(15, colors.textPrimary, weight: FontWeight.w600)),
+                      Text(
+                        '$totalPoints点',
+                        style: camillBodyStyle(
+                          15,
+                          colors.textPrimary,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                       const Spacer(),
-                      Text('10割: ${widget.fmt.format(tenKaiAmount)}', style: camillBodyStyle(12, colors.textMuted)),
+                      Text(
+                        '10割: ${widget.fmt.format(tenKaiAmount)}',
+                        style: camillBodyStyle(12, colors.textMuted),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -221,15 +262,32 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('負担率', style: camillBodyStyle(13, colors.textMuted)),
-                      Text('$burdenWari割負担', style: camillBodyStyle(13, colors.textSecondary, weight: FontWeight.w500)),
+                      Text(
+                        '$burdenWari割負担',
+                        style: camillBodyStyle(
+                          13,
+                          colors.textSecondary,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('実負担額', style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
-                      Text(widget.fmt.format(r.totalAmount), style: camillAmountStyle(18, colors.textPrimary)),
+                      Text(
+                        '実負担額',
+                        style: camillBodyStyle(
+                          14,
+                          colors.textPrimary,
+                          weight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        widget.fmt.format(r.totalAmount),
+                        style: camillAmountStyle(18, colors.textPrimary),
+                      ),
                     ],
                   ),
                 ],
@@ -248,7 +306,10 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('小計', style: camillBodyStyle(13, colors.textMuted)),
-                    Text(widget.fmt.format(subtotal), style: camillBodyStyle(13, colors.textMuted)),
+                    Text(
+                      widget.fmt.format(subtotal),
+                      style: camillBodyStyle(13, colors.textMuted),
+                    ),
                   ],
                 ),
                 if (tax > 0) ...[
@@ -257,7 +318,10 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('消費税', style: camillBodyStyle(13, colors.textMuted)),
-                      Text(widget.fmt.format(tax), style: camillBodyStyle(13, colors.textMuted)),
+                      Text(
+                        widget.fmt.format(tax),
+                        style: camillBodyStyle(13, colors.textMuted),
+                      ),
                     ],
                   ),
                 ],
@@ -267,7 +331,10 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('割引', style: camillBodyStyle(13, colors.textMuted)),
-                      Text('-${widget.fmt.format(d.discountAmount)}', style: camillBodyStyle(13, colors.textMuted)),
+                      Text(
+                        '-${widget.fmt.format(d.discountAmount)}',
+                        style: camillBodyStyle(13, colors.textMuted),
+                      ),
                     ],
                   ),
                 ],
@@ -275,8 +342,18 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('合計', style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
-                    Text(widget.fmt.format(r.totalAmount), style: camillAmountStyle(18, colors.textPrimary)),
+                    Text(
+                      '合計',
+                      style: camillBodyStyle(
+                        14,
+                        colors.textPrimary,
+                        weight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      widget.fmt.format(r.totalAmount),
+                      style: camillAmountStyle(18, colors.textPrimary),
+                    ),
                   ],
                 ),
                 if (r.savingsAmount > 0) ...[
@@ -285,16 +362,35 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                     decoration: BoxDecoration(
                       color: colors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: colors.success.withValues(alpha: 0.3),
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
-                        Icon(Icons.savings_outlined, size: 16, color: colors.success),
+                        Icon(
+                          Icons.savings_outlined,
+                          size: 16,
+                          color: colors.success,
+                        ),
                         const SizedBox(width: 6),
-                        Text('節約', style: camillBodyStyle(12, colors.success, weight: FontWeight.w600)),
+                        Text(
+                          '節約',
+                          style: camillBodyStyle(
+                            12,
+                            colors.success,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                         const Spacer(),
-                        Text(widget.fmt.format(r.savingsAmount), style: camillAmountStyle(14, colors.success)),
+                        Text(
+                          widget.fmt.format(r.savingsAmount),
+                          style: camillAmountStyle(14, colors.success),
+                        ),
                       ],
                     ),
                   ),
@@ -318,13 +414,33 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                       child: OutlinedButton.icon(
                         onPressed: _deleting ? null : _delete,
                         icon: _deleting
-                            ? SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: colors.danger))
-                            : Icon(Icons.delete_outline, size: 18, color: colors.danger),
-                        label: Text('削除', style: camillBodyStyle(15, colors.danger, weight: FontWeight.w600)),
+                            ? SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colors.danger,
+                                ),
+                              )
+                            : Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: colors.danger,
+                              ),
+                        label: Text(
+                          '削除',
+                          style: camillBodyStyle(
+                            15,
+                            colors.danger,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: colors.danger),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -334,22 +450,39 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                       child: FilledButton.icon(
                         onPressed: () {
                           Navigator.pop(context);
-                          widget.onEdit(ReceiptListItem(
-                            receiptId: r.receiptId,
-                            storeName: r.storeName,
-                            totalAmount: r.totalAmount,
-                            purchasedAt: r.purchasedAt,
-                            paymentMethod: r.paymentMethod,
-                            category: r.items.isNotEmpty ? r.items.first.category : 'other',
-                            items: r.items,
-                          ));
+                          widget.onEdit(
+                            ReceiptListItem(
+                              receiptId: r.receiptId,
+                              storeName: r.storeName,
+                              totalAmount: r.totalAmount,
+                              purchasedAt: r.purchasedAt,
+                              paymentMethod: r.paymentMethod,
+                              category: r.items.isNotEmpty
+                                  ? r.items.first.category
+                                  : 'other',
+                              items: r.items,
+                            ),
+                          );
                         },
-                        icon: Icon(Icons.edit_outlined, size: 18, color: colors.fabIcon),
-                        label: Text('編集する', style: camillBodyStyle(15, colors.fabIcon, weight: FontWeight.w600)),
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: colors.fabIcon,
+                        ),
+                        label: Text(
+                          '編集する',
+                          style: camillBodyStyle(
+                            15,
+                            colors.fabIcon,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                         style: FilledButton.styleFrom(
                           backgroundColor: colors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -377,18 +510,37 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(r.storeName, style: camillBodyStyle(18, colors.textPrimary, weight: FontWeight.w700)),
+                            Text(
+                              r.storeName,
+                              style: camillBodyStyle(
+                                18,
+                                colors.textPrimary,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.calendar_today_outlined, size: 13, color: colors.textMuted),
-                                const SizedBox(width: 4),
-                                Text(dateLabel, style: camillBodyStyle(13, colors.textMuted)),
-                                const SizedBox(width: 12),
-                                Icon(Icons.payment_outlined, size: 13, color: colors.textMuted),
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 13,
+                                  color: colors.textMuted,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  AppConstants.paymentLabels[r.paymentMethod] ?? r.paymentMethod,
+                                  dateLabel,
+                                  style: camillBodyStyle(13, colors.textMuted),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  Icons.payment_outlined,
+                                  size: 13,
+                                  color: colors.textMuted,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  AppConstants.paymentLabels[r.paymentMethod] ??
+                                      r.paymentMethod,
                                   style: camillBodyStyle(13, colors.textMuted),
                                 ),
                               ],
@@ -397,31 +549,53 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                         ),
                       ),
                     ),
-                    SliverToBoxAdapter(child: Divider(height: 1, color: colors.surfaceBorder)),
+                    SliverToBoxAdapter(
+                      child: Divider(height: 1, color: colors.surfaceBorder),
+                    ),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                       sliver: SliverList.builder(
                         itemCount: r.items.length,
                         itemBuilder: (_, i) {
                           final item = r.items[i];
-                          final catLabel = AppConstants.categoryLabels[item.category] ?? item.category;
+                          final catLabel =
+                              AppConstants.categoryLabels[item.category] ??
+                              item.category;
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 7),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(item.itemName, style: camillBodyStyle(14, colors.textPrimary)),
+                                      Text(
+                                        item.itemName,
+                                        style: camillBodyStyle(
+                                          14,
+                                          colors.textPrimary,
+                                        ),
+                                      ),
                                       Container(
                                         margin: const EdgeInsets.only(top: 2),
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: colors.primaryLight,
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
-                                        child: Text(catLabel, style: camillBodyStyle(10, colors.primary)),
+                                        child: Text(
+                                          catLabel,
+                                          style: camillBodyStyle(
+                                            10,
+                                            colors.primary,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -430,7 +604,11 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                                   isMedical
                                       ? '${item.unitPrice ~/ 10}点'
                                       : '${item.quantity > 1 ? '×${item.quantity}  ' : ''}${widget.fmt.format(item.amount)}',
-                                  style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.w500),
+                                  style: camillBodyStyle(
+                                    14,
+                                    colors.textPrimary,
+                                    weight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
                             ),
@@ -444,16 +622,21 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                         child: GestureDetector(
                           onTap: () {
                             Navigator.pop(context);
-                            widget.onEdit(ReceiptListItem(
-                              receiptId: r.receiptId,
-                              storeName: r.storeName,
-                              totalAmount: r.totalAmount,
-                              purchasedAt: r.purchasedAt,
-                              paymentMethod: r.paymentMethod,
-                              category: r.items.isNotEmpty ? r.items.first.category : 'other',
-                              items: r.items,
-                              memo: r.memo,
-                            ), focusMemo: true);
+                            widget.onEdit(
+                              ReceiptListItem(
+                                receiptId: r.receiptId,
+                                storeName: r.storeName,
+                                totalAmount: r.totalAmount,
+                                purchasedAt: r.purchasedAt,
+                                paymentMethod: r.paymentMethod,
+                                category: r.items.isNotEmpty
+                                    ? r.items.first.category
+                                    : 'other',
+                                items: r.items,
+                                memo: r.memo,
+                              ),
+                              focusMemo: true,
+                            );
                           },
                           child: Container(
                             padding: const EdgeInsets.all(14),
@@ -464,41 +647,74 @@ class _CalendarReceiptDetailSheetState extends State<CalendarReceiptDetailSheet>
                             ),
                             child: (r.memo != null && r.memo!.isNotEmpty)
                                 ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Icon(Icons.notes_outlined, size: 14, color: colors.textMuted),
+                                          Icon(
+                                            Icons.notes_outlined,
+                                            size: 14,
+                                            color: colors.textMuted,
+                                          ),
                                           const SizedBox(width: 5),
-                                          Text('メモ', style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600)),
+                                          Text(
+                                            'メモ',
+                                            style: camillBodyStyle(
+                                              13,
+                                              colors.textMuted,
+                                              weight: FontWeight.w600,
+                                            ),
+                                          ),
                                           const Spacer(),
-                                          Icon(Icons.edit_outlined, size: 13, color: colors.textMuted),
+                                          Icon(
+                                            Icons.edit_outlined,
+                                            size: 13,
+                                            color: colors.textMuted,
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(r.memo!, style: camillBodyStyle(14, colors.textPrimary)),
+                                      Text(
+                                        r.memo!,
+                                        style: camillBodyStyle(
+                                          14,
+                                          colors.textPrimary,
+                                        ),
+                                      ),
                                     ],
                                   )
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.add, size: 16, color: colors.textMuted),
+                                      Icon(
+                                        Icons.add,
+                                        size: 16,
+                                        color: colors.textMuted,
+                                      ),
                                       const SizedBox(width: 6),
-                                      Text('メモを追加', style: camillBodyStyle(14, colors.textMuted)),
+                                      Text(
+                                        'メモを追加',
+                                        style: camillBodyStyle(
+                                          14,
+                                          colors.textMuted,
+                                        ),
+                                      ),
                                     ],
                                   ),
                           ),
                         ),
                       ),
                     ),
-                    SliverToBoxAdapter(child: SizedBox(height: 160 + MediaQuery.of(context).padding.bottom)),
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 160 + MediaQuery.of(context).padding.bottom,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Positioned(
-                bottom: 0, left: 0, right: 0,
-                child: footer,
-              ),
+              Positioned(bottom: 0, left: 0, right: 0, child: footer),
             ],
           ),
         );

@@ -81,107 +81,105 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         // 背景ブラー
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            color: colors.background.withValues(alpha: 0.85),
-          ),
+          child: Container(color: colors.background.withValues(alpha: 0.85)),
         ),
         Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: Text(
-          count > 1
-              ? '解析結果 ${_currentPage + 1} / $count'
-              : '解析結果の確認',
-          style: camillHeadingStyle(17, colors.textPrimary),
-        ),
-        iconTheme: IconThemeData(color: colors.textSecondary),
-      ),
-      body: Column(
-        children: [
-          if (showBanner)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: colors.primaryLight,
-              child: Text(
-                '有料会員になると1枚の写真から最大5件まで登録できます',
-                style: camillBodyStyle(13, colors.primary),
-                textAlign: TextAlign.center,
-              ),
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            title: Text(
+              count > 1 ? '解析結果 ${_currentPage + 1} / $count' : '解析結果の確認',
+              style: camillHeadingStyle(17, colors.textPrimary),
             ),
-          if (count > 1)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(count, (i) {
-                  final active = i == _currentPage;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: active ? 16 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: active ? colors.primary : colors.surfaceBorder,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (i) => setState(() => _currentPage = i),
-              children: [
-                for (int i = 0; i < count; i++)
-                  ReceiptFormPage(
-                    key: _pageKeys[i],
-                    analysis: _visibleAnalyses[i],
-                  ),
-              ],
-            ),
+            iconTheme: IconThemeData(color: colors.textSecondary),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+          body: Column(
+            children: [
+              if (showBanner)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  color: colors.primaryLight,
+                  child: Text(
+                    '有料会員になると1枚の写真から最大5件まで登録できます',
+                    style: camillBodyStyle(13, colors.primary),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                onPressed: _saving ? null : _saveAll,
-                icon: _saving
-                    ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.fabIcon,
+              if (count > 1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(count, (i) {
+                      final active = i == _currentPage;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: active ? 16 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: active ? colors.primary : colors.surfaceBorder,
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                      )
-                    : Icon(Icons.save_outlined, color: colors.fabIcon),
-                label: Text(
-                  count > 1
-                      ? '全$count件を登録'
-                      : (_visibleAnalyses.first.isBill
-                          ? 'この請求書を登録'
-                          : 'このレシートを登録'),
-                  style: camillBodyStyle(16, colors.fabIcon),
+                      );
+                    }),
+                  ),
+                ),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: (i) => setState(() => _currentPage = i),
+                  children: [
+                    for (int i = 0; i < count; i++)
+                      ReceiptFormPage(
+                        key: _pageKeys[i],
+                        analysis: _visibleAnalyses[i],
+                      ),
+                  ],
                 ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: _saving ? null : _saveAll,
+                    icon: _saving
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.fabIcon,
+                            ),
+                          )
+                        : Icon(Icons.save_outlined, color: colors.fabIcon),
+                    label: Text(
+                      count > 1
+                          ? '全$count件を登録'
+                          : (_visibleAnalyses.first.isBill
+                                ? 'この請求書を登録'
+                                : 'このレシートを登録'),
+                      style: camillBodyStyle(16, colors.fabIcon),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
         ),
       ],
     );
   }
 }
-

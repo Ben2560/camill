@@ -8,18 +8,17 @@ void main() {
     DateTime? validUntil,
     List<int>? availableDays,
     int discountAmount = 500,
-  }) =>
-      Coupon(
-        couponId: 'c1',
-        storeName: 'テスト店',
-        description: '500円引き',
-        discountAmount: discountAmount,
-        isUsed: false,
-        isFromOcr: true,
-        createdAt: now,
-        validUntil: validUntil,
-        availableDays: availableDays,
-      );
+  }) => Coupon(
+    couponId: 'c1',
+    storeName: 'テスト店',
+    description: '500円引き',
+    discountAmount: discountAmount,
+    isUsed: false,
+    isFromOcr: true,
+    createdAt: now,
+    validUntil: validUntil,
+    availableDays: availableDays,
+  );
 
   group('Coupon.fromJson', () {
     test('必須フィールドを正しくパースする', () {
@@ -71,7 +70,9 @@ void main() {
     });
 
     test('昨日が期限のとき isExpired = true', () {
-      final coupon = makeCoupon(validUntil: now.subtract(const Duration(days: 1)));
+      final coupon = makeCoupon(
+        validUntil: now.subtract(const Duration(days: 1)),
+      );
       expect(coupon.isExpired, isTrue);
       expect(coupon.isExpiringSoon, isFalse);
     });

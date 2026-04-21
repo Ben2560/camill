@@ -19,7 +19,8 @@ class CalendarCouponActionSheet extends StatefulWidget {
   });
 
   @override
-  State<CalendarCouponActionSheet> createState() => _CalendarCouponActionSheetState();
+  State<CalendarCouponActionSheet> createState() =>
+      _CalendarCouponActionSheetState();
 }
 
 class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
@@ -48,7 +49,11 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
         backgroundColor: colors.surface,
         title: Text(
           '削除確認',
-          style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.w700),
+          style: camillBodyStyle(
+            16,
+            colors.textPrimary,
+            weight: FontWeight.w700,
+          ),
         ),
         content: Text(
           'このクーポンを削除しますか？',
@@ -63,7 +68,11 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               '削除',
-              style: camillBodyStyle(14, colors.danger, weight: FontWeight.bold),
+              style: camillBodyStyle(
+                14,
+                colors.danger,
+                weight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -147,7 +156,11 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
                   },
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 16, color: colors.textMuted),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: colors.textMuted,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         validFrom != null
@@ -163,7 +176,9 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: ctx,
-                      initialDate: validUntil ?? DateTime.now().add(const Duration(days: 7)),
+                      initialDate:
+                          validUntil ??
+                          DateTime.now().add(const Duration(days: 7)),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2030),
                     );
@@ -171,7 +186,11 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
                   },
                   child: Row(
                     children: [
-                      Icon(Icons.event_available, size: 16, color: colors.textMuted),
+                      Icon(
+                        Icons.event_available,
+                        size: 16,
+                        color: colors.textMuted,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         validUntil != null
@@ -188,7 +207,10 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('キャンセル', style: camillBodyStyle(14, colors.textSecondary)),
+              child: Text(
+                'キャンセル',
+                style: camillBodyStyle(14, colors.textSecondary),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: colors.primary),
@@ -256,13 +278,27 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.store_outlined, size: 14, color: colors.textMuted),
+                    Icon(
+                      Icons.store_outlined,
+                      size: 14,
+                      color: colors.textMuted,
+                    ),
                     const SizedBox(width: 4),
-                    Text(c.storeName, style: camillBodyStyle(13, colors.textMuted)),
+                    Text(
+                      c.storeName,
+                      style: camillBodyStyle(13, colors.textMuted),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(c.description, style: camillBodyStyle(16, colors.textPrimary, weight: FontWeight.bold)),
+                Text(
+                  c.description,
+                  style: camillBodyStyle(
+                    16,
+                    colors.textPrimary,
+                    weight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   c.discountAmount > 0 ? '${c.discountAmount}円引き' : '無料',
@@ -298,17 +334,32 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
                       style: FilledButton.styleFrom(
                         backgroundColor: colors.primary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: _busy ? null : _markUsed,
                       icon: _busy
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
-                          : const Icon(Icons.check_circle_outline, color: Colors.white),
-                      label: Text('使用済みにする', style: camillBodyStyle(16, Colors.white, weight: FontWeight.bold)),
+                          : const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.white,
+                            ),
+                      label: Text(
+                        '使用済みにする',
+                        style: camillBodyStyle(
+                          16,
+                          Colors.white,
+                          weight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 if (canUse) const SizedBox(height: 10),
@@ -319,11 +370,20 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: colors.surfaceBorder),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _busy ? null : _showEditDialog,
-                        icon: Icon(Icons.edit_outlined, size: 18, color: colors.textSecondary),
-                        label: Text('編集', style: camillBodyStyle(14, colors.textSecondary)),
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: colors.textSecondary,
+                        ),
+                        label: Text(
+                          '編集',
+                          style: camillBodyStyle(14, colors.textSecondary),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -332,11 +392,20 @@ class _CalendarCouponActionSheetState extends State<CalendarCouponActionSheet> {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: BorderSide(color: colors.danger.withAlpha(120)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _busy ? null : _delete,
-                        icon: Icon(Icons.delete_outline, size: 18, color: colors.danger),
-                        label: Text('削除', style: camillBodyStyle(14, colors.danger)),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: colors.danger,
+                        ),
+                        label: Text(
+                          '削除',
+                          style: camillBodyStyle(14, colors.danger),
+                        ),
                       ),
                     ),
                   ],

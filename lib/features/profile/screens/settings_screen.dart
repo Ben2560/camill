@@ -45,8 +45,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('パスワード変更',
-            style: camillHeadingStyle(16, colors.textPrimary)),
+        title: Text(
+          'パスワード変更',
+          style: camillHeadingStyle(16, colors.textPrimary),
+        ),
         content: Text(
           '$email 宛にパスワード再設定メールを送信します。',
           style: camillBodyStyle(14, colors.textSecondary),
@@ -54,14 +56,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('キャンセル',
-                style: camillBodyStyle(14, colors.textSecondary)),
+            child: Text(
+              'キャンセル',
+              style: camillBodyStyle(14, colors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('送信',
-                style: camillBodyStyle(14, colors.primary,
-                    weight: FontWeight.bold)),
+            child: Text(
+              '送信',
+              style: camillBodyStyle(
+                14,
+                colors.primary,
+                weight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -70,8 +79,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       await _authService.sendPasswordResetEmail();
       if (mounted) {
-        showTopNotification(context, 'パスワード再設定メールを送信しました',
-            backgroundColor: colors.primary);
+        showTopNotification(
+          context,
+          'パスワード再設定メールを送信しました',
+          backgroundColor: colors.primary,
+        );
       }
     } catch (_) {
       if (mounted) {
@@ -111,14 +123,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-              child: Text('週の開始曜日',
-                  style: camillBodyStyle(17, colors.textPrimary,
-                      weight: FontWeight.w700)),
+              child: Text(
+                '週の開始曜日',
+                style: camillBodyStyle(
+                  17,
+                  colors.textPrimary,
+                  weight: FontWeight.w700,
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             ListTile(
-              title: Text('日曜日始まり',
-                  style: camillBodyStyle(15, colors.textPrimary)),
+              title: Text(
+                '日曜日始まり',
+                style: camillBodyStyle(15, colors.textPrimary),
+              ),
               leading: Icon(
                 _weekStartsSunday
                     ? Icons.check_circle
@@ -131,8 +150,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
             ),
             ListTile(
-              title: Text('月曜日始まり',
-                  style: camillBodyStyle(15, colors.textPrimary)),
+              title: Text(
+                '月曜日始まり',
+                style: camillBodyStyle(15, colors.textPrimary),
+              ),
               leading: Icon(
                 !_weekStartsSunday
                     ? Icons.check_circle
@@ -153,15 +174,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors     = context.colors;
+    final colors = context.colors;
     final themeState = ref.watch(themeProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.background,
-        title: Text('アプリ設定',
-            style: camillHeadingStyle(17, colors.textPrimary)),
+        title: Text('アプリ設定', style: camillHeadingStyle(17, colors.textPrimary)),
         iconTheme: IconThemeData(color: colors.textSecondary),
       ),
       body: ListView(
@@ -245,8 +265,7 @@ class _SettingsItem extends StatelessWidget {
       subtitle: subtitle != null
           ? Text(subtitle!, style: camillBodyStyle(12, colors.textMuted))
           : null,
-      trailing:
-          Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
+      trailing: Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
       onTap: onTap,
     );
   }

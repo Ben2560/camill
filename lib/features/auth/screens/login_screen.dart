@@ -25,9 +25,9 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
 
   late final AnimationController _heroCtrl;
-  late final Animation<double>  _logoFade;
-  late final Animation<Offset>  _logoSlide;
-  late final Animation<double>  _taglineFade;
+  late final Animation<double> _logoFade;
+  late final Animation<Offset> _logoSlide;
+  late final Animation<double> _taglineFade;
 
   @override
   void initState() {
@@ -41,13 +41,13 @@ class _LoginScreenState extends State<LoginScreen>
       parent: _heroCtrl,
       curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
     );
-    _logoSlide = Tween<Offset>(
-      begin: const Offset(0, 0.35),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _heroCtrl,
-      curve: const Interval(0.0, 0.65, curve: Curves.easeOutCubic),
-    ));
+    _logoSlide = Tween<Offset>(begin: const Offset(0, 0.35), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _heroCtrl,
+            curve: const Interval(0.0, 0.65, curve: Curves.easeOutCubic),
+          ),
+        );
 
     _taglineFade = CurvedAnimation(
       parent: _heroCtrl,
@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final colors = CamillColors.naturalLight;
     const gradientStart = Color(0xFF6AA864);
-    const gradientEnd   = Color(0xFF4A8545);
+    const gradientEnd = Color(0xFF4A8545);
 
     return Theme(
       data: CamillThemeData.build(colors),
@@ -164,15 +164,19 @@ class _LoginScreenState extends State<LoginScreen>
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           autofillHints: const [AutofillHints.email],
-                          onFieldSubmitted: (_) =>
-                              FocusScope.of(context).requestFocus(_passwordFocus),
+                          onFieldSubmitted: (_) => FocusScope.of(
+                            context,
+                          ).requestFocus(_passwordFocus),
                           decoration: InputDecoration(
                             labelText: 'メールアドレス',
-                            prefixIcon:
-                                Icon(Icons.email_outlined, color: colors.textMuted),
+                            prefixIcon: Icon(
+                              Icons.email_outlined,
+                              color: colors.textMuted,
+                            ),
                           ),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'メールアドレスを入力してください' : null,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'メールアドレスを入力してください'
+                              : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
@@ -184,8 +188,10 @@ class _LoginScreenState extends State<LoginScreen>
                           onFieldSubmitted: (_) => _login(),
                           decoration: InputDecoration(
                             labelText: 'パスワード',
-                            prefixIcon:
-                                Icon(Icons.lock_outlined, color: colors.textMuted),
+                            prefixIcon: Icon(
+                              Icons.lock_outlined,
+                              color: colors.textMuted,
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword
@@ -193,12 +199,14 @@ class _LoginScreenState extends State<LoginScreen>
                                     : Icons.visibility_off_outlined,
                                 color: colors.textMuted,
                               ),
-                              onPressed: () =>
-                                  setState(() => _obscurePassword = !_obscurePassword),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                           ),
-                          validator: (v) =>
-                              v == null || v.length < 6 ? '6文字以上で入力してください' : null,
+                          validator: (v) => v == null || v.length < 6
+                              ? '6文字以上で入力してください'
+                              : null,
                         ),
                         const SizedBox(height: 28),
                         ElevatedButton(
@@ -216,26 +224,37 @@ class _LoginScreenState extends State<LoginScreen>
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: colors.fabIcon),
+                                    strokeWidth: 2,
+                                    color: colors.fabIcon,
+                                  ),
                                 )
                               : Text(
                                   'ログイン',
-                                  style: camillBodyStyle(16, colors.fabIcon,
-                                      weight: FontWeight.w700),
+                                  style: camillBodyStyle(
+                                    16,
+                                    colors.fabIcon,
+                                    weight: FontWeight.w700,
+                                  ),
                                 ),
                         ),
                         const SizedBox(height: 20),
                         Row(
                           children: [
-                            Expanded(child: Divider(color: colors.surfaceBorder)),
+                            Expanded(
+                              child: Divider(color: colors.surfaceBorder),
+                            ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
                               child: Text(
                                 'または',
                                 style: camillBodyStyle(13, colors.textMuted),
                               ),
                             ),
-                            Expanded(child: Divider(color: colors.surfaceBorder)),
+                            Expanded(
+                              child: Divider(color: colors.surfaceBorder),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -243,7 +262,8 @@ class _LoginScreenState extends State<LoginScreen>
                           style: OutlinedButton.styleFrom(
                             foregroundColor: colors.primary,
                             side: BorderSide(
-                                color: colors.primary.withValues(alpha: 0.55)),
+                              color: colors.primary.withValues(alpha: 0.55),
+                            ),
                             minimumSize: const Size.fromHeight(52),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -252,8 +272,11 @@ class _LoginScreenState extends State<LoginScreen>
                           onPressed: () => context.push('/register'),
                           child: Text(
                             '新規登録',
-                            style: camillBodyStyle(16, colors.primary,
-                                weight: FontWeight.w600),
+                            style: camillBodyStyle(
+                              16,
+                              colors.primary,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],

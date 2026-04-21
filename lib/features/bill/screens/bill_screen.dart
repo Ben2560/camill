@@ -17,8 +17,7 @@ class BillScreen extends StatefulWidget {
   State<BillScreen> createState() => _BillScreenState();
 }
 
-class _BillScreenState extends State<BillScreen>
-    with TickerProviderStateMixin {
+class _BillScreenState extends State<BillScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   final _service = BillService();
   final _currencyFmt = NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
@@ -113,8 +112,11 @@ class _BillScreenState extends State<BillScreen>
     }
   }
 
-  List<Bill> get _unpaid =>
-      _bills.where((b) => b.status == BillStatus.unpaid || b.status == BillStatus.pending).toList();
+  List<Bill> get _unpaid => _bills
+      .where(
+        (b) => b.status == BillStatus.unpaid || b.status == BillStatus.pending,
+      )
+      .toList();
   List<Bill> get _paid =>
       _bills.where((b) => b.status == BillStatus.paid).toList();
 
@@ -136,11 +138,13 @@ class _BillScreenState extends State<BillScreen>
         content: const Text('この請求書を削除しますか？'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('キャンセル')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('削除', style: TextStyle(color: Colors.red))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('削除', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -202,7 +206,10 @@ class _BillScreenState extends State<BillScreen>
             backgroundColor: colors.background,
             elevation: 0,
             scrolledUnderElevation: 0,
-            title: Text('請求書管理', style: camillHeadingStyle(17, colors.textPrimary)),
+            title: Text(
+              '請求書管理',
+              style: camillHeadingStyle(17, colors.textPrimary),
+            ),
             iconTheme: IconThemeData(color: colors.textSecondary),
             actions: [
               IconButton(
@@ -283,112 +290,116 @@ class _BillScreenState extends State<BillScreen>
         context: context,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: colors.surface,
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('請求書を追加',
-                  style: camillHeadingStyle(16, colors.textPrimary)),
-              IconButton(
-                icon: Icon(Icons.close, color: colors.textMuted, size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                style: camillBodyStyle(14, colors.textPrimary),
-                decoration: InputDecoration(
-                  labelText: '名称（例：東京ガス）',
-                  labelStyle: camillBodyStyle(13, colors.textMuted),
+            backgroundColor: colors.surface,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '請求書を追加',
+                  style: camillHeadingStyle(16, colors.textPrimary),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                style: camillBodyStyle(14, colors.textPrimary),
-                decoration: InputDecoration(
-                  labelText: '金額（円）',
-                  labelStyle: camillBodyStyle(13, colors.textMuted),
+                IconButton(
+                  icon: Icon(Icons.close, color: colors.textMuted, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => Navigator.pop(ctx),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: memoCtrl,
-                style: camillBodyStyle(14, colors.textPrimary),
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'メモ（任意）',
-                  labelStyle: camillBodyStyle(13, colors.textMuted),
-                ),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: ctx,
-                    initialDate: DateTime.now().add(const Duration(days: 14)),
-                    firstDate: DateTime.now(),
-                    lastDate:
-                        DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (picked != null) {
-                    setDialogState(() => dueDate = picked);
-                  }
-                },
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today,
-                        size: 16, color: colors.textMuted),
-                    const SizedBox(width: 6),
-                    Text(
-                      dueDate != null
-                          ? '支払期限: ${dueDate!.year}/${dueDate!.month}/${dueDate!.day}'
-                          : '支払期限を選択（任意）',
-                      style: camillBodyStyle(13, colors.textMuted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary),
-                onPressed: () async {
-                  if (titleCtrl.text.isNotEmpty &&
-                      amountCtrl.text.isNotEmpty) {
-                    Navigator.pop(ctx);
-                    try {
-                      await _service.createBill(
-                        title: titleCtrl.text,
-                        amount: int.tryParse(amountCtrl.text) ?? 0,
-                        dueDate: dueDate?.toIso8601String(),
-                        memo: memoCtrl.text.isEmpty ? null : memoCtrl.text,
-                      );
-                      await _loadBills(silent: true);
-                    } catch (e) {
-                      // silently swallow
-                    }
-                  }
-                },
-                child:
-                    Text('追加', style: camillBodyStyle(14, colors.fabIcon)),
-              ),
+              ],
             ),
-          ],
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  style: camillBodyStyle(14, colors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: '名称（例：東京ガス）',
+                    labelStyle: camillBodyStyle(13, colors.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  style: camillBodyStyle(14, colors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: '金額（円）',
+                    labelStyle: camillBodyStyle(13, colors.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: memoCtrl,
+                  style: camillBodyStyle(14, colors.textPrimary),
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'メモ（任意）',
+                    labelStyle: camillBodyStyle(13, colors.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: DateTime.now().add(const Duration(days: 14)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setDialogState(() => dueDate = picked);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: colors.textMuted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        dueDate != null
+                            ? '支払期限: ${dueDate!.year}/${dueDate!.month}/${dueDate!.day}'
+                            : '支払期限を選択（任意）',
+                        style: camillBodyStyle(13, colors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.primary,
+                  ),
+                  onPressed: () async {
+                    if (titleCtrl.text.isNotEmpty &&
+                        amountCtrl.text.isNotEmpty) {
+                      Navigator.pop(ctx);
+                      try {
+                        await _service.createBill(
+                          title: titleCtrl.text,
+                          amount: int.tryParse(amountCtrl.text) ?? 0,
+                          dueDate: dueDate?.toIso8601String(),
+                          memo: memoCtrl.text.isEmpty ? null : memoCtrl.text,
+                        );
+                        await _loadBills(silent: true);
+                      } catch (e) {
+                        // silently swallow
+                      }
+                    }
+                  },
+                  child: Text('追加', style: camillBodyStyle(14, colors.fabIcon)),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
     } finally {
       titleCtrl.dispose();
       amountCtrl.dispose();
@@ -419,7 +430,8 @@ class _BillList extends StatelessWidget {
     final colors = context.colors;
     if (bills.isEmpty) {
       return Center(
-          child: Text(emptyMessage, style: camillBodyStyle(14, colors.textMuted)));
+        child: Text(emptyMessage, style: camillBodyStyle(14, colors.textMuted)),
+      );
     }
     return ListView.separated(
       controller: scrollController,
@@ -501,9 +513,14 @@ class _BillCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(bill.title,
-                        style: camillBodyStyle(15, colors.textPrimary,
-                            weight: FontWeight.bold)),
+                    Text(
+                      bill.title,
+                      style: camillBodyStyle(
+                        15,
+                        colors.textPrimary,
+                        weight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       currencyFmt.format(bill.amount),
@@ -527,11 +544,13 @@ class _BillCard extends StatelessWidget {
                             paid
                                 ? '支払済み'
                                 : (days != null && days >= 0)
-                                    ? '期限まで残り$days日'
-                                    : '期限切れ',
+                                ? '期限まで残り$days日'
+                                : '期限切れ',
                             style: camillBodyStyle(
                               12,
-                              urgent && !paid ? colors.danger : colors.textMuted,
+                              urgent && !paid
+                                  ? colors.danger
+                                  : colors.textMuted,
                               weight: urgent && !paid
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -551,9 +570,11 @@ class _BillCard extends StatelessWidget {
                     minimumSize: const Size(80, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                   ),
-                  child: Text('支払い\nました',
-                      textAlign: TextAlign.center,
-                      style: camillBodyStyle(11, Colors.white)),
+                  child: Text(
+                    '支払い\nました',
+                    textAlign: TextAlign.center,
+                    style: camillBodyStyle(11, Colors.white),
+                  ),
                 ),
             ],
           ),

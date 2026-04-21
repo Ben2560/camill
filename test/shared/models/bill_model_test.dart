@@ -8,16 +8,15 @@ void main() {
     BillStatus status = BillStatus.unpaid,
     DateTime? dueDate,
     String? memo,
-  }) =>
-      Bill(
-        billId: 'b1',
-        title: '電気代',
-        amount: 8000,
-        status: status,
-        createdAt: now,
-        dueDate: dueDate,
-        memo: memo,
-      );
+  }) => Bill(
+    billId: 'b1',
+    title: '電気代',
+    amount: 8000,
+    status: status,
+    createdAt: now,
+    dueDate: dueDate,
+    memo: memo,
+  );
 
   group('Bill.fromJson', () {
     test('必須フィールドを正しくパースする', () {
@@ -75,12 +74,16 @@ void main() {
     });
 
     test('明日以降が期限のとき正の値を返す', () {
-      final bill = makeBill(dueDate: DateTime.now().add(const Duration(hours: 36)));
+      final bill = makeBill(
+        dueDate: DateTime.now().add(const Duration(hours: 36)),
+      );
       expect(bill.daysUntilDue! >= 1, isTrue);
     });
 
     test('昨日が期限のとき負の値を返す', () {
-      final bill = makeBill(dueDate: DateTime.now().subtract(const Duration(days: 1)));
+      final bill = makeBill(
+        dueDate: DateTime.now().subtract(const Duration(days: 1)),
+      );
       expect(bill.daysUntilDue! < 0, isTrue);
     });
   });
@@ -91,17 +94,23 @@ void main() {
     });
 
     test('3日以内の期限は true', () {
-      final bill = makeBill(dueDate: DateTime.now().add(const Duration(days: 2)));
+      final bill = makeBill(
+        dueDate: DateTime.now().add(const Duration(days: 2)),
+      );
       expect(bill.isUrgent, isTrue);
     });
 
     test('10日後の期限は false', () {
-      final bill = makeBill(dueDate: DateTime.now().add(const Duration(days: 10)));
+      final bill = makeBill(
+        dueDate: DateTime.now().add(const Duration(days: 10)),
+      );
       expect(bill.isUrgent, isFalse);
     });
 
     test('期限切れ（昨日）は false', () {
-      final bill = makeBill(dueDate: DateTime.now().subtract(const Duration(days: 1)));
+      final bill = makeBill(
+        dueDate: DateTime.now().subtract(const Duration(days: 1)),
+      );
       expect(bill.isUrgent, isFalse);
     });
   });
@@ -130,7 +139,10 @@ void main() {
     });
 
     test('異なる値は非等価', () {
-      expect(makeBill(status: BillStatus.unpaid), isNot(equals(makeBill(status: BillStatus.paid))));
+      expect(
+        makeBill(status: BillStatus.unpaid),
+        isNot(equals(makeBill(status: BillStatus.paid))),
+      );
     });
   });
 }

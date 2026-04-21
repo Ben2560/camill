@@ -14,9 +14,13 @@ class AuthService {
 
   // メール + パスワードで新規登録
   Future<UserCredential> registerWithEmail(
-      String email, String password) async {
+    String email,
+    String password,
+  ) async {
     return _auth.createUserWithEmailAndPassword(
-        email: email, password: password);
+      email: email,
+      password: password,
+    );
   }
 
   // メール + パスワードでログイン
@@ -42,7 +46,9 @@ class AuthService {
 
   // SMS認証コードで電話番号をリンク
   Future<void> linkPhoneCredential(
-      String verificationId, String smsCode) async {
+    String verificationId,
+    String smsCode,
+  ) async {
     final credential = PhoneAuthProvider.credential(
       verificationId: verificationId,
       smsCode: smsCode,
@@ -58,16 +64,19 @@ class AuthService {
   }) async {
     final user = _auth.currentUser;
     if (user == null) return;
-    await _api.post('/auth/register', body: {
-      'uid': user.uid,
-      'email': email,
-      'phone': phone,
-      'display_name': displayName,
-      'onboarding_type': {
-        'priorities': ['food', 'daily', 'other'],
-        'monthly_budget': {'food': 30000, 'daily': 10000},
+    await _api.post(
+      '/auth/register',
+      body: {
+        'uid': user.uid,
+        'email': email,
+        'phone': phone,
+        'display_name': displayName,
+        'onboarding_type': {
+          'priorities': ['food', 'daily', 'other'],
+          'monthly_budget': {'food': 30000, 'daily': 10000},
+        },
       },
-    });
+    );
   }
 
   // 表示名を更新

@@ -1,7 +1,6 @@
 import '../../../shared/models/family_model.dart';
 import '../../../shared/services/api_service.dart';
 
-
 class FamilyService {
   final ApiService _api;
   FamilyService({ApiService? api}) : _api = api ?? ApiService();
@@ -50,7 +49,9 @@ class FamilyService {
   }
 
   Future<Map<String, dynamic>> createChildAccount(
-      String familyId, String displayName) async {
+    String familyId,
+    String displayName,
+  ) async {
     final data = await _api.postAny(
       '/families/$familyId/members/create-child',
       body: {'display_name': displayName},

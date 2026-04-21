@@ -19,12 +19,12 @@ class NotificationItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'body': body,
-        'route': route,
-        'receivedAt': receivedAt.toIso8601String(),
-        'isRead': isRead,
-      };
+    'title': title,
+    'body': body,
+    'route': route,
+    'receivedAt': receivedAt.toIso8601String(),
+    'isRead': isRead,
+  };
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) =>
       NotificationItem(

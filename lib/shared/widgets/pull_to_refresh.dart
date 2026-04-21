@@ -18,7 +18,8 @@ class RefreshScrollPhysics extends ScrollPhysics {
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
     if (offset > 0 && position.pixels >= position.maxScrollExtent) {
       final overscrollFraction =
-          (position.pixels - position.maxScrollExtent) / position.viewportDimension;
+          (position.pixels - position.maxScrollExtent) /
+          position.viewportDimension;
       final friction = 0.52 * pow(1.0 - overscrollFraction.clamp(0.0, 1.0), 2);
       return offset * friction.clamp(0.05, 1.0);
     }
@@ -31,7 +32,10 @@ class RefreshScrollPhysics extends ScrollPhysics {
   }
 
   @override
-  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
     if (position.pixels < position.minScrollExtent) {
       return ScrollSpringSimulation(
         spring,
@@ -61,10 +65,12 @@ class DismissScrollPhysics extends ScrollPhysics {
   @override
   double applyBoundaryConditions(ScrollMetrics position, double value) {
     // 上端: クランプ（コンテンツが動かないように）
-    if (value < position.pixels && position.pixels <= position.minScrollExtent) {
+    if (value < position.pixels &&
+        position.pixels <= position.minScrollExtent) {
       return value - position.pixels;
     }
-    if (value < position.minScrollExtent && position.minScrollExtent < position.pixels) {
+    if (value < position.minScrollExtent &&
+        position.minScrollExtent < position.pixels) {
       return value - position.minScrollExtent;
     }
     // 下端: オーバースクロール許可（BouncingScrollPhysics に委任）
@@ -76,7 +82,8 @@ class DismissScrollPhysics extends ScrollPhysics {
     // 下端を超えてドラッグ: iOS 風の抵抗
     if (offset > 0 && position.pixels >= position.maxScrollExtent) {
       final overscrollFraction =
-          (position.pixels - position.maxScrollExtent) / position.viewportDimension;
+          (position.pixels - position.maxScrollExtent) /
+          position.viewportDimension;
       final friction = 0.52 * pow(1.0 - overscrollFraction.clamp(0.0, 1.0), 2);
       return offset * friction.clamp(0.05, 1.0);
     }
@@ -84,7 +91,10 @@ class DismissScrollPhysics extends ScrollPhysics {
   }
 
   @override
-  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
     // 下端のスプリングバックは BouncingScrollPhysics に委任
     return parent?.createBallisticSimulation(position, velocity);
   }
@@ -97,7 +107,9 @@ class DismissScrollPhysicsWithTopBounce extends ScrollPhysics {
 
   @override
   DismissScrollPhysicsWithTopBounce applyTo(ScrollPhysics? ancestor) {
-    return DismissScrollPhysicsWithTopBounce(parent: const BouncingScrollPhysics());
+    return DismissScrollPhysicsWithTopBounce(
+      parent: const BouncingScrollPhysics(),
+    );
   }
 
   @override
@@ -106,11 +118,13 @@ class DismissScrollPhysicsWithTopBounce extends ScrollPhysics {
   @override
   double applyBoundaryConditions(ScrollMetrics position, double value) {
     // 上端: 既に最上部にいる → クランプ（dismiss用、コンテンツを動かさない）
-    if (value < position.pixels && position.pixels <= position.minScrollExtent) {
+    if (value < position.pixels &&
+        position.pixels <= position.minScrollExtent) {
       return value - position.pixels;
     }
     // 上端: スクロール中に上端に到達 → 1.5%までマイクロバウンス許可、それ以上クランプ
-    if (value < position.minScrollExtent && position.minScrollExtent < position.pixels) {
+    if (value < position.minScrollExtent &&
+        position.minScrollExtent < position.pixels) {
       final limit = -position.viewportDimension * 0.015;
       if (value >= limit) return 0.0;
       return value - limit;
@@ -124,7 +138,8 @@ class DismissScrollPhysicsWithTopBounce extends ScrollPhysics {
     // 下端バウンス抵抗
     if (offset > 0 && position.pixels >= position.maxScrollExtent) {
       final fraction =
-          (position.pixels - position.maxScrollExtent) / position.viewportDimension;
+          (position.pixels - position.maxScrollExtent) /
+          position.viewportDimension;
       final friction = 0.52 * pow(1.0 - fraction.clamp(0.0, 1.0), 2);
       return offset * friction.clamp(0.05, 1.0);
     }
@@ -132,7 +147,10 @@ class DismissScrollPhysicsWithTopBounce extends ScrollPhysics {
   }
 
   @override
-  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
     // 上端を超えていたらスプリングバックで0に戻す
     if (position.pixels < position.minScrollExtent) {
       return ScrollSpringSimulation(
@@ -165,25 +183,25 @@ class PullRefreshDots extends StatelessWidget {
   });
 
   Widget _dot(int i) => AnimatedBuilder(
-        animation: controller,
-        builder: (ctx, child) {
-          double dy = 0;
-          if (isRefreshing) {
-            final t = controller.value;
-            final start = i / 4.0;
-            final end = start + 0.25;
-            if (t >= start && t < end) {
-              dy = -9.0 * sin((t - start) / 0.25 * pi);
-            }
-          }
-          return Transform.translate(offset: Offset(0, dy), child: child);
-        },
-        child: Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      );
+    animation: controller,
+    builder: (ctx, child) {
+      double dy = 0;
+      if (isRefreshing) {
+        final t = controller.value;
+        final start = i / 4.0;
+        final end = start + 0.25;
+        if (t >= start && t < end) {
+          dy = -9.0 * sin((t - start) / 0.25 * pi);
+        }
+      }
+      return Transform.translate(offset: Offset(0, dy), child: child);
+    },
+    child: Container(
+      width: 7,
+      height: 7,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {

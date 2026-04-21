@@ -51,7 +51,11 @@ void main() {
 
   group('MonthlyPoint.fromJson', () {
     test('月次データをパースする', () {
-      final mp = MonthlyPoint.fromJson({'month': 4, 'expense': 50000, 'income': 0});
+      final mp = MonthlyPoint.fromJson({
+        'month': 4,
+        'expense': 50000,
+        'income': 0,
+      });
       expect(mp.month, 4);
       expect(mp.expense, 50000);
     });

@@ -49,11 +49,12 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
 
     // iOS: フォアグラウンド中も通知バナーを表示する
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
 
     // バックグラウンドから通知タップで復帰したとき
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -73,10 +74,10 @@ class NotificationService {
 
   static void _saveToInbox(RemoteMessage message) {
     final title = message.notification?.title ?? '';
-    final body  = message.notification?.body  ?? '';
+    final body = message.notification?.body ?? '';
     NotificationInbox().add(
       title: title,
-      body:  body,
+      body: body,
       route: message.data['route'] as String?,
     );
   }

@@ -38,10 +38,8 @@ sealed class CouponDetected with _$CouponDetected {
 
 @freezed
 sealed class LinePromotion with _$LinePromotion {
-  const factory LinePromotion({
-    required String description,
-    String? lineUrl,
-  }) = _LinePromotion;
+  const factory LinePromotion({required String description, String? lineUrl}) =
+      _LinePromotion;
 
   factory LinePromotion.fromJson(Map<String, dynamic> json) =>
       _$LinePromotionFromJson(json);

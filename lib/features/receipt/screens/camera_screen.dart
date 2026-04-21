@@ -12,7 +12,12 @@ class CameraScreen extends StatefulWidget {
   final ImageSource? autoSource;
   final File? initialImage;
   final String? documentHint;
-  const CameraScreen({super.key, this.autoSource, this.initialImage, this.documentHint});
+  const CameraScreen({
+    super.key,
+    this.autoSource,
+    this.initialImage,
+    this.documentHint,
+  });
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -81,11 +86,23 @@ class _CameraScreenState extends State<CameraScreen> {
 
   String _errorMessage(Object e) {
     final s = e.toString();
-    if (s.contains('429') || s.contains('上限')) return '今月の解析上限に達しました。プランをアップグレードするか来月までお待ちください。';
-    if (s.contains('timeout') || s.contains('TimeoutException')) return '解析がタイムアウトしました。通信環境を確認してもう一度お試しください。';
-    if (s.contains('SocketException') || s.contains('network') || s.contains('接続')) return 'ネットワークに接続できませんでした。通信環境を確認してください。';
-    if (s.contains('401') || s.contains('403')) return 'ログインの有効期限が切れました。再ログインしてください。';
-    if (s.contains('500') || s.contains('502') || s.contains('503')) return 'サーバーでエラーが発生しました。しばらく待ってから再試行してください。';
+    if (s.contains('429') || s.contains('上限')) {
+      return '今月の解析上限に達しました。プランをアップグレードするか来月までお待ちください。';
+    }
+    if (s.contains('timeout') || s.contains('TimeoutException')) {
+      return '解析がタイムアウトしました。通信環境を確認してもう一度お試しください。';
+    }
+    if (s.contains('SocketException') ||
+        s.contains('network') ||
+        s.contains('接続')) {
+      return 'ネットワークに接続できませんでした。通信環境を確認してください。';
+    }
+    if (s.contains('401') || s.contains('403')) {
+      return 'ログインの有効期限が切れました。再ログインしてください。';
+    }
+    if (s.contains('500') || s.contains('502') || s.contains('503')) {
+      return 'サーバーでエラーが発生しました。しばらく待ってから再試行してください。';
+    }
     return '解析に失敗しました: $s';
   }
 
@@ -111,12 +128,18 @@ class _CameraScreenState extends State<CameraScreen> {
 
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        final analyses = await _receiptService.analyzeReceipt(imageFile, documentHint: widget.documentHint);
+        final analyses = await _receiptService.analyzeReceipt(
+          imageFile,
+          documentHint: widget.documentHint,
+        );
         // 解析成功
         if (mounted) setState(() => _loading = false);
         final maxReceipts = _isPremium ? 5 : 1;
         if (mounted) {
-          await context.push('/receipt-preview', extra: (analyses: analyses, maxReceipts: maxReceipts));
+          await context.push(
+            '/receipt-preview',
+            extra: (analyses: analyses, maxReceipts: maxReceipts),
+          );
           // 保存せずに戻ってきた場合はカメラ画面も閉じる（保存時は context.go('/') でカメラも破棄される）
           if (mounted && context.canPop()) {
             context.pop();
@@ -158,18 +181,21 @@ class _CameraScreenState extends State<CameraScreen> {
     // autoSourceのとき: 常に透明（ホーム等の画面が背景に透ける）
     // 確認画面でのみAppBarを表示、ゴースト/ローディング中はAppBarなし
     // extendBodyBehindAppBar=trueでBlurがステータスバー部分まで覆う（白ヘッダ防止）
-    final showConfirmAppBar = isAutoSource && _pendingImage != null && !_loading;
+    final showConfirmAppBar =
+        isAutoSource && _pendingImage != null && !_loading;
     return Scaffold(
       // autoSource時: 確認画面のみ背景あり、ゴーストとローディング中は透明（ホーム画面が透ける）
-      backgroundColor: (isAutoSource && _pendingImage == null) ? Colors.transparent : colors.background,
+      backgroundColor: (isAutoSource && _pendingImage == null)
+          ? Colors.transparent
+          : colors.background,
       extendBodyBehindAppBar: isAutoSource,
       appBar: isAutoSource
           ? (showConfirmAppBar
-              ? AppBar(
-                  backgroundColor: colors.background,
-                  iconTheme: IconThemeData(color: colors.textSecondary),
-                )
-              : null)
+                ? AppBar(
+                    backgroundColor: colors.background,
+                    iconTheme: IconThemeData(color: colors.textSecondary),
+                  )
+                : null)
           : AppBar(
               backgroundColor: colors.background,
               iconTheme: IconThemeData(color: colors.textSecondary),
@@ -182,8 +208,10 @@ class _CameraScreenState extends State<CameraScreen> {
         child: _loading
             ? const SizedBox.shrink()
             : _pendingImage != null
-                ? _buildConfirmView(colors)
-                : (isAutoSource ? const SizedBox.shrink() : _buildCameraView(colors)),
+            ? _buildConfirmView(colors)
+            : (isAutoSource
+                  ? const SizedBox.shrink()
+                  : _buildCameraView(colors)),
       ),
     );
   }
@@ -223,7 +251,10 @@ class _CameraScreenState extends State<CameraScreen> {
                     side: BorderSide(color: colors.textMuted),
                   ),
                   onPressed: () => setState(() => _pendingImage = null),
-                  child: Text('選び直す', style: camillBodyStyle(15, colors.textMuted)),
+                  child: Text(
+                    '選び直す',
+                    style: camillBodyStyle(15, colors.textMuted),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -234,7 +265,10 @@ class _CameraScreenState extends State<CameraScreen> {
                     foregroundColor: colors.fabIcon,
                   ),
                   onPressed: () => _analyzeImage(_pendingImage!),
-                  child: Text('解析する', style: camillBodyStyle(15, colors.fabIcon)),
+                  child: Text(
+                    '解析する',
+                    style: camillBodyStyle(15, colors.fabIcon),
+                  ),
                 ),
               ),
             ],
@@ -304,7 +338,10 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
             onPressed: _loading ? null : () => _pickImage(ImageSource.gallery),
             icon: Icon(Icons.photo_library_outlined, color: colors.primary),
-            label: Text('ギャラリーから選択', style: camillBodyStyle(16, colors.primary)),
+            label: Text(
+              'ギャラリーから選択',
+              style: camillBodyStyle(16, colors.primary),
+            ),
           ),
           const SizedBox(height: 32),
           _Tips(colors: colors),
@@ -371,7 +408,9 @@ class _AnalysisBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final atLimit = count >= limit;
     final nearLimit = count >= (limit * 0.8).floor();
-    final badgeColor = (atLimit || nearLimit) ? colors.danger : colors.textMuted;
+    final badgeColor = (atLimit || nearLimit)
+        ? colors.danger
+        : colors.textMuted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(

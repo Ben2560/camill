@@ -10,11 +10,7 @@ void main() {
     return MaterialApp(
       theme: ThemeData(extensions: [colors]),
       home: Scaffold(
-        body: OverseasRateCard(
-          currency: currency,
-          rate: rate,
-          colors: colors,
-        ),
+        body: OverseasRateCard(currency: currency, rate: rate, colors: colors),
       ),
     );
   }

@@ -75,8 +75,20 @@ void main() {
 
   group('Freezed equality', () {
     test('同一 Wallet は等価', () {
-      final a = Wallet(walletId: 'w1', ownerUid: 'u1', walletType: 't', name: 'n', createdAt: now);
-      final b = Wallet(walletId: 'w1', ownerUid: 'u1', walletType: 't', name: 'n', createdAt: now);
+      final a = Wallet(
+        walletId: 'w1',
+        ownerUid: 'u1',
+        walletType: 't',
+        name: 'n',
+        createdAt: now,
+      );
+      final b = Wallet(
+        walletId: 'w1',
+        ownerUid: 'u1',
+        walletType: 't',
+        name: 'n',
+        createdAt: now,
+      );
       expect(a, equals(b));
     });
   });

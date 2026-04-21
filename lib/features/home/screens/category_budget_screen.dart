@@ -26,26 +26,25 @@ class CategoryBudgetScreen extends StatefulWidget {
 
 class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     with TickerProviderStateMixin {
-
   // 固定費カテゴリ
   static const _fixedCategories = <String, ({IconData icon, String label})>{
-    'housing':      (icon: Icons.home_outlined,           label: '住居費'),
-    'utility':      (icon: Icons.bolt_outlined,           label: '光熱費'),
-    'subscription': (icon: Icons.subscriptions_outlined,  label: 'サブスク'),
+    'housing': (icon: Icons.home_outlined, label: '住居費'),
+    'utility': (icon: Icons.bolt_outlined, label: '光熱費'),
+    'subscription': (icon: Icons.subscriptions_outlined, label: 'サブスク'),
   };
 
   // 変動費カテゴリ
   static const _variableCategories = <String, ({IconData icon, String label})>{
-    'food':       (icon: Icons.rice_bowl_outlined,       label: '食費'),
-    'dining_out': (icon: Icons.restaurant_outlined,      label: '外食費'),
-    'daily':      (icon: Icons.shopping_basket_outlined, label: '日用品'),
-    'transport':  (icon: Icons.train_outlined,           label: '交通費'),
-    'clothing':   (icon: Icons.checkroom_outlined,       label: '衣服'),
-    'social':     (icon: Icons.people_outline,           label: '交際費'),
-    'hobby':      (icon: Icons.sports_esports_outlined,  label: '趣味'),
-    'medical':    (icon: Icons.local_hospital_outlined,  label: '医療・健康'),
-    'education':  (icon: Icons.menu_book_outlined,       label: '教育・書籍'),
-    'other':      (icon: Icons.more_horiz,               label: 'その他雑費'),
+    'food': (icon: Icons.rice_bowl_outlined, label: '食費'),
+    'dining_out': (icon: Icons.restaurant_outlined, label: '外食費'),
+    'daily': (icon: Icons.shopping_basket_outlined, label: '日用品'),
+    'transport': (icon: Icons.train_outlined, label: '交通費'),
+    'clothing': (icon: Icons.checkroom_outlined, label: '衣服'),
+    'social': (icon: Icons.people_outline, label: '交際費'),
+    'hobby': (icon: Icons.sports_esports_outlined, label: '趣味'),
+    'medical': (icon: Icons.local_hospital_outlined, label: '医療・健康'),
+    'education': (icon: Icons.menu_book_outlined, label: '教育・書籍'),
+    'other': (icon: Icons.more_horiz, label: 'その他雑費'),
   };
 
   // 全カテゴリ（API保存・合計計算用）
@@ -138,7 +137,8 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     for (final key in _allCategories.keys) {
-      _budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
+      _budgets[key] =
+          (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
     final ym = DateTime.now();
     final yearMonth = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
@@ -154,7 +154,8 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         }
       } else {
         final nonZero = {
-          for (final e in _budgets.entries) if (e.value > 0) e.key: e.value
+          for (final e in _budgets.entries)
+            if (e.value > 0) e.key: e.value,
         };
         if (nonZero.isNotEmpty) {
           await _api.patch('/budgets/$yearMonth', body: nonZero);
@@ -178,7 +179,11 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
 
     final computed = _budgets.values.fold(0, (s, v) => s + v);
     _totalBudget = computed;
-    await UserPrefs.setInt(await SharedPreferences.getInstance(), _budgetKey, _totalBudget);
+    await UserPrefs.setInt(
+      await SharedPreferences.getInstance(),
+      _budgetKey,
+      _totalBudget,
+    );
     if (mounted) setState(() => _loading = false);
   }
 
@@ -198,7 +203,6 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
       await _api.patch('/budgets/$yearMonth', body: Map.from(_budgets));
     } catch (_) {}
   }
-
 
   Future<void> _openSubscriptionEditor() async {
     final colors = context.colors;
@@ -264,7 +268,8 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
                   color: colors.surfaceBorder,
                   borderRadius: BorderRadius.circular(2),
@@ -275,7 +280,8 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                 child: Row(
                   children: [
                     Container(
-                      width: 44, height: 44,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: colors.primaryLight,
                         borderRadius: BorderRadius.circular(12),
@@ -286,19 +292,31 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(meta.label,
-                            style: camillBodyStyle(20, colors.textPrimary,
-                                weight: FontWeight.w700)),
-                        Text(isFixed ? '固定費' : '変動費',
-                            style: camillBodyStyle(12, colors.textMuted)),
+                        Text(
+                          meta.label,
+                          style: camillBodyStyle(
+                            20,
+                            colors.textPrimary,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          isFixed ? '固定費' : '変動費',
+                          style: camillBodyStyle(12, colors.textMuted),
+                        ),
                       ],
                     ),
                     const Spacer(),
                     if ((_budgets[key] ?? 0) > 0)
                       GestureDetector(
-                        onTap: () { ctrl.clear(); setSheet(() {}); },
-                        child: Text('削除',
-                            style: camillBodyStyle(14, const Color(0xFFFF3B30))),
+                        onTap: () {
+                          ctrl.clear();
+                          setSheet(() {});
+                        },
+                        child: Text(
+                          '削除',
+                          style: camillBodyStyle(14, const Color(0xFFFF3B30)),
+                        ),
                       ),
                   ],
                 ),
@@ -309,7 +327,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.surface,
                       borderRadius: BorderRadius.circular(16),
@@ -318,7 +339,14 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text('¥', style: camillBodyStyle(26, colors.textMuted, weight: FontWeight.w500)),
+                        Text(
+                          '¥',
+                          style: camillBodyStyle(
+                            26,
+                            colors.textMuted,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Theme(
@@ -329,13 +357,26 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                             child: TextField(
                               controller: ctrl,
                               autofocus: true,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                  decimal: false, signed: false),
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              style: camillBodyStyle(32, colors.textPrimary, weight: FontWeight.w700),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: false,
+                                    signed: false,
+                                  ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              style: camillBodyStyle(
+                                32,
+                                colors.textPrimary,
+                                weight: FontWeight.w700,
+                              ),
                               decoration: InputDecoration(
                                 hintText: '0',
-                                hintStyle: camillBodyStyle(32, colors.textMuted, weight: FontWeight.w700),
+                                hintStyle: camillBodyStyle(
+                                  32,
+                                  colors.textMuted,
+                                  weight: FontWeight.w700,
+                                ),
                                 border: InputBorder.none,
                                 focusedBorder: InputBorder.none,
                                 enabledBorder: InputBorder.none,
@@ -348,8 +389,15 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                         ),
                         if (ctrl.text.isNotEmpty)
                           GestureDetector(
-                            onTap: () { ctrl.clear(); setSheet(() {}); },
-                            child: Icon(Icons.cancel, color: colors.textMuted, size: 22),
+                            onTap: () {
+                              ctrl.clear();
+                              setSheet(() {});
+                            },
+                            child: Icon(
+                              Icons.cancel,
+                              color: colors.textMuted,
+                              size: 22,
+                            ),
                           ),
                       ],
                     ),
@@ -374,11 +422,16 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                         // ── 引き落とし日入力 ──
                         Row(
                           children: [
-                            Icon(Icons.calendar_today_outlined,
-                                size: 15, color: colors.textMuted),
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              size: 15,
+                              color: colors.textMuted,
+                            ),
                             const SizedBox(width: 8),
-                            Text('引き落とし日',
-                                style: camillBodyStyle(13, colors.textSecondary)),
+                            Text(
+                              '引き落とし日',
+                              style: camillBodyStyle(13, colors.textSecondary),
+                            ),
                             const SizedBox(width: 12),
                             // 数字入力（末日トグル時はdisable）
                             SizedBox(
@@ -387,39 +440,61 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                                 controller: dayCtrl,
                                 enabled: !isLastDay,
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                                 textAlign: TextAlign.center,
-                                style: camillBodyStyle(15, colors.textPrimary,
-                                    weight: FontWeight.w700),
+                                style: camillBodyStyle(
+                                  15,
+                                  colors.textPrimary,
+                                  weight: FontWeight.w700,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: '--',
-                                  hintStyle: camillBodyStyle(15, colors.textMuted),
+                                  hintStyle: camillBodyStyle(
+                                    15,
+                                    colors.textMuted,
+                                  ),
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 6, horizontal: 4),
+                                    vertical: 6,
+                                    horizontal: 4,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: colors.surfaceBorder),
+                                    borderSide: BorderSide(
+                                      color: colors.surfaceBorder,
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: colors.surfaceBorder),
+                                    borderSide: BorderSide(
+                                      color: colors.surfaceBorder,
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: colors.primary),
+                                    borderSide: BorderSide(
+                                      color: colors.primary,
+                                    ),
                                   ),
                                   disabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: BorderSide(
-                                        color: colors.surfaceBorder.withValues(alpha: 0.5)),
+                                      color: colors.surfaceBorder.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 onChanged: (_) => setSheet(() {}),
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text('日', style: camillBodyStyle(13, colors.textSecondary)),
+                            Text(
+                              '日',
+                              style: camillBodyStyle(13, colors.textSecondary),
+                            ),
                             const Spacer(),
                             // 末日トグル
                             GestureDetector(
@@ -430,7 +505,9 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isLastDay
                                       ? colors.primary
@@ -442,10 +519,14 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                                         : colors.surfaceBorder,
                                   ),
                                 ),
-                                child: Text('末日',
-                                    style: camillBodyStyle(12,
-                                        isLastDay ? Colors.white : colors.textMuted,
-                                        weight: FontWeight.w600)),
+                                child: Text(
+                                  '末日',
+                                  style: camillBodyStyle(
+                                    12,
+                                    isLastDay ? Colors.white : colors.textMuted,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -457,28 +538,42 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              Icon(Icons.event_busy_outlined,
-                                  size: 15, color: colors.textMuted),
+                              Icon(
+                                Icons.event_busy_outlined,
+                                size: 15,
+                                color: colors.textMuted,
+                              ),
                               const SizedBox(width: 8),
-                              Text('休日の場合',
-                                  style: camillBodyStyle(13, colors.textSecondary)),
+                              Text(
+                                '休日の場合',
+                                style: camillBodyStyle(
+                                  13,
+                                  colors.textSecondary,
+                                ),
+                              ),
                               const SizedBox(width: 12),
                               HolidayRulePill(
                                 label: '前営業日',
                                 selected: selectedHolidayRule == 'before',
                                 colors: colors,
-                                onTap: () => setSheet(() =>
-                                    selectedHolidayRule =
-                                        selectedHolidayRule == 'before' ? null : 'before'),
+                                onTap: () => setSheet(
+                                  () => selectedHolidayRule =
+                                      selectedHolidayRule == 'before'
+                                      ? null
+                                      : 'before',
+                                ),
                               ),
                               const SizedBox(width: 6),
                               HolidayRulePill(
                                 label: '翌営業日',
                                 selected: selectedHolidayRule == 'after',
                                 colors: colors,
-                                onTap: () => setSheet(() =>
-                                    selectedHolidayRule =
-                                        selectedHolidayRule == 'after' ? null : 'after'),
+                                onTap: () => setSheet(
+                                  () => selectedHolidayRule =
+                                      selectedHolidayRule == 'after'
+                                      ? null
+                                      : 'after',
+                                ),
                               ),
                             ],
                           ),
@@ -498,7 +593,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                       context.push('/subscriptions');
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.surface,
                         borderRadius: BorderRadius.circular(14),
@@ -507,29 +605,43 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                       child: Row(
                         children: [
                           Container(
-                            width: 34, height: 34,
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
                               color: colors.primaryLight,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(Icons.subscriptions_outlined,
-                                size: 18, color: colors.primary),
+                            child: Icon(
+                              Icons.subscriptions_outlined,
+                              size: 18,
+                              color: colors.primary,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('サブスクを登録・確認する',
-                                    style: camillBodyStyle(14, colors.textPrimary,
-                                        weight: FontWeight.w600)),
-                                Text('Netflix・Spotify などを個別に管理',
-                                    style: camillBodyStyle(12, colors.textMuted)),
+                                Text(
+                                  'サブスクを登録・確認する',
+                                  style: camillBodyStyle(
+                                    14,
+                                    colors.textPrimary,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'Netflix・Spotify などを個別に管理',
+                                  style: camillBodyStyle(12, colors.textMuted),
+                                ),
                               ],
                             ),
                           ),
-                          Icon(Icons.chevron_right,
-                              size: 18, color: colors.textMuted),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: colors.textMuted,
+                          ),
                         ],
                       ),
                     ),
@@ -550,7 +662,9 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                           billingDay = 32;
                         } else {
                           final d = int.tryParse(dayCtrl.text);
-                          billingDay = (d != null && d >= 1 && d <= 31) ? d : null;
+                          billingDay = (d != null && d >= 1 && d <= 31)
+                              ? d
+                              : null;
                         }
                       }
                       setState(() {
@@ -559,16 +673,22 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                           _fixedSettings[key] = FixedExpenseSetting(
                             category: key,
                             billingDay: billingDay,
-                            holidayRule: billingDay != null ? selectedHolidayRule : null,
+                            holidayRule: billingDay != null
+                                ? selectedHolidayRule
+                                : null,
                           );
                         }
                       });
                       await _persist();
                       if (isFixed) {
                         try {
-                          await _fixedSvc.updateBillingDay(key,
-                              billingDay: billingDay,
-                              holidayRule: billingDay != null ? selectedHolidayRule : null);
+                          await _fixedSvc.updateBillingDay(
+                            key,
+                            billingDay: billingDay,
+                            holidayRule: billingDay != null
+                                ? selectedHolidayRule
+                                : null,
+                          );
                         } catch (_) {}
                       }
                       if (ctx.mounted) Navigator.pop(ctx);
@@ -580,8 +700,14 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Text('設定する',
-                        style: camillBodyStyle(16, Colors.white, weight: FontWeight.w600)),
+                    child: Text(
+                      '設定する',
+                      style: camillBodyStyle(
+                        16,
+                        Colors.white,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -605,15 +731,26 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text('カテゴリ予算',
-            style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w600)),
+        title: Text(
+          'カテゴリ予算',
+          style: camillBodyStyle(
+            17,
+            colors.textPrimary,
+            weight: FontWeight.w600,
+          ),
+        ),
         leading: widget.dismissible
             ? IconButton(
                 icon: Icon(Icons.close, color: colors.textSecondary),
-                onPressed: () => Navigator.of(context, rootNavigator: false).pop(),
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: false).pop(),
               )
             : IconButton(
-                icon: Icon(Icons.arrow_back_ios_new, color: colors.textPrimary, size: 20),
+                icon: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: colors.textPrimary,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
       ),
@@ -700,15 +837,29 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     final isFixed = _tabIndex == 0;
     final currentCategories = isFixed ? _fixedCategories : _variableCategories;
 
-    final fixedTotal = _fixedCategories.keys.fold(0, (s, k) => s + (_budgets[k] ?? 0));
-    final variableTotal = _variableCategories.keys.fold(0, (s, k) => s + (_budgets[k] ?? 0));
+    final fixedTotal = _fixedCategories.keys.fold(
+      0,
+      (s, k) => s + (_budgets[k] ?? 0),
+    );
+    final variableTotal = _variableCategories.keys.fold(
+      0,
+      (s, k) => s + (_budgets[k] ?? 0),
+    );
     final totalAllocated = fixedTotal + variableTotal;
 
     final setItems = currentCategories.entries
-        .where((e) => (_budgets[e.key] ?? 0) > 0 || (isFixed ? false : e.key == 'other'))
+        .where(
+          (e) =>
+              (_budgets[e.key] ?? 0) > 0 ||
+              (isFixed ? false : e.key == 'other'),
+        )
         .toList();
     final unsetItems = currentCategories.entries
-        .where((e) => (_budgets[e.key] ?? 0) == 0 && !(isFixed ? false : e.key == 'other'))
+        .where(
+          (e) =>
+              (_budgets[e.key] ?? 0) == 0 &&
+              !(isFixed ? false : e.key == 'other'),
+        )
         .toList();
 
     return [
@@ -728,14 +879,24 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
               children: [
                 Icon(Icons.wallet_outlined, size: 14, color: colors.textMuted),
                 const SizedBox(width: 5),
-                Text('月に使えるお金',
-                    style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w500)),
+                Text(
+                  '月に使えるお金',
+                  style: camillBodyStyle(
+                    12,
+                    colors.textMuted,
+                    weight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               totalAllocated > 0 ? _fmt.format(_totalBudget) : '¥ ---',
-              style: camillBodyStyle(32, colors.textPrimary, weight: FontWeight.w700),
+              style: camillBodyStyle(
+                32,
+                colors.textPrimary,
+                weight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 10),
             // 固定費 / 変動費 内訳バー
@@ -748,19 +909,29 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                       Row(
                         children: [
                           Container(
-                            width: 8, height: 8,
+                            width: 8,
+                            height: 8,
                             decoration: BoxDecoration(
                               color: const Color(0xFF8D6E63),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
                           const SizedBox(width: 5),
-                          Text('固定費', style: camillBodyStyle(11, colors.textMuted)),
+                          Text(
+                            '固定費',
+                            style: camillBodyStyle(11, colors.textMuted),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(_fmt.format(fixedTotal),
-                          style: camillBodyStyle(13, colors.textPrimary, weight: FontWeight.w600)),
+                      Text(
+                        _fmt.format(fixedTotal),
+                        style: camillBodyStyle(
+                          13,
+                          colors.textPrimary,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -774,19 +945,29 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                         Row(
                           children: [
                             Container(
-                              width: 8, height: 8,
+                              width: 8,
+                              height: 8,
                               decoration: BoxDecoration(
                                 color: colors.primary,
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
                             const SizedBox(width: 5),
-                            Text('変動費', style: camillBodyStyle(11, colors.textMuted)),
+                            Text(
+                              '変動費',
+                              style: camillBodyStyle(11, colors.textMuted),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(_fmt.format(variableTotal),
-                            style: camillBodyStyle(13, colors.textPrimary, weight: FontWeight.w600)),
+                        Text(
+                          _fmt.format(variableTotal),
+                          style: camillBodyStyle(
+                            13,
+                            colors.textPrimary,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -830,14 +1011,17 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         const SizedBox(height: 20),
       ],
       _sectionLabel(
-          unsetItems.isEmpty ? '未設定 (0)' : '未設定 (${unsetItems.length})',
-          colors),
+        unsetItems.isEmpty ? '未設定 (0)' : '未設定 (${unsetItems.length})',
+        colors,
+      ),
       if (unsetItems.isEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Center(
-            child: Text('全カテゴリ設定済みです',
-                style: camillBodyStyle(13, colors.textMuted)),
+            child: Text(
+              '全カテゴリ設定済みです',
+              style: camillBodyStyle(13, colors.textMuted),
+            ),
           ),
         )
       else
@@ -845,7 +1029,12 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     ];
   }
 
-  Widget _buildTab(int index, String label, IconData icon, CamillColors colors) {
+  Widget _buildTab(
+    int index,
+    String label,
+    IconData icon,
+    CamillColors colors,
+  ) {
     final selected = _tabIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -863,13 +1052,20 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 15,
-                  color: selected ? Colors.white : colors.textMuted),
+              Icon(
+                icon,
+                size: 15,
+                color: selected ? Colors.white : colors.textMuted,
+              ),
               const SizedBox(width: 6),
-              Text(label,
-                  style: camillBodyStyle(13,
-                      selected ? Colors.white : colors.textMuted,
-                      weight: FontWeight.w600)),
+              Text(
+                label,
+                style: camillBodyStyle(
+                  13,
+                  selected ? Colors.white : colors.textMuted,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -880,8 +1076,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
   Widget _sectionLabel(String text, CamillColors colors) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-      child: Text(text,
-          style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600)),
+      child: Text(
+        text,
+        style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w600),
+      ),
     );
   }
 
@@ -906,12 +1104,20 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check_circle_outline, size: 13,
-                  color: Color(0xFF34C759)),
+              const Icon(
+                Icons.check_circle_outline,
+                size: 13,
+                color: Color(0xFF34C759),
+              ),
               const SizedBox(width: 4),
-              Text('引き落とし済',
-                  style: camillBodyStyle(12, const Color(0xFF34C759),
-                      weight: FontWeight.w600)),
+              Text(
+                '引き落とし済',
+                style: camillBodyStyle(
+                  12,
+                  const Color(0xFF34C759),
+                  weight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -947,12 +1153,20 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 13,
-                  color: Color(0xFFFF9500)),
+              const Icon(
+                Icons.error_outline,
+                size: 13,
+                color: Color(0xFFFF9500),
+              ),
               const SizedBox(width: 4),
-              Text('未確認  タップで済',
-                  style: camillBodyStyle(12, const Color(0xFFFF9500),
-                      weight: FontWeight.w600)),
+              Text(
+                '未確認  タップで済',
+                style: camillBodyStyle(
+                  12,
+                  const Color(0xFFFF9500),
+                  weight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -968,8 +1182,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.surfaceBorder),
       ),
-      child: Text('$dayLabel 予定',
-          style: camillBodyStyle(12, colors.textMuted)),
+      child: Text('$dayLabel 予定', style: camillBodyStyle(12, colors.textMuted)),
     );
   }
 
@@ -979,7 +1192,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
   }
 
   Widget _buildRow(
-      String key, ({IconData icon, String label}) meta, CamillColors colors) {
+    String key,
+    ({IconData icon, String label}) meta,
+    CamillColors colors,
+  ) {
     final budget = _budgets[key] ?? 0;
     final hasValue = budget > 0;
     final paymentBadge = _buildPaymentBadge(key, colors);
@@ -988,41 +1204,59 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
       padding: const EdgeInsets.only(bottom: 10),
       child: CamillCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        onTap: () => key == 'subscription' ? _openSubscriptionEditor() : _openEditor(key),
+        onTap: () => key == 'subscription'
+            ? _openSubscriptionEditor()
+            : _openEditor(key),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 38, height: 38,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: hasValue ? colors.primaryLight : colors.surface,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(meta.icon,
-                      color: hasValue ? colors.primary : colors.textMuted,
-                      size: 18),
+                  child: Icon(
+                    meta.icon,
+                    color: hasValue ? colors.primary : colors.textMuted,
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(meta.label,
-                      style: camillBodyStyle(14, colors.textPrimary)),
+                  child: Text(
+                    meta.label,
+                    style: camillBodyStyle(14, colors.textPrimary),
+                  ),
                 ),
                 if (hasValue)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.primaryLight,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(_fmt.format(budget),
-                        style: camillBodyStyle(13, colors.primary,
-                            weight: FontWeight.w600)),
+                    child: Text(
+                      _fmt.format(budget),
+                      style: camillBodyStyle(
+                        13,
+                        colors.primary,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
                   )
                 else
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: colors.surfaceBorder),
@@ -1032,7 +1266,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                       children: [
                         Icon(Icons.add, size: 13, color: colors.textMuted),
                         const SizedBox(width: 3),
-                        Text('設定する', style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '設定する',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                       ],
                     ),
                   ),
@@ -1047,7 +1284,10 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
               GestureDetector(
                 onTap: () => context.push('/subscriptions'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.primaryLight,
                     borderRadius: BorderRadius.circular(20),
@@ -1055,13 +1295,26 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.list_alt_outlined, size: 13, color: colors.primary),
+                      Icon(
+                        Icons.list_alt_outlined,
+                        size: 13,
+                        color: colors.primary,
+                      ),
                       const SizedBox(width: 4),
-                      Text('サブスクを管理',
-                          style: camillBodyStyle(12, colors.primary,
-                              weight: FontWeight.w600)),
+                      Text(
+                        'サブスクを管理',
+                        style: camillBodyStyle(
+                          12,
+                          colors.primary,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(width: 2),
-                      Icon(Icons.chevron_right, size: 14, color: colors.primary),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 14,
+                        color: colors.primary,
+                      ),
                     ],
                   ),
                 ),
@@ -1073,4 +1326,3 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
     );
   }
 }
-

@@ -30,8 +30,9 @@ void main() {
 
   group('fetchBills', () {
     test('未払いリストを返す', () async {
-      when(() => mockApi.getAny('/bills', query: any(named: 'query')))
-          .thenAnswer((_) async => [billJson]);
+      when(
+        () => mockApi.getAny('/bills', query: any(named: 'query')),
+      ).thenAnswer((_) async => [billJson]);
 
       final bills = await service.fetchBills();
       expect(bills.length, 1);
@@ -40,17 +41,21 @@ void main() {
     });
 
     test('status フィルター付きで getAny が呼ばれる', () async {
-      when(() => mockApi.getAny('/bills', query: any(named: 'query')))
-          .thenAnswer((_) async => []);
+      when(
+        () => mockApi.getAny('/bills', query: any(named: 'query')),
+      ).thenAnswer((_) async => []);
 
       await service.fetchBills(status: 'paid');
-      final captured = verify(() => mockApi.getAny('/bills', query: captureAny(named: 'query'))).captured;
+      final captured = verify(
+        () => mockApi.getAny('/bills', query: captureAny(named: 'query')),
+      ).captured;
       expect((captured.first as Map)['status'], 'paid');
     });
 
     test('API が null を返すとき空リストを返す', () async {
-      when(() => mockApi.getAny('/bills', query: any(named: 'query')))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockApi.getAny('/bills', query: any(named: 'query')),
+      ).thenAnswer((_) async => null);
 
       final bills = await service.fetchBills();
       expect(bills, isEmpty);
@@ -59,8 +64,9 @@ void main() {
 
   group('createBill', () {
     test('新しい Bill を返す', () async {
-      when(() => mockApi.postAny('/bills', body: any(named: 'body')))
-          .thenAnswer((_) async => billJson);
+      when(
+        () => mockApi.postAny('/bills', body: any(named: 'body')),
+      ).thenAnswer((_) async => billJson);
 
       final bill = await service.createBill(title: '電気代', amount: 5000);
       expect(bill.billId, 'b1');
@@ -70,18 +76,22 @@ void main() {
 
   group('updateMemo', () {
     test('patch が billId パスで呼ばれる', () async {
-      when(() => mockApi.patch('/bills/b1', body: any(named: 'body')))
-          .thenAnswer((_) async => <String, dynamic>{});
+      when(
+        () => mockApi.patch('/bills/b1', body: any(named: 'body')),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await service.updateMemo('b1', 'テストメモ');
-      verify(() => mockApi.patch('/bills/b1', body: {'memo': 'テストメモ'})).called(1);
+      verify(
+        () => mockApi.patch('/bills/b1', body: {'memo': 'テストメモ'}),
+      ).called(1);
     });
   });
 
   group('payBill', () {
     test('patch が /bills/b1/pay で呼ばれる', () async {
-      when(() => mockApi.patch('/bills/b1/pay', body: any(named: 'body')))
-          .thenAnswer((_) async => <String, dynamic>{});
+      when(
+        () => mockApi.patch('/bills/b1/pay', body: any(named: 'body')),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await service.payBill('b1');
       verify(() => mockApi.patch('/bills/b1/pay', body: {})).called(1);
@@ -90,8 +100,7 @@ void main() {
 
   group('deleteBill', () {
     test('delete が正しいパスで呼ばれる', () async {
-      when(() => mockApi.delete('/bills/b1'))
-          .thenAnswer((_) async {});
+      when(() => mockApi.delete('/bills/b1')).thenAnswer((_) async {});
 
       await service.deleteBill('b1');
       verify(() => mockApi.delete('/bills/b1')).called(1);

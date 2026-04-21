@@ -99,9 +99,7 @@ class PurchaseService {
           await _verifyAndActivate(purchase);
           await _iap.completePurchase(purchase);
         case PurchaseStatus.error:
-          onPurchaseError?.call(
-            purchase.error?.message ?? '購入処理に失敗しました',
-          );
+          onPurchaseError?.call(purchase.error?.message ?? '購入処理に失敗しました');
         default:
           break;
       }
@@ -112,13 +110,16 @@ class PurchaseService {
     final plan = planByProduct[purchase.productID];
     if (plan == null) return;
     try {
-      await _api.post('/billing/verify-purchase', body: {
-        'product_id': purchase.productID,
-        'plan': plan,
-        'verification_data': purchase.verificationData.serverVerificationData,
-        'source': purchase.verificationData.source,
-        // トライアル判定はサーバー側のストアレシート検証に委ねる
-      });
+      await _api.post(
+        '/billing/verify-purchase',
+        body: {
+          'product_id': purchase.productID,
+          'plan': plan,
+          'verification_data': purchase.verificationData.serverVerificationData,
+          'source': purchase.verificationData.source,
+          // トライアル判定はサーバー側のストアレシート検証に委ねる
+        },
+      );
       onPurchaseComplete?.call();
     } catch (e) {
       debugPrint('[IAP] verify error: $e');

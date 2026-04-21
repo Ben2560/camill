@@ -113,7 +113,7 @@ class HomeMonthPageState extends State<HomeMonthPage>
 
   // ファミリープラン用
   Family? _family;
-  Map<String, dynamic>? _partnerSummary;   // null = 権限未付与
+  Map<String, dynamic>? _partnerSummary; // null = 権限未付与
   List<Map<String, dynamic>> _childrenData = [];
   bool _familyLoaded = false;
   final _familyService = FamilyService();
@@ -139,11 +139,11 @@ class HomeMonthPageState extends State<HomeMonthPage>
     'bills',
   ];
   List<String> get _allWidgetIds => [
-        ..._baseWidgetIds,
-        if (widget.plan == 'family') 'family_management',
-        if (widget.plan == 'family') 'family_partner',
-        if (widget.plan == 'family') 'family_savings',
-      ];
+    ..._baseWidgetIds,
+    if (widget.plan == 'family') 'family_management',
+    if (widget.plan == 'family') 'family_partner',
+    if (widget.plan == 'family') 'family_savings',
+  ];
   static const _widgetLabels = <String, ({String title, IconData icon})>{
     'budget': (title: '収支', icon: Icons.account_balance_wallet_outlined),
     'category': (title: '使いみち', icon: Icons.pie_chart_outline),
@@ -440,7 +440,8 @@ class HomeMonthPageState extends State<HomeMonthPage>
     if (!mounted) return;
     final budgets = <String, int>{};
     for (final key in categoryMeta.keys) {
-      budgets[key] = (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
+      budgets[key] =
+          (await UserPrefs.getInt(prefs, 'category_budget_$key')) ?? 0;
     }
     widget.onCategoryBudgetsChanged(budgets);
   }
@@ -475,11 +476,17 @@ class HomeMonthPageState extends State<HomeMonthPage>
       case 'bills':
         return _buildBillsCard(colors);
       case 'family_management':
-        return widget.plan == 'family' ? _buildFamilyManagementCard(colors) : const SizedBox.shrink();
+        return widget.plan == 'family'
+            ? _buildFamilyManagementCard(colors)
+            : const SizedBox.shrink();
       case 'family_partner':
-        return widget.plan == 'family' ? _buildFamilyPartnerCard(colors) : const SizedBox.shrink();
+        return widget.plan == 'family'
+            ? _buildFamilyPartnerCard(colors)
+            : const SizedBox.shrink();
       case 'family_savings':
-        return widget.plan == 'family' ? _buildFamilySavingsCard(colors) : const SizedBox.shrink();
+        return widget.plan == 'family'
+            ? _buildFamilySavingsCard(colors)
+            : const SizedBox.shrink();
       default:
         return const SizedBox.shrink();
     }
@@ -646,7 +653,11 @@ class HomeMonthPageState extends State<HomeMonthPage>
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
               child: Text(
                 title,
-                style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700),
+                style: camillBodyStyle(
+                  17,
+                  colors.textPrimary,
+                  weight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -678,17 +689,24 @@ class HomeMonthPageState extends State<HomeMonthPage>
             setState(() => _selectedCategory = null);
           },
         ),
-        ...availableCats.map((e) => ListTile(
-          title: Text(e.value.label, style: camillBodyStyle(15, colors.textPrimary)),
-          leading: Icon(
-            catKey == e.key ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: catKey == e.key ? colors.primary : colors.textMuted,
+        ...availableCats.map(
+          (e) => ListTile(
+            title: Text(
+              e.value.label,
+              style: camillBodyStyle(15, colors.textPrimary),
+            ),
+            leading: Icon(
+              catKey == e.key
+                  ? Icons.check_circle
+                  : Icons.radio_button_unchecked,
+              color: catKey == e.key ? colors.primary : colors.textMuted,
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedCategory = e.key);
+            },
           ),
-          onTap: () {
-            Navigator.pop(context);
-            setState(() => _selectedCategory = e.key);
-          },
-        )),
+        ),
       ],
     );
   }
@@ -697,19 +715,32 @@ class HomeMonthPageState extends State<HomeMonthPage>
     _showRadioSheet(
       colors: colors,
       title: '期間',
-      items: ['週', '月', '年'].asMap().entries.map((e) => ListTile(
-        title: Text(e.value, style: camillBodyStyle(15, colors.textPrimary)),
-        leading: Icon(
-          _periodIndex == e.key ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: _periodIndex == e.key ? colors.primary : colors.textMuted,
-        ),
-        onTap: () {
-          Navigator.pop(context);
-          setState(() => _periodIndex = e.key);
-          if (e.key == 0) _loadWeekExpense();
-          if (e.key == 2) _loadYearExpense();
-        },
-      )).toList(),
+      items: ['週', '月', '年']
+          .asMap()
+          .entries
+          .map(
+            (e) => ListTile(
+              title: Text(
+                e.value,
+                style: camillBodyStyle(15, colors.textPrimary),
+              ),
+              leading: Icon(
+                _periodIndex == e.key
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked,
+                color: _periodIndex == e.key
+                    ? colors.primary
+                    : colors.textMuted,
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _periodIndex = e.key);
+                if (e.key == 0) _loadWeekExpense();
+                if (e.key == 2) _loadYearExpense();
+              },
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -1045,7 +1076,10 @@ class HomeMonthPageState extends State<HomeMonthPage>
                         children: [
                           Text(
                             _currencyFmt.format(expense),
-                            style: camillAmountStyle(_sp(28), colors.textPrimary),
+                            style: camillAmountStyle(
+                              _sp(28),
+                              colors.textPrimary,
+                            ),
                           ),
                           Text(
                             budget > 0
@@ -1091,12 +1125,18 @@ class HomeMonthPageState extends State<HomeMonthPage>
     );
   }
 
-  Widget _buildFixedVarChip(String label, int amount, Color color, CamillColors colors) {
+  Widget _buildFixedVarChip(
+    String label,
+    int amount,
+    Color color,
+    CamillColors colors,
+  ) {
     return Expanded(
       child: Row(
         children: [
           Container(
-            width: 8, height: 8,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(2),
@@ -1107,7 +1147,11 @@ class HomeMonthPageState extends State<HomeMonthPage>
           const Spacer(),
           Text(
             _currencyFmt.format(amount),
-            style: camillBodyStyle(12, colors.textPrimary, weight: FontWeight.w600),
+            style: camillBodyStyle(
+              12,
+              colors.textPrimary,
+              weight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -1156,7 +1200,8 @@ class HomeMonthPageState extends State<HomeMonthPage>
       ),
       onClosed: (_) async {
         final prefs = await SharedPreferences.getInstance();
-        final newBudget = (await UserPrefs.getInt(prefs, 'budget_monthly')) ?? 0;
+        final newBudget =
+            (await UserPrefs.getInt(prefs, 'budget_monthly')) ?? 0;
         if (mounted) widget.onBudgetChanged(newBudget);
         _loadCategoryBudgets();
         _load(silent: true);
@@ -1197,7 +1242,8 @@ class HomeMonthPageState extends State<HomeMonthPage>
                       ),
                     );
                     final prefs = await SharedPreferences.getInstance();
-                    final newBudget = (await UserPrefs.getInt(prefs, 'budget_monthly')) ?? 0;
+                    final newBudget =
+                        (await UserPrefs.getInt(prefs, 'budget_monthly')) ?? 0;
                     if (mounted) widget.onBudgetChanged(newBudget);
                     _loadCategoryBudgets();
                     _load(silent: true);
@@ -1211,16 +1257,29 @@ class HomeMonthPageState extends State<HomeMonthPage>
             if (total > 0)
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: colors.background,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    _buildFixedVarChip('固定費', fixedTotal, const Color(0xFF8D6E63), colors),
+                    _buildFixedVarChip(
+                      '固定費',
+                      fixedTotal,
+                      const Color(0xFF8D6E63),
+                      colors,
+                    ),
                     const SizedBox(width: 8),
-                    _buildFixedVarChip('変動費', variableTotal, colors.primary, colors),
+                    _buildFixedVarChip(
+                      '変動費',
+                      variableTotal,
+                      colors.primary,
+                      colors,
+                    ),
                   ],
                 ),
               ),
@@ -1466,15 +1525,30 @@ class HomeMonthPageState extends State<HomeMonthPage>
                 decoration: BoxDecoration(
                   color: colors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: colors.success.withValues(alpha: 0.3),
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
-                    Icon(Icons.savings_outlined, size: 15, color: colors.success),
+                    Icon(
+                      Icons.savings_outlined,
+                      size: 15,
+                      color: colors.success,
+                    ),
                     const SizedBox(width: 6),
-                    Text('今月の節約合計',
-                        style: camillBodyStyle(12, colors.success, weight: FontWeight.w600)),
+                    Text(
+                      '今月の節約合計',
+                      style: camillBodyStyle(
+                        12,
+                        colors.success,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
                     const Spacer(),
                     Text(
                       _currencyFmt.format(_summary!.totalSavings),
@@ -2366,17 +2440,30 @@ class HomeMonthPageState extends State<HomeMonthPage>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.group_outlined, color: colors.primary, size: 16),
+                      Icon(
+                        Icons.group_outlined,
+                        color: colors.primary,
+                        size: 16,
+                      ),
                       const SizedBox(width: 6),
-                      Text('ファミリー管理',
-                          style: camillBodyStyle(14, colors.textPrimary,
-                              weight: FontWeight.w700)),
+                      Text(
+                        'ファミリー管理',
+                        style: camillBodyStyle(
+                          14,
+                          colors.textPrimary,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                   if (family != null)
-                    Text('${family.members.length} / ${family.maxMembers}人',
-                        style: TextStyle(
-                            color: colors.textSecondary, fontSize: 12)),
+                    Text(
+                      '${family.members.length} / ${family.maxMembers}人',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
               if (family == null) ...[
@@ -2387,18 +2474,26 @@ class HomeMonthPageState extends State<HomeMonthPage>
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
-                          strokeWidth: 1.5, color: colors.textMuted),
+                        strokeWidth: 1.5,
+                        color: colors.textMuted,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    Text('読み込み中...',
-                        style: TextStyle(
-                            color: colors.textSecondary, fontSize: 13)),
+                    Text(
+                      '読み込み中...',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ] else ...[
                 const SizedBox(height: 4),
-                Text(family.name,
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                Text(
+                  family.name,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
                 const SizedBox(height: 12),
                 if (family.members.length <= 1) ...[
                   // 自分だけの場合 → 招待を促すボタン
@@ -2406,24 +2501,31 @@ class HomeMonthPageState extends State<HomeMonthPage>
                     onTap: openContainer,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.primary.withAlpha(20),
                         borderRadius: BorderRadius.circular(20),
-                        border:
-                            Border.all(color: colors.primary.withAlpha(60)),
+                        border: Border.all(color: colors.primary.withAlpha(60)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.person_add_outlined,
-                              size: 14, color: colors.primary),
+                          Icon(
+                            Icons.person_add_outlined,
+                            size: 14,
+                            color: colors.primary,
+                          ),
                           const SizedBox(width: 6),
-                          Text('家族を招待する',
-                              style: TextStyle(
-                                  color: colors.primary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600)),
+                          Text(
+                            '家族を招待する',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -2450,9 +2552,10 @@ class HomeMonthPageState extends State<HomeMonthPage>
                                       ? m.displayName[0]
                                       : '?',
                                   style: TextStyle(
-                                      color: roleColor,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600),
+                                    color: roleColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -2461,8 +2564,9 @@ class HomeMonthPageState extends State<HomeMonthPage>
                                     ? '${m.displayName.substring(0, 4)}…'
                                     : m.displayName,
                                 style: TextStyle(
-                                    color: colors.textSecondary,
-                                    fontSize: 10),
+                                  color: colors.textSecondary,
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ),
@@ -2474,13 +2578,20 @@ class HomeMonthPageState extends State<HomeMonthPage>
                             CircleAvatar(
                               radius: 18,
                               backgroundColor: colors.surfaceBorder,
-                              child: Icon(Icons.person_add_outlined,
-                                  size: 16, color: colors.textMuted),
+                              child: Icon(
+                                Icons.person_add_outlined,
+                                size: 16,
+                                color: colors.textMuted,
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            Text('招待',
-                                style: TextStyle(
-                                    color: colors.textMuted, fontSize: 10)),
+                            Text(
+                              '招待',
+                              style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 10,
+                              ),
+                            ),
                           ],
                         ),
                     ],
@@ -2526,15 +2637,19 @@ class HomeMonthPageState extends State<HomeMonthPage>
               children: [
                 Icon(Icons.lock_outline, size: 14, color: colors.textSecondary),
                 const SizedBox(width: 6),
-                Text('カテゴリ・金額のみ共有',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                Text(
+                  'カテゴリ・金額のみ共有',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 8),
-          Text('パートナーから権限をもらうと\n今月の支出サマリーが表示されます',
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
-              textAlign: TextAlign.center),
+          Text(
+            'パートナーから権限をもらうと\n今月の支出サマリーが表示されます',
+            style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
         ],
       );
     } else {
@@ -2555,11 +2670,18 @@ class HomeMonthPageState extends State<HomeMonthPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(partnerName,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-              Text(_currencyFmt.format(total),
-                  style: camillBodyStyle(18, colors.textPrimary,
-                      weight: FontWeight.w700)),
+              Text(
+                partnerName,
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+              Text(
+                _currencyFmt.format(total),
+                style: camillBodyStyle(
+                  18,
+                  colors.textPrimary,
+                  weight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -2569,19 +2691,29 @@ class HomeMonthPageState extends State<HomeMonthPage>
               padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
-                  Icon(meta?.icon ?? Icons.more_horiz,
-                      size: 13, color: colors.textSecondary),
+                  Icon(
+                    meta?.icon ?? Icons.more_horiz,
+                    size: 13,
+                    color: colors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(meta?.label ?? e.key,
-                        style:
-                            TextStyle(color: colors.textSecondary, fontSize: 12)),
-                  ),
-                  Text(_currencyFmt.format(e.value as int),
+                    child: Text(
+                      meta?.label ?? e.key,
                       style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _currencyFmt.format(e.value as int),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -2602,9 +2734,14 @@ class HomeMonthPageState extends State<HomeMonthPage>
                 children: [
                   Icon(Icons.people_outline, color: colors.primary, size: 16),
                   const SizedBox(width: 6),
-                  Text('パートナー支出',
-                      style: camillBodyStyle(14, colors.textPrimary,
-                          weight: FontWeight.w700)),
+                  Text(
+                    'パートナー支出',
+                    style: camillBodyStyle(
+                      14,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
               Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
@@ -2644,22 +2781,30 @@ class HomeMonthPageState extends State<HomeMonthPage>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.child_care_outlined,
-                    size: 14, color: colors.textSecondary),
+                Icon(
+                  Icons.child_care_outlined,
+                  size: 14,
+                  color: colors.textSecondary,
+                ),
                 const SizedBox(width: 6),
-                Text('子供アカウントを追加してください',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                Text(
+                  '子供アカウントを追加してください',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () => context.push('/family'),
-            child: Text('ファミリー管理 →',
-                style: TextStyle(
-                    color: colors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
+            child: Text(
+              'ファミリー管理 →',
+              style: TextStyle(
+                color: colors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       );
@@ -2677,21 +2822,33 @@ class HomeMonthPageState extends State<HomeMonthPage>
                 const Icon(Icons.child_care_outlined, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(name,
-                      style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600)),
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(_currencyFmt.format(total),
-                        style: camillBodyStyle(14, colors.textPrimary,
-                            weight: FontWeight.w700)),
-                    Text('今月の支出',
-                        style:
-                            TextStyle(color: colors.textSecondary, fontSize: 10)),
+                    Text(
+                      _currencyFmt.format(total),
+                      style: camillBodyStyle(
+                        14,
+                        colors.textPrimary,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '今月の支出',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 10,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -2713,14 +2870,23 @@ class HomeMonthPageState extends State<HomeMonthPage>
                 children: [
                   Icon(Icons.savings_outlined, color: colors.primary, size: 16),
                   const SizedBox(width: 6),
-                  Text('子供の支出',
-                      style: camillBodyStyle(14, colors.textPrimary,
-                          weight: FontWeight.w700)),
+                  Text(
+                    '子供の支出',
+                    style: camillBodyStyle(
+                      14,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
               GestureDetector(
                 onTap: () => context.push('/family'),
-                child: Icon(Icons.chevron_right, size: 18, color: colors.textMuted),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: colors.textMuted,
+                ),
               ),
             ],
           ),
@@ -2731,4 +2897,3 @@ class HomeMonthPageState extends State<HomeMonthPage>
     );
   }
 }
-

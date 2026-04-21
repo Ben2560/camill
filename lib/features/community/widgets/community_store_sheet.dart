@@ -3,7 +3,6 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/community_model.dart';
 
-
 // ─── 店舗詳細シート ────────────────────────────────────────────────────────────
 
 class StoreDetailSheet extends StatelessWidget {
@@ -75,13 +74,17 @@ class StoreDetailSheet extends StatelessWidget {
                           if (store.isFeatured && !store.isLocked) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
                                 color: colors.accent.withAlpha(30),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text('🔥',
-                                  style: TextStyle(fontSize: 10)),
+                              child: const Text(
+                                '🔥',
+                                style: TextStyle(fontSize: 10),
+                              ),
                             ),
                             const SizedBox(width: 4),
                           ],
@@ -114,15 +117,20 @@ class StoreDetailSheet extends StatelessWidget {
                 if (!store.isLocked)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.primaryLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '${store.couponCount}件',
-                      style: camillBodyStyle(12, colors.primary,
-                          weight: FontWeight.w600),
+                      style: camillBodyStyle(
+                        12,
+                        colors.primary,
+                        weight: FontWeight.w600,
+                      ),
                     ),
                   ),
               ],
@@ -134,8 +142,7 @@ class StoreDetailSheet extends StatelessWidget {
             _buildLockedBody(context, colors)
           else
             _buildCouponList(context, colors, active, expired),
-          SizedBox(
-              height: MediaQuery.of(context).padding.bottom + 16),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
       ),
     );
@@ -164,8 +171,11 @@ class StoreDetailSheet extends StatelessWidget {
               ),
               child: Text(
                 '店舗を選択する',
-                style: camillBodyStyle(14, Colors.white,
-                    weight: FontWeight.w700),
+                style: camillBodyStyle(
+                  14,
+                  Colors.white,
+                  weight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -183,10 +193,7 @@ class StoreDetailSheet extends StatelessWidget {
     if (store.coupons.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(28),
-        child: Text(
-          'クーポンはありません',
-          style: camillBodyStyle(13, colors.textMuted),
-        ),
+        child: Text('クーポンはありません', style: camillBodyStyle(13, colors.textMuted)),
       );
     }
 
@@ -200,8 +207,11 @@ class StoreDetailSheet extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: Text(
               '終了したクーポン',
-              style: camillBodyStyle(11, colors.textMuted,
-                  weight: FontWeight.w600),
+              style: camillBodyStyle(
+                11,
+                colors.textMuted,
+                weight: FontWeight.w600,
+              ),
             ),
           ),
           ...expired.map((c) => CouponRow(coupon: c, colors: colors)),
@@ -223,8 +233,8 @@ class CouponRow extends StatelessWidget {
     final label = coupon.isFree
         ? '無料クーポン'
         : coupon.discountPercent != null
-            ? '${coupon.discountPercent}%OFF'
-            : '${coupon.discountAmount}円引き';
+        ? '${coupon.discountPercent}%OFF'
+        : '${coupon.discountAmount}円引き';
 
     String? dateLabel;
     if (coupon.validUntil != null) {
@@ -245,8 +255,8 @@ class CouponRow extends StatelessWidget {
                 color: expired
                     ? colors.surfaceBorder
                     : coupon.isFree
-                        ? colors.accent.withAlpha(30)
-                        : colors.primaryLight,
+                    ? colors.accent.withAlpha(30)
+                    : colors.primaryLight,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
@@ -295,15 +305,20 @@ class CouponRow extends StatelessWidget {
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: colors.danger.withAlpha(25),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             'まもなく終了',
-                            style: camillBodyStyle(10, colors.danger,
-                                weight: FontWeight.w600),
+                            style: camillBodyStyle(
+                              10,
+                              colors.danger,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],

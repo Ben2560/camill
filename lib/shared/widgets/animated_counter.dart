@@ -26,10 +26,7 @@ class _AnimatedCounterState extends State<AnimatedCounter>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
     _animation = CurvedAnimation(parent: _controller, curve: widget.curve);
     _controller.forward();
   }
@@ -45,8 +42,7 @@ class _AnimatedCounterState extends State<AnimatedCounter>
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, _) {
-        final current =
-            (_animation.value * widget.targetValue).toInt();
+        final current = (_animation.value * widget.targetValue).toInt();
         return Text(current.toString(), style: widget.style);
       },
     );

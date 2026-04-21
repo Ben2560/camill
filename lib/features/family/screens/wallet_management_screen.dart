@@ -82,7 +82,9 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
   Future<void> _deleteRule(String ruleId) async {
     try {
       await _service.deleteRule(ruleId);
-      if (mounted) setState(() => _rules.removeWhere((r) => r.ruleId == ruleId));
+      if (mounted) {
+        setState(() => _rules.removeWhere((r) => r.ruleId == ruleId));
+      }
     } catch (e) {
       debugPrint('deleteRule: $e');
       if (mounted) _showError('ルールの削除に失敗しました');
@@ -118,19 +120,26 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
               ),
               if (children.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const Text('所有者（任意）',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                  '所有者（任意）',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
                 const SizedBox(height: 4),
                 DropdownButton<String?>(
                   value: selectedOwnerUid,
                   isExpanded: true,
                   hint: const Text('自分（デフォルト）'),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('自分（デフォルト）')),
-                    ...children.map((m) => DropdownMenuItem(
-                          value: m.userId,
-                          child: Text(m.displayName),
-                        )),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('自分（デフォルト）'),
+                    ),
+                    ...children.map(
+                      (m) => DropdownMenuItem(
+                        value: m.userId,
+                        child: Text(m.displayName),
+                      ),
+                    ),
                   ],
                   onChanged: (v) => setS(() => selectedOwnerUid = v),
                 ),
@@ -175,13 +184,18 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('種類', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text(
+                '種類',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               const SizedBox(height: 4),
               DropdownButton<String>(
                 value: matchType,
                 isExpanded: true,
                 items: typeOptions
-                    .map((t) => DropdownMenuItem(value: t.$1, child: Text(t.$2)))
+                    .map(
+                      (t) => DropdownMenuItem(value: t.$1, child: Text(t.$2)),
+                    )
                     .toList(),
                 onChanged: (v) => setS(() {
                   matchType = v!;
@@ -193,9 +207,7 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
                 controller: valueCtrl,
                 decoration: InputDecoration(
                   labelText: '値',
-                  hintText: typeOptions
-                      .firstWhere((t) => t.$1 == matchType)
-                      .$3,
+                  hintText: typeOptions.firstWhere((t) => t.$1 == matchType).$3,
                 ),
                 autofocus: true,
               ),
@@ -232,15 +244,19 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
         backgroundColor: colors.surface,
         foregroundColor: colors.textPrimary,
         elevation: 0,
-        title: Text('財布管理',
-            style: TextStyle(
-                color: colors.textPrimary, fontWeight: FontWeight.bold)),
+        title: Text(
+          '財布管理',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _wallets.isEmpty
-              ? _buildEmpty(colors)
-              : _buildList(colors),
+          ? _buildEmpty(colors)
+          : _buildList(colors),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createWallet,
         icon: const Icon(Icons.add),
@@ -256,18 +272,26 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined,
-                size: 64, color: colors.textSecondary),
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 64,
+              color: colors.textSecondary,
+            ),
             const SizedBox(height: 16),
-            Text('財布がありません',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              '財布がありません',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('子供のお小遣い管理や\n支出の仕分けに使えます',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                textAlign: TextAlign.center),
+            Text(
+              '子供のお小遣い管理や\n支出の仕分けに使えます',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -306,12 +330,19 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
             color: colors.primary.withAlpha(20),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.account_balance_wallet_outlined,
-              color: colors.primary, size: 20),
+          child: Icon(
+            Icons.account_balance_wallet_outlined,
+            color: colors.primary,
+            size: 20,
+          ),
         ),
-        title: Text(wallet.name,
-            style: TextStyle(
-                color: colors.textPrimary, fontWeight: FontWeight.w600)),
+        title: Text(
+          wallet.name,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         subtitle: Text(
           ownerName != null ? '所有者: $ownerName' : '自分の財布',
           style: TextStyle(color: colors.textSecondary, fontSize: 12),
@@ -326,8 +357,10 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
                   color: colors.primary.withAlpha(20),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('${rules.length}件',
-                    style: TextStyle(color: colors.primary, fontSize: 12)),
+                child: Text(
+                  '${rules.length}件',
+                  style: TextStyle(color: colors.primary, fontSize: 12),
+                ),
               ),
             const SizedBox(width: 4),
             Icon(Icons.expand_more, color: colors.textSecondary),
@@ -337,8 +370,10 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
           if (rules.isEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('仕分けルールがありません',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              child: Text(
+                '仕分けルールがありません',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              ),
             )
           else
             ...rules.map((rule) => _buildRuleRow(rule, colors)),
@@ -348,8 +383,10 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
             child: TextButton.icon(
               onPressed: () => _addRule(wallet.walletId),
               icon: Icon(Icons.add, size: 16, color: colors.primary),
-              label: Text('ルールを追加',
-                  style: TextStyle(color: colors.primary, fontSize: 13)),
+              label: Text(
+                'ルールを追加',
+                style: TextStyle(color: colors.primary, fontSize: 13),
+              ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
               ),
@@ -361,11 +398,7 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
   }
 
   Widget _buildRuleRow(WalletRule rule, CamillColors colors) {
-    const typeLabel = {
-      'store': '店名',
-      'keyword': 'キーワード',
-      'item': '品目名',
-    };
+    const typeLabel = {'store': '店名', 'keyword': 'キーワード', 'item': '品目名'};
     const typeIcon = {
       'store': Icons.storefront_outlined,
       'keyword': Icons.label_outline,
@@ -376,8 +409,11 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(typeIcon[rule.matchType] ?? Icons.label_outline,
-              size: 16, color: colors.textSecondary),
+          Icon(
+            typeIcon[rule.matchType] ?? Icons.label_outline,
+            size: 16,
+            color: colors.textSecondary,
+          ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -385,14 +421,17 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
               color: colors.surfaceBorder.withAlpha(80),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(typeLabel[rule.matchType] ?? rule.matchType,
-                style:
-                    TextStyle(color: colors.textSecondary, fontSize: 11)),
+            child: Text(
+              typeLabel[rule.matchType] ?? rule.matchType,
+              style: TextStyle(color: colors.textSecondary, fontSize: 11),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(rule.matchValue,
-                style: TextStyle(color: colors.textPrimary, fontSize: 13)),
+            child: Text(
+              rule.matchValue,
+              style: TextStyle(color: colors.textPrimary, fontSize: 13),
+            ),
           ),
           GestureDetector(
             onTap: () => _confirmDeleteRule(rule),
@@ -410,7 +449,10 @@ class _WalletManagementScreenState extends State<WalletManagementScreen> {
         title: const Text('ルールを削除しますか？'),
         content: Text('「${rule.matchValue}」の仕分けルールを削除します。'),
         actions: [
-          TextButton(onPressed: () => ctx.pop(false), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(
             onPressed: () => ctx.pop(true),
             child: const Text('削除', style: TextStyle(color: Colors.red)),

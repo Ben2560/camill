@@ -10,7 +10,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors    = context.colors;
+    final colors = context.colors;
     final themeState = ref.watch(themeProvider);
 
     return Scaffold(
@@ -38,17 +38,26 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   // 自動切替トグル
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
-                        Icon(Icons.location_on_outlined,
-                            size: 18, color: colors.textSecondary),
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 18,
+                          color: colors.textSecondary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text('日の出 / 日の入りで自動切替',
-                              style: camillBodyStyle(
-                                  14, colors.textPrimary,
-                                  weight: FontWeight.w500)),
+                          child: Text(
+                            '日の出 / 日の入りで自動切替',
+                            style: camillBodyStyle(
+                              14,
+                              colors.textPrimary,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                         Switch(
                           value: themeState.autoSwitch,
@@ -70,12 +79,15 @@ class ThemeSettingsScreen extends ConsumerWidget {
                               Divider(height: 1, color: colors.surfaceBorder),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 4),
+                                  horizontal: 16,
+                                  vertical: 4,
+                                ),
                                 child: Row(
                                   children: [
                                     AnimatedSwitcher(
-                                      duration:
-                                          const Duration(milliseconds: 200),
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
                                       child: Icon(
                                         themeState.isDarkNow
                                             ? Icons.nightlight_round
@@ -125,7 +137,6 @@ class ThemeSettingsScreen extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 // ── テーマグリッド ────────────────────────────────────────────────────────────
@@ -148,16 +159,16 @@ class _ThemeGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount:   3,
+        crossAxisCount: 3,
         childAspectRatio: 0.82,
         crossAxisSpacing: 10,
-        mainAxisSpacing:  10,
+        mainAxisSpacing: 10,
       ),
       itemCount: themes.length,
       itemBuilder: (_, i) => _ThemeCard(
-        mode:       themes[i],
+        mode: themes[i],
         themeState: themeState,
-        ref:        ref,
+        ref: ref,
         currentColors: colors,
       ),
     );
@@ -181,11 +192,14 @@ class _ThemeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSelected  = mode == themeState.selectedBase;
+    final isSelected = mode == themeState.selectedBase;
     // カードは現在の日中/夜間に合わせたバリアントで表示
-    final cardColors  = CamillColors.fromBase(mode, isDark: themeState.isDarkNow);
+    final cardColors = CamillColors.fromBase(
+      mode,
+      isDark: themeState.isDarkNow,
+    );
     final lightColors = CamillColors.fromBase(mode, isDark: false);
-    final darkColors  = CamillColors.fromBase(mode, isDark: true);
+    final darkColors = CamillColors.fromBase(mode, isDark: true);
 
     return GestureDetector(
       onTap: () => ref.read(themeProvider.notifier).setBase(mode),
@@ -207,7 +221,7 @@ class _ThemeCard extends StatelessWidget {
                     color: currentColors.primary.withAlpha(60),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
-                  )
+                  ),
                 ]
               : null,
         ),
@@ -215,7 +229,9 @@ class _ThemeCard extends StatelessWidget {
           children: [
             // カラーヘッダー帯
             Positioned(
-              top: 0, left: 0, right: 0,
+              top: 0,
+              left: 0,
+              right: 0,
               child: Container(
                 height: 40,
                 decoration: BoxDecoration(
@@ -247,25 +263,33 @@ class _ThemeCard extends StatelessWidget {
                     children: [
                       _Swatch(color: lightColors.primary, size: 10),
                       const SizedBox(width: 3),
-                      _Swatch(color: lightColors.background, size: 10,
-                          bordered: true, borderColor: lightColors.surfaceBorder),
+                      _Swatch(
+                        color: lightColors.background,
+                        size: 10,
+                        bordered: true,
+                        borderColor: lightColors.surfaceBorder,
+                      ),
                       const SizedBox(width: 5),
                       _Swatch(color: darkColors.primary, size: 10),
                       const SizedBox(width: 3),
-                      _Swatch(color: darkColors.background, size: 10,
-                          bordered: true, borderColor: darkColors.surfaceBorder),
+                      _Swatch(
+                        color: darkColors.background,
+                        size: 10,
+                        bordered: true,
+                        borderColor: darkColors.surfaceBorder,
+                      ),
                     ],
                   ),
                   const Spacer(),
                   Text(
                     mode.displayName,
                     style: TextStyle(
-                      fontSize:   11,
-                      color:      cardColors.textPrimary,
+                      fontSize: 11,
+                      color: cardColors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
-                    maxLines:  2,
-                    overflow:  TextOverflow.ellipsis,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -273,15 +297,20 @@ class _ThemeCard extends StatelessWidget {
             // 選択チェック
             if (isSelected)
               Positioned(
-                top: 6, right: 6,
+                top: 6,
+                right: 6,
                 child: Container(
-                  width: 18, height: 18,
+                  width: 18,
+                  height: 18,
                   decoration: BoxDecoration(
                     color: currentColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.check,
-                      size: 11, color: currentColors.fabIcon),
+                  child: Icon(
+                    Icons.check,
+                    size: 11,
+                    color: currentColors.fabIcon,
+                  ),
                 ),
               ),
           ],
@@ -309,11 +338,11 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width:  size,
+      width: size,
       height: size,
       decoration: BoxDecoration(
-        color:  color,
-        shape:  BoxShape.circle,
+        color: color,
+        shape: BoxShape.circle,
         border: bordered
             ? Border.all(color: borderColor ?? Colors.grey, width: 0.5)
             : null,
@@ -321,7 +350,6 @@ class _Swatch extends StatelessWidget {
     );
   }
 }
-
 
 class _SectionHeader extends StatelessWidget {
   final String title;

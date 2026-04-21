@@ -96,10 +96,7 @@ class DriveExportService {
           ..name = fileName
           ..parents = [folderId]
           ..mimeType = 'application/json';
-        final created = await driveApi.files.create(
-          file,
-          uploadMedia: media,
-        );
+        final created = await driveApi.files.create(file, uploadMedia: media);
         fileId = created.id ?? '';
       }
 

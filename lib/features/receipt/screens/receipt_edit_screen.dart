@@ -13,7 +13,11 @@ import '../../calendar/screens/calendar_screen.dart';
 class ReceiptEditScreen extends StatefulWidget {
   final ReceiptListItem receipt;
   final bool focusMemo;
-  const ReceiptEditScreen({super.key, required this.receipt, this.focusMemo = false});
+  const ReceiptEditScreen({
+    super.key,
+    required this.receipt,
+    this.focusMemo = false,
+  });
 
   @override
   State<ReceiptEditScreen> createState() => _ReceiptEditScreenState();
@@ -44,9 +48,7 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
     _receiptCategory = r.category;
     _items = r.items.isEmpty
         ? [_ItemEntry()]
-        : r.items
-            .map((i) => _ItemEntry.fromReceiptItem(i))
-            .toList();
+        : r.items.map((i) => _ItemEntry.fromReceiptItem(i)).toList();
     _memoCtrl.addListener(_onMemoChanged);
     _memoFocusNode.addListener(_onMemoFocus);
     _onMemoChanged();
@@ -84,7 +86,9 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
   }
 
   void _onMemoChanged() {
-    final lineCount = _memoCtrl.text.isEmpty ? 0 : _memoCtrl.text.split('\n').length;
+    final lineCount = _memoCtrl.text.isEmpty
+        ? 0
+        : _memoCtrl.text.split('\n').length;
     final needed = (lineCount + 1).clamp(6, 9999);
     if (needed > _memoMinLines) {
       setState(() => _memoMinLines = needed);
@@ -134,7 +138,9 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
     for (final item in _items) {
       counts[item.category] = (counts[item.category] ?? 0) + 1;
     }
-    final majority = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    final majority = counts.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
     setState(() => _receiptCategory = majority);
   }
 
@@ -155,8 +161,12 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
       final items = _items.map((e) {
         final amt = int.tryParse(e.priceCtrl.text.replaceAll(',', '')) ?? 0;
         return {
-          'item_name': e.nameCtrl.text.trim().isEmpty ? _ItemEntry._unknown : e.nameCtrl.text.trim(),
-          'item_name_raw': e.nameCtrl.text.trim().isEmpty ? _ItemEntry._unknown : e.nameCtrl.text.trim(),
+          'item_name': e.nameCtrl.text.trim().isEmpty
+              ? _ItemEntry._unknown
+              : e.nameCtrl.text.trim(),
+          'item_name_raw': e.nameCtrl.text.trim().isEmpty
+              ? _ItemEntry._unknown
+              : e.nameCtrl.text.trim(),
           'category': e.category,
           'unit_price': amt,
           'quantity': 1,
@@ -164,14 +174,17 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
         };
       }).toList();
 
-      await _api.patch('/receipts/${widget.receipt.receiptId}', body: {
-        'store_name': _storeCtrl.text,
-        'purchased_at': _purchasedAt.toIso8601String(),
-        'payment_method': _paymentMethod,
-        'category': _receiptCategory,
-        'items': items,
-        'memo': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
-      });
+      await _api.patch(
+        '/receipts/${widget.receipt.receiptId}',
+        body: {
+          'store_name': _storeCtrl.text,
+          'purchased_at': _purchasedAt.toIso8601String(),
+          'payment_method': _paymentMethod,
+          'category': _receiptCategory,
+          'items': items,
+          'memo': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
+        },
+      );
 
       CalendarScreen.receiptRefreshSignal.value++;
       if (mounted) {
@@ -202,14 +215,22 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
         backgroundColor: colors.background,
         appBar: AppBar(
           backgroundColor: colors.background,
-          title: Text('レシートを編集', style: camillHeadingStyle(17, colors.textPrimary)),
+          title: Text(
+            'レシートを編集',
+            style: camillHeadingStyle(17, colors.textPrimary),
+          ),
           iconTheme: IconThemeData(color: colors.textSecondary),
           actions: [
             TextButton(
               onPressed: _save,
-              child: Text('保存する',
-                  style: camillBodyStyle(15, colors.primary,
-                      weight: FontWeight.bold)),
+              child: Text(
+                '保存する',
+                style: camillBodyStyle(
+                  15,
+                  colors.primary,
+                  weight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -223,7 +244,10 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                 controller: _storeCtrl,
                 decoration: InputDecoration(
                   labelText: '店名',
-                  prefixIcon: Icon(Icons.store_outlined, color: colors.textMuted),
+                  prefixIcon: Icon(
+                    Icons.store_outlined,
+                    color: colors.textMuted,
+                  ),
                 ),
                 validator: (v) =>
                     (v == null || v.isEmpty) ? '店名を入力してください' : null,
@@ -234,12 +258,19 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: '購入日時',
-                    prefixIcon: Icon(Icons.calendar_today_outlined,
-                        color: colors.textMuted),
-                    suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+                    prefixIcon: Icon(
+                      Icons.calendar_today_outlined,
+                      color: colors.textMuted,
+                    ),
+                    suffixIcon: Icon(
+                      Icons.chevron_right,
+                      color: colors.textMuted,
+                    ),
                   ),
-                  child: Text(dateFmt.format(_purchasedAt),
-                      style: camillBodyStyle(14, colors.textPrimary)),
+                  child: Text(
+                    dateFmt.format(_purchasedAt),
+                    style: camillBodyStyle(14, colors.textPrimary),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -250,11 +281,18 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: '支払方法',
-                    prefixIcon: Icon(Icons.payment_outlined, color: colors.textMuted),
-                    suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+                    prefixIcon: Icon(
+                      Icons.payment_outlined,
+                      color: colors.textMuted,
+                    ),
+                    suffixIcon: Icon(
+                      Icons.chevron_right,
+                      color: colors.textMuted,
+                    ),
                   ),
                   child: Text(
-                    AppConstants.paymentLabels[_paymentMethod] ?? _paymentMethod,
+                    AppConstants.paymentLabels[_paymentMethod] ??
+                        _paymentMethod,
                     style: camillBodyStyle(14, colors.textPrimary),
                   ),
                 ),
@@ -267,8 +305,14 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: 'レシートカテゴリ',
-                    prefixIcon: Icon(Icons.label_outline, color: colors.textMuted),
-                    suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+                    prefixIcon: Icon(
+                      Icons.label_outline,
+                      color: colors.textMuted,
+                    ),
+                    suffixIcon: Icon(
+                      Icons.chevron_right,
+                      color: colors.textMuted,
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -276,13 +320,16 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: AppConstants.categoryColors[_receiptCategory] ?? colors.textMuted,
+                          color:
+                              AppConstants.categoryColors[_receiptCategory] ??
+                              colors.textMuted,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        AppConstants.categoryLabels[_receiptCategory] ?? _receiptCategory,
+                        AppConstants.categoryLabels[_receiptCategory] ??
+                            _receiptCategory,
                         style: camillBodyStyle(14, colors.textPrimary),
                       ),
                     ],
@@ -293,13 +340,21 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('品目',
-                      style: camillBodyStyle(15, colors.textPrimary,
-                          weight: FontWeight.bold)),
+                  Text(
+                    '品目',
+                    style: camillBodyStyle(
+                      15,
+                      colors.textPrimary,
+                      weight: FontWeight.bold,
+                    ),
+                  ),
                   TextButton.icon(
                     onPressed: _addItem,
                     icon: Icon(Icons.add, size: 18, color: colors.primary),
-                    label: Text('追加', style: camillBodyStyle(14, colors.primary)),
+                    label: Text(
+                      '追加',
+                      style: camillBodyStyle(14, colors.primary),
+                    ),
                   ),
                 ],
               ),
@@ -325,17 +380,26 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('合計',
-                        style: camillBodyStyle(14, colors.textPrimary,
-                            weight: FontWeight.bold)),
                     Text(
-                      NumberFormat.currency(locale: 'ja_JP', symbol: '¥').format(
+                      '合計',
+                      style: camillBodyStyle(
+                        14,
+                        colors.textPrimary,
+                        weight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      NumberFormat.currency(
+                        locale: 'ja_JP',
+                        symbol: '¥',
+                      ).format(
                         _items.fold(
                           0,
                           (s, e) =>
                               s +
                               (int.tryParse(
-                                      e.priceCtrl.text.replaceAll(',', '')) ??
+                                    e.priceCtrl.text.replaceAll(',', ''),
+                                  ) ??
                                   0),
                         ),
                       ),
@@ -358,9 +422,20 @@ class _ReceiptEditScreenState extends State<ReceiptEditScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.notes_outlined, size: 15, color: colors.textMuted),
+                        Icon(
+                          Icons.notes_outlined,
+                          size: 15,
+                          color: colors.textMuted,
+                        ),
                         const SizedBox(width: 6),
-                        Text('メモ', style: camillBodyStyle(13, colors.textMuted, weight: FontWeight.w600)),
+                        Text(
+                          'メモ',
+                          style: camillBodyStyle(
+                            13,
+                            colors.textMuted,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -436,8 +511,8 @@ class _CategoryPickerSheet extends StatelessWidget {
     final entries = allowed == null
         ? AppConstants.categoryLabels.entries.toList()
         : AppConstants.categoryLabels.entries
-            .where((e) => allowed.contains(e.key))
-            .toList();
+              .where((e) => allowed.contains(e.key))
+              .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -473,14 +548,17 @@ class _CategoryPickerSheet extends StatelessWidget {
             itemBuilder: (_, i) {
               final key = entries[i].key;
               final label = entries[i].value;
-              final color = AppConstants.categoryColors[key] ?? colors.textMuted;
+              final color =
+                  AppConstants.categoryColors[key] ?? colors.textMuted;
               final isSelected = key == current;
               return GestureDetector(
                 onTap: () => Navigator.of(context).pop(key),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   decoration: BoxDecoration(
-                    color: isSelected ? color.withAlpha(50) : color.withAlpha(20),
+                    color: isSelected
+                        ? color.withAlpha(50)
+                        : color.withAlpha(20),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: isSelected ? color : color.withAlpha(60),
@@ -493,12 +571,22 @@ class _CategoryPickerSheet extends StatelessWidget {
                       Container(
                         width: 7,
                         height: 7,
-                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                       const SizedBox(width: 5),
-                      Text(label,
-                          style: camillBodyStyle(13, isSelected ? color : colors.textPrimary,
-                              weight: isSelected ? FontWeight.w700 : FontWeight.normal)),
+                      Text(
+                        label,
+                        style: camillBodyStyle(
+                          13,
+                          isSelected ? color : colors.textPrimary,
+                          weight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.normal,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -561,7 +649,10 @@ class _PaymentPickerSheet extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? colors.primaryLight : colors.surface,
                   borderRadius: BorderRadius.circular(12),
@@ -580,8 +671,13 @@ class _PaymentPickerSheet extends StatelessWidget {
                     const SizedBox(width: 14),
                     Text(
                       e.value,
-                      style: camillBodyStyle(15, isSelected ? colors.primary : colors.textPrimary,
-                          weight: isSelected ? FontWeight.w700 : FontWeight.normal),
+                      style: camillBodyStyle(
+                        15,
+                        isSelected ? colors.primary : colors.textPrimary,
+                        weight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.normal,
+                      ),
                     ),
                     const Spacer(),
                     if (isSelected)
@@ -613,7 +709,9 @@ class _ItemEntry {
 
   factory _ItemEntry.fromReceiptItem(ReceiptItem item) {
     final e = _ItemEntry(category: item.category);
-    e.nameCtrl.text = _unknownVariants.contains(item.itemName) ? '' : item.itemName;
+    e.nameCtrl.text = _unknownVariants.contains(item.itemName)
+        ? ''
+        : item.itemName;
     e.priceCtrl.text = item.amount.toString();
     return e;
   }
@@ -653,8 +751,10 @@ class _ItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final catColor = AppConstants.categoryColors[entry.category] ?? colors.textMuted;
-    final catLabel = AppConstants.categoryLabels[entry.category] ?? entry.category;
+    final catColor =
+        AppConstants.categoryColors[entry.category] ?? colors.textMuted;
+    final catLabel =
+        AppConstants.categoryLabels[entry.category] ?? entry.category;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -669,8 +769,10 @@ class _ItemRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('品目 ${index + 1}',
-                    style: camillBodyStyle(12, colors.textMuted)),
+                Text(
+                  '品目 ${index + 1}',
+                  style: camillBodyStyle(12, colors.textMuted),
+                ),
                 const Spacer(),
                 if (canRemove)
                   IconButton(
@@ -703,9 +805,11 @@ class _ItemRow extends StatelessWidget {
                     controller: entry.priceCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                        labelText: '金額', prefixText: '¥', isDense: true),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? '金額を入力' : null,
+                      labelText: '金額',
+                      prefixText: '¥',
+                      isDense: true,
+                    ),
+                    validator: (v) => (v == null || v.isEmpty) ? '金額を入力' : null,
                     onChanged: (_) => onChanged(),
                   ),
                 ),
@@ -717,7 +821,10 @@ class _ItemRow extends StatelessWidget {
               onTap: () => _pickItemCategory(context),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: catColor.withAlpha(20),
                   borderRadius: BorderRadius.circular(8),
@@ -728,13 +835,26 @@ class _ItemRow extends StatelessWidget {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: catColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    Text(catLabel,
-                        style: camillBodyStyle(13, catColor, weight: FontWeight.w600)),
+                    Text(
+                      catLabel,
+                      style: camillBodyStyle(
+                        13,
+                        catColor,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
                     const Spacer(),
-                    Icon(Icons.chevron_right, size: 16, color: catColor.withAlpha(180)),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: catColor.withAlpha(180),
+                    ),
                   ],
                 ),
               ),

@@ -77,36 +77,54 @@ class FreeCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded,
-                        size: 14, color: Colors.white),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 4),
-                    Text(coupon.storeName,
-                        style: camillBodyStyle(13, Colors.white70)),
+                    Text(
+                      coupon.storeName,
+                      style: camillBodyStyle(13, Colors.white70),
+                    ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withAlpha(40),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('無料クーポン',
-                          style: camillBodyStyle(10, Colors.white,
-                              weight: FontWeight.bold)),
+                      child: Text(
+                        '無料クーポン',
+                        style: camillBodyStyle(
+                          10,
+                          Colors.white,
+                          weight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   coupon.description,
-                  style: camillBodyStyle(16, Colors.white,
-                      weight: FontWeight.bold),
+                  style: camillBodyStyle(
+                    16,
+                    Colors.white,
+                    weight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.card_giftcard,
-                        size: 28, color: Colors.white),
+                    const Icon(
+                      Icons.card_giftcard,
+                      size: 28,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       '無料',
@@ -131,8 +149,8 @@ class FreeCard extends StatelessWidget {
                         coupon.isExpired
                             ? Icons.cancel_outlined
                             : coupon.isExpiringSoon
-                                ? Icons.warning_amber_outlined
-                                : Icons.schedule,
+                            ? Icons.warning_amber_outlined
+                            : Icons.schedule,
                         size: 12,
                         color: Colors.white70,
                       ),
@@ -180,7 +198,9 @@ class RegularCard extends StatelessWidget {
         color: colors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: borderColor, width: expiringSoon && !dimmed ? 1.5 : 1),
+          color: borderColor,
+          width: expiringSoon && !dimmed ? 1.5 : 1,
+        ),
         boxShadow: colors.isDark
             ? null
             : [
@@ -198,40 +218,54 @@ class RegularCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.store_outlined,
-                    size: 14, color: colors.textMuted),
+                Icon(Icons.store_outlined, size: 14, color: colors.textMuted),
                 const SizedBox(width: 4),
-                Text(coupon.storeName,
-                    style: camillBodyStyle(13, colors.textMuted)),
+                Text(
+                  coupon.storeName,
+                  style: camillBodyStyle(13, colors.textMuted),
+                ),
                 const SizedBox(width: 6),
                 if (coupon.isFromOcr)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.primaryLight,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('OCR自動',
-                        style: camillBodyStyle(9, colors.primary)),
+                    child: Text(
+                      'OCR自動',
+                      style: camillBodyStyle(9, colors.primary),
+                    ),
                   )
                 else
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.surfaceBorder,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('手動',
-                        style: camillBodyStyle(9, colors.textMuted)),
+                    child: Text(
+                      '手動',
+                      style: camillBodyStyle(9, colors.textMuted),
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(coupon.description,
-                style: camillBodyStyle(15, colors.textPrimary,
-                    weight: FontWeight.bold)),
+            Text(
+              coupon.description,
+              style: camillBodyStyle(
+                15,
+                colors.textPrimary,
+                weight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -255,8 +289,8 @@ class RegularCard extends StatelessWidget {
                     expired
                         ? Icons.cancel_outlined
                         : expiringSoon
-                            ? Icons.warning_amber_outlined
-                            : Icons.schedule,
+                        ? Icons.warning_amber_outlined
+                        : Icons.schedule,
                     size: 13,
                     color: expired || expiringSoon
                         ? colors.danger
@@ -322,13 +356,12 @@ class DayDotsSmall extends StatelessWidget {
             shape: BoxShape.circle,
             color: isAvailable
                 ? isToday
-                    ? const Color(0xFFFF6B00)
-                    : const Color(0xFF4CAF50).withAlpha(180)
+                      ? const Color(0xFFFF6B00)
+                      : const Color(0xFF4CAF50).withAlpha(180)
                 : Colors.transparent,
             border: isAvailable
                 ? null
-                : Border.all(
-                    color: Colors.grey.withAlpha(80), width: 1),
+                : Border.all(color: Colors.grey.withAlpha(80), width: 1),
           ),
           child: Center(
             child: Text(
@@ -419,10 +452,14 @@ class SortButton extends StatelessWidget {
           color: active ? colors.primary : colors.surfaceBorder,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(label,
-            style: camillBodyStyle(
-                12, active ? colors.fabIcon : colors.textMuted,
-                weight: active ? FontWeight.bold : FontWeight.normal)),
+        child: Text(
+          label,
+          style: camillBodyStyle(
+            12,
+            active ? colors.fabIcon : colors.textMuted,
+            weight: active ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }

@@ -12,11 +12,14 @@ class CommunityService {
     int radiusM = 1250,
   }) async {
     try {
-      final data = await _api.getAny('/community/stores', query: {
-        'latitude': latitude.toString(),
-        'longitude': longitude.toString(),
-        'radius_m': radiusM.toString(),
-      });
+      final data = await _api.getAny(
+        '/community/stores',
+        query: {
+          'latitude': latitude.toString(),
+          'longitude': longitude.toString(),
+          'radius_m': radiusM.toString(),
+        },
+      );
       final list = data as List? ?? [];
       return list
           .map((e) => CommunityStore.fromJson(e as Map<String, dynamic>))
@@ -49,9 +52,10 @@ class CommunityService {
 
   /// 無料ユーザーの店舗選択を更新
   Future<CommunitySettings> selectStores(List<String> storeIds) async {
-    final data = await _api.post('/community/select-stores', body: {
-      'store_ids': storeIds,
-    });
+    final data = await _api.post(
+      '/community/select-stores',
+      body: {'store_ids': storeIds},
+    );
     return CommunitySettings.fromJson(data);
   }
 }

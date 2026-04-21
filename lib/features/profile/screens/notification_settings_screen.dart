@@ -77,7 +77,10 @@ class _NotificationSettingsScreenState
         backgroundColor: colors.background,
         appBar: AppBar(
           backgroundColor: colors.background,
-          title: Text('通知設定', style: camillHeadingStyle(17, colors.textPrimary)),
+          title: Text(
+            '通知設定',
+            style: camillHeadingStyle(17, colors.textPrimary),
+          ),
           iconTheme: IconThemeData(color: colors.textSecondary),
         ),
         body: ListView(
@@ -122,17 +125,19 @@ class _NotificationSettingsScreenState
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Row(
                   children: [
-                    Text('報告時刻',
-                        style: camillBodyStyle(14, colors.textPrimary)),
+                    Text(
+                      '報告時刻',
+                      style: camillBodyStyle(14, colors.textPrimary),
+                    ),
                     const Spacer(),
                     DropdownButton<int>(
                       value: _scoreReportTime,
                       underline: const SizedBox(),
                       items: [18, 19, 20, 21, 22]
-                          .map((h) => DropdownMenuItem(
-                                value: h,
-                                child: Text('$h時'),
-                              ))
+                          .map(
+                            (h) =>
+                                DropdownMenuItem(value: h, child: Text('$h時')),
+                          )
                           .toList(),
                       onChanged: (v) {
                         if (v == null) return;
@@ -227,8 +232,10 @@ class _SectionHeader extends StatelessWidget {
     final c = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Text(title,
-          style: camillBodyStyle(13, c.textMuted, weight: FontWeight.w600)),
+      child: Text(
+        title,
+        style: camillBodyStyle(13, c.textMuted, weight: FontWeight.w600),
+      ),
     );
   }
 }

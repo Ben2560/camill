@@ -30,9 +30,13 @@ class TaxBreakdownRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(child: Text(label, style: camillBodyStyle(12, colors.textMuted))),
-        Text(fmt.format(amount),
-            style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w500)),
+        Expanded(
+          child: Text(label, style: camillBodyStyle(12, colors.textMuted)),
+        ),
+        Text(
+          fmt.format(amount),
+          style: camillBodyStyle(12, colors.textMuted, weight: FontWeight.w500),
+        ),
       ],
     );
   }

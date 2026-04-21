@@ -71,7 +71,10 @@ class UserPrefs {
 
   // ── List<String> ─────────────────────────────────────────────────────────
 
-  static Future<List<String>?> getStringList(SharedPreferences p, String key) async {
+  static Future<List<String>?> getStringList(
+    SharedPreferences p,
+    String key,
+  ) async {
     final uk = prefixed(key);
     if (p.containsKey(uk)) return p.getStringList(uk);
     if (p.containsKey(key)) {
@@ -84,8 +87,10 @@ class UserPrefs {
   }
 
   static Future<void> setStringList(
-          SharedPreferences p, String key, List<String> v) =>
-      p.setStringList(prefixed(key), v);
+    SharedPreferences p,
+    String key,
+    List<String> v,
+  ) => p.setStringList(prefixed(key), v);
 
   // ── remove ───────────────────────────────────────────────────────────────
 

@@ -31,7 +31,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
     _loadCoupons();
   }
 
@@ -43,12 +46,20 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
 
   void _startSilentRefresh() {
     if (_isRefreshing) return;
-    setState(() { _isRefreshing = true; _dotsVisible = 3; _ignoreUntilTop = true; });
+    setState(() {
+      _isRefreshing = true;
+      _dotsVisible = 3;
+      _ignoreUntilTop = true;
+    });
     if (!_bounceController.isAnimating) _bounceController.repeat();
     _loadCoupons(silent: true).then((_) {
       if (!mounted) return;
-      _bounceController.stop(); _bounceController.reset();
-      setState(() { _isRefreshing = false; _dotsVisible = 0; });
+      _bounceController.stop();
+      _bounceController.reset();
+      setState(() {
+        _isRefreshing = false;
+        _dotsVisible = 0;
+      });
     });
   }
 
@@ -64,10 +75,9 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
     }
   }
 
-  List<Coupon> get _activeCoupons => _coupons
-      .where((c) => !c.isUsed && !c.isExpired)
-      .toList()
-    ..sort(_compareCoupon);
+  List<Coupon> get _activeCoupons =>
+      _coupons.where((c) => !c.isUsed && !c.isExpired).toList()
+        ..sort(_compareCoupon);
 
   List<Coupon> get _expiredCoupons =>
       _coupons.where((c) => c.isUsed || c.isExpired).toList();
@@ -94,7 +104,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
         backgroundColor: colors.background,
         appBar: AppBar(
           backgroundColor: colors.background,
-          title: Text('クーポン財布', style: camillHeadingStyle(17, colors.textPrimary)),
+          title: Text(
+            'クーポン財布',
+            style: camillHeadingStyle(17, colors.textPrimary),
+          ),
           actions: [
             IconButton(
               icon: Icon(Icons.add, color: colors.textSecondary),
@@ -112,8 +125,16 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                   if (pixels >= 0) _ignoreUntilTop = false;
                   if (_ignoreUntilTop) return false;
                   if (pixels < 0) {
-                    final newDots = pixels < -85 ? 3 : pixels < -55 ? 2 : pixels < -25 ? 1 : 0;
-                    if (newDots != _dotsVisible) setState(() => _dotsVisible = newDots);
+                    final newDots = pixels < -85
+                        ? 3
+                        : pixels < -55
+                        ? 2
+                        : pixels < -25
+                        ? 1
+                        : 0;
+                    if (newDots != _dotsVisible) {
+                      setState(() => _dotsVisible = newDots);
+                    }
                   } else if (_dotsVisible > 0) {
                     _ignoreUntilTop = true;
                     setState(() => _dotsVisible = 0);
@@ -134,90 +155,118 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                 physics: const RefreshScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
-              Row(
-                children: [
-                  Text('並び順:', style: camillBodyStyle(13, colors.textMuted)),
-                  const SizedBox(width: 8),
-                  SortButton(
-                    label: '有効期限',
-                    active: _sortMode == 'expiry',
-                    colors: colors,
-                    onTap: () => setState(() => _sortMode = 'expiry'),
+                  Row(
+                    children: [
+                      Text(
+                        '並び順:',
+                        style: camillBodyStyle(13, colors.textMuted),
+                      ),
+                      const SizedBox(width: 8),
+                      SortButton(
+                        label: '有効期限',
+                        active: _sortMode == 'expiry',
+                        colors: colors,
+                        onTap: () => setState(() => _sortMode = 'expiry'),
+                      ),
+                      const SizedBox(width: 6),
+                      SortButton(
+                        label: '店舗',
+                        active: _sortMode == 'store',
+                        colors: colors,
+                        onTap: () => setState(() => _sortMode = 'store'),
+                      ),
+                      const SizedBox(width: 6),
+                      SortButton(
+                        label: '金額',
+                        active: _sortMode == 'amount',
+                        colors: colors,
+                        onTap: () => setState(() => _sortMode = 'amount'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  SortButton(
-                    label: '店舗',
-                    active: _sortMode == 'store',
-                    colors: colors,
-                    onTap: () => setState(() => _sortMode = 'store'),
-                  ),
-                  const SizedBox(width: 6),
-                  SortButton(
-                    label: '金額',
-                    active: _sortMode == 'amount',
-                    colors: colors,
-                    onTap: () => setState(() => _sortMode = 'amount'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text('有効中 (${_activeCoupons.length}枚)',
-                  style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              if (_activeCoupons.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Center(
-                    child: Text('有効なクーポンはありません',
-                        style: camillBodyStyle(14, colors.textMuted)),
-                  ),
-                )
-              else
-                ..._activeCoupons.map((c) => CouponCard(
-                      coupon: c,
-                      onTap: () => _showEditDialog(c),
-                    )),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () => setState(() => _showExpired = !_showExpired),
-                child: Row(
-                  children: [
-                    Text('使用済み・期限切れ (${_expiredCoupons.length}枚)',
-                        style: camillBodyStyle(14, colors.textPrimary,
-                            weight: FontWeight.bold)),
-                    const Spacer(),
-                    Icon(
-                      _showExpired ? Icons.expand_less : Icons.expand_more,
-                      color: colors.textMuted,
+                  const SizedBox(height: 16),
+                  Text(
+                    '有効中 (${_activeCoupons.length}枚)',
+                    style: camillBodyStyle(
+                      14,
+                      colors.textPrimary,
+                      weight: FontWeight.bold,
                     ),
-                  ],
-                ),
-              ),
-              if (_showExpired)
-                ..._expiredCoupons.map((c) => CouponCard(
-                      coupon: c,
-                      dimmed: true,
-                      onTap: () => _showEditDialog(c),
-                    )),
-            ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_activeCoupons.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Text(
+                          '有効なクーポンはありません',
+                          style: camillBodyStyle(14, colors.textMuted),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._activeCoupons.map(
+                      (c) => CouponCard(
+                        coupon: c,
+                        onTap: () => _showEditDialog(c),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => setState(() => _showExpired = !_showExpired),
+                    child: Row(
+                      children: [
+                        Text(
+                          '使用済み・期限切れ (${_expiredCoupons.length}枚)',
+                          style: camillBodyStyle(
+                            14,
+                            colors.textPrimary,
+                            weight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          _showExpired ? Icons.expand_less : Icons.expand_more,
+                          color: colors.textMuted,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_showExpired)
+                    ..._expiredCoupons.map(
+                      (c) => CouponCard(
+                        coupon: c,
+                        dimmed: true,
+                        onTap: () => _showEditDialog(c),
+                      ),
+                    ),
+                ],
               ),
             ),
             Positioned(
-              top: 0, left: 0, right: 0,
+              top: 0,
+              left: 0,
+              right: 0,
               child: IgnorePointer(
                 child: Container(
                   height: 32,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [colors.background, colors.background.withAlpha(0)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        colors.background,
+                        colors.background.withAlpha(0),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
             Positioned(
-              top: 4, left: 0, right: 0,
+              top: 4,
+              left: 0,
+              right: 0,
               child: IgnorePointer(
                 child: SizedBox(
                   height: 28,
@@ -263,19 +312,28 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
         title: Text('削除確認', style: camillHeadingStyle(16, colors.textPrimary)),
-        content: Text('このクーポンを削除しますか？',
-            style: camillBodyStyle(14, colors.textSecondary)),
+        content: Text(
+          'このクーポンを削除しますか？',
+          style: camillBodyStyle(14, colors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('キャンセル',
-                style: camillBodyStyle(14, colors.textSecondary)),
+            child: Text(
+              'キャンセル',
+              style: camillBodyStyle(14, colors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('削除',
-                style: camillBodyStyle(14, colors.danger,
-                    weight: FontWeight.bold)),
+            child: Text(
+              '削除',
+              style: camillBodyStyle(
+                14,
+                colors.danger,
+                weight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -304,7 +362,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: colors.surface,
-          title: Text('クーポンを追加', style: camillHeadingStyle(16, colors.textPrimary)),
+          title: Text(
+            'クーポンを追加',
+            style: camillHeadingStyle(16, colors.textPrimary),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -339,14 +400,17 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                 const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('使用可能曜日（未選択=毎日）',
-                      style: camillBodyStyle(12, colors.textMuted)),
+                  child: Text(
+                    '使用可能曜日（未選択=毎日）',
+                    style: camillBodyStyle(12, colors.textMuted),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 DayPicker(
                   selected: availableDays,
                   colors: colors,
-                  onChanged: (days) => setDialogState(() => availableDays = days),
+                  onChanged: (days) =>
+                      setDialogState(() => availableDays = days),
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
@@ -354,14 +418,22 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                     final picked = await showDatePicker(
                       context: ctx,
                       initialDate: DateTime.now(),
-                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 365),
+                      ),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (picked != null) setDialogState(() => validFrom = picked);
+                    if (picked != null) {
+                      setDialogState(() => validFrom = picked);
+                    }
                   },
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 16, color: colors.textMuted),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: colors.textMuted,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         validFrom != null
@@ -381,11 +453,16 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (picked != null) setDialogState(() => validUntil = picked);
+                    if (picked != null)
+                      setDialogState(() => validUntil = picked);
                   },
                   child: Row(
                     children: [
-                      Icon(Icons.event_available, size: 16, color: colors.textMuted),
+                      Icon(
+                        Icons.event_available,
+                        size: 16,
+                        color: colors.textMuted,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         validUntil != null
@@ -402,8 +479,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('キャンセル',
-                  style: camillBodyStyle(14, colors.textSecondary)),
+              child: Text(
+                'キャンセル',
+                style: camillBodyStyle(14, colors.textSecondary),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: colors.primary),
@@ -417,7 +496,9 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                       discountAmount: int.tryParse(amountCtrl.text) ?? 0,
                       validFrom: validFrom?.toIso8601String(),
                       validUntil: validUntil?.toIso8601String(),
-                      availableDays: availableDays.isEmpty ? null : availableDays,
+                      availableDays: availableDays.isEmpty
+                          ? null
+                          : availableDays,
                     );
                     await _loadCoupons();
                   } catch (e) {
@@ -453,7 +534,9 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => AnimatedPadding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
           child: SingleChildScrollView(
@@ -469,7 +552,8 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                   Center(
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 12),
-                      width: 40, height: 4,
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: colors.textMuted.withAlpha(80),
                         borderRadius: BorderRadius.circular(2),
@@ -481,14 +565,24 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
                       children: [
-                        Text('クーポンを編集',
-                            style: camillBodyStyle(17, colors.textPrimary,
-                                weight: FontWeight.w700)),
+                        Text(
+                          'クーポンを編集',
+                          style: camillBodyStyle(
+                            17,
+                            colors.textPrimary,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
                         const Spacer(),
                         GestureDetector(
-                          onTap: () { Navigator.pop(ctx); _deleteCoupon(coupon); },
-                          child: Text('削除',
-                              style: camillBodyStyle(14, colors.danger)),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _deleteCoupon(coupon);
+                          },
+                          child: Text(
+                            '削除',
+                            style: camillBodyStyle(14, colors.danger),
+                          ),
                         ),
                       ],
                     ),
@@ -505,14 +599,26 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                             backgroundColor: colors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          onPressed: () { Navigator.pop(ctx); _markUsed(coupon); },
-                          icon: const Icon(Icons.check_circle_outline,
-                              color: Colors.white, size: 18),
-                          label: Text('使用済みにする',
-                              style: camillBodyStyle(15, Colors.white,
-                                  weight: FontWeight.bold)),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _markUsed(coupon);
+                          },
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: Text(
+                            '使用済みにする',
+                            style: camillBodyStyle(
+                              15,
+                              Colors.white,
+                              weight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -529,14 +635,26 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                             backgroundColor: const Color(0xFF43A047),
                             padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          onPressed: () { Navigator.pop(ctx); _markSurveyAnswered(coupon); },
-                          icon: const Icon(Icons.assignment_turned_in_outlined,
-                              color: Colors.white, size: 18),
-                          label: Text('アンケート回答済みにする',
-                              style: camillBodyStyle(15, Colors.white,
-                                  weight: FontWeight.bold)),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _markSurveyAnswered(coupon);
+                          },
+                          icon: const Icon(
+                            Icons.assignment_turned_in_outlined,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'アンケート回答済みにする',
+                            style: camillBodyStyle(
+                              15,
+                              Colors.white,
+                              weight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -548,32 +666,46 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                     child: coupon.isCommunityShared
                         ? Row(
                             children: [
-                              Icon(Icons.people, size: 14,
-                                  color: colors.textMuted),
+                              Icon(
+                                Icons.people,
+                                size: 14,
+                                color: colors.textMuted,
+                              ),
                               const SizedBox(width: 6),
-                              Text('コミュニティに公開済み',
-                                  style: camillBodyStyle(13, colors.textMuted)),
+                              Text(
+                                'コミュニティに公開済み',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
                             ],
                           )
                         : SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 side: BorderSide(color: colors.surfaceBorder),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               onPressed: () {
                                 Navigator.pop(ctx);
                                 _shareToCommunity(coupon);
                               },
-                              icon: Icon(Icons.people_outline,
-                                  size: 18, color: colors.textSecondary),
-                              label: Text('コミュニティに共有',
-                                  style: camillBodyStyle(
-                                      14, colors.textSecondary)),
+                              icon: Icon(
+                                Icons.people_outline,
+                                size: 18,
+                                color: colors.textSecondary,
+                              ),
+                              label: Text(
+                                'コミュニティに共有',
+                                style: camillBodyStyle(
+                                  14,
+                                  colors.textSecondary,
+                                ),
+                              ),
                             ),
                           ),
                   ),
@@ -584,7 +716,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('店名', style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '店名',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                         const SizedBox(height: 6),
                         TextField(
                           controller: nameCtrl,
@@ -594,18 +729,27 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                             fillColor: colors.surface,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: colors.surfaceBorder),
+                              borderSide: BorderSide(
+                                color: colors.surfaceBorder,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: colors.surfaceBorder),
+                              borderSide: BorderSide(
+                                color: colors.surfaceBorder,
+                              ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text('内容', style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '内容',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                         const SizedBox(height: 6),
                         TextField(
                           controller: descCtrl,
@@ -615,19 +759,27 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                             fillColor: colors.surface,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: colors.surfaceBorder),
+                              borderSide: BorderSide(
+                                color: colors.surfaceBorder,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: colors.surfaceBorder),
+                              borderSide: BorderSide(
+                                color: colors.surfaceBorder,
+                              ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text('割引額（円）',
-                            style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '割引額（円）',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                         const SizedBox(height: 6),
                         TextField(
                           controller: amountCtrl,
@@ -640,19 +792,27 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                             fillColor: colors.surface,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: colors.surfaceBorder),
+                              borderSide: BorderSide(
+                                color: colors.surfaceBorder,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: colors.surfaceBorder),
+                              borderSide: BorderSide(
+                                color: colors.surfaceBorder,
+                              ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text('使用可能曜日（未選択=毎日）',
-                            style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '使用可能曜日（未選択=毎日）',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                         const SizedBox(height: 8),
                         DayPicker(
                           selected: availableDays,
@@ -666,10 +826,12 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                             final picked = await showDatePicker(
                               context: ctx,
                               initialDate: validFrom ?? DateTime.now(),
-                              firstDate: DateTime.now()
-                                  .subtract(const Duration(days: 365)),
-                              lastDate:
-                                  DateTime.now().add(const Duration(days: 365)),
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 365),
+                              ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
                             );
                             if (picked != null) {
                               setSheet(() => validFrom = picked);
@@ -677,8 +839,11 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                           },
                           child: Row(
                             children: [
-                              Icon(Icons.calendar_today,
-                                  size: 16, color: colors.textMuted),
+                              Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: colors.textMuted,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 validFrom != null
@@ -694,11 +859,13 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                           onTap: () async {
                             final picked = await showDatePicker(
                               context: ctx,
-                              initialDate: validUntil ??
+                              initialDate:
+                                  validUntil ??
                                   DateTime.now().add(const Duration(days: 7)),
                               firstDate: DateTime.now(),
-                              lastDate:
-                                  DateTime.now().add(const Duration(days: 365)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
                             );
                             if (picked != null) {
                               setSheet(() => validUntil = picked);
@@ -706,8 +873,11 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                           },
                           child: Row(
                             children: [
-                              Icon(Icons.event_available,
-                                  size: 16, color: colors.textMuted),
+                              Icon(
+                                Icons.event_available,
+                                size: 16,
+                                color: colors.textMuted,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 validUntil != null
@@ -724,10 +894,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: colors.primary,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             onPressed: () async {
                               Navigator.pop(ctx);
@@ -750,9 +920,14 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                                 // silently swallow
                               }
                             },
-                            child: Text('保存',
-                                style: camillBodyStyle(16, colors.fabIcon,
-                                    weight: FontWeight.bold)),
+                            child: Text(
+                              '保存',
+                              style: camillBodyStyle(
+                                16,
+                                colors.fabIcon,
+                                weight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -773,8 +948,10 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('コミュニティに共有',
-            style: camillHeadingStyle(16, colors.textPrimary)),
+        title: Text(
+          'コミュニティに共有',
+          style: camillHeadingStyle(16, colors.textPrimary),
+        ),
         content: Text(
           'このクーポン情報をコミュニティに公開しますか？\n一度公開すると取り消せません。',
           style: camillBodyStyle(14, colors.textSecondary),
@@ -782,14 +959,21 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('キャンセル',
-                style: camillBodyStyle(14, colors.textSecondary)),
+            child: Text(
+              'キャンセル',
+              style: camillBodyStyle(14, colors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('公開する',
-                style: camillBodyStyle(14, colors.primary,
-                    weight: FontWeight.bold)),
+            child: Text(
+              '公開する',
+              style: camillBodyStyle(
+                14,
+                colors.primary,
+                weight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -804,4 +988,3 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
     }
   }
 }
-

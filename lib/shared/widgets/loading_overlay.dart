@@ -79,10 +79,7 @@ class _LoadingOverlayState extends State<LoadingOverlay>
             const SizedBox(height: 6),
             Text(
               widget.subtitle!,
-              style: TextStyle(
-                fontSize: 13,
-                color: colors.textMuted,
-              ),
+              style: TextStyle(fontSize: 13, color: colors.textMuted),
             ),
           ],
         ],

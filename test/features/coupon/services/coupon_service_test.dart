@@ -32,8 +32,9 @@ void main() {
 
   group('fetchCoupons', () {
     test('クーポンリストを返す', () async {
-      when(() => mockApi.getAny('/coupons', query: any(named: 'query')))
-          .thenAnswer((_) async => [couponJson]);
+      when(
+        () => mockApi.getAny('/coupons', query: any(named: 'query')),
+      ).thenAnswer((_) async => [couponJson]);
 
       final coupons = await service.fetchCoupons();
       expect(coupons.length, 1);
@@ -42,17 +43,21 @@ void main() {
     });
 
     test('is_used フィルター付きで getAny が呼ばれる', () async {
-      when(() => mockApi.getAny('/coupons', query: any(named: 'query')))
-          .thenAnswer((_) async => []);
+      when(
+        () => mockApi.getAny('/coupons', query: any(named: 'query')),
+      ).thenAnswer((_) async => []);
 
       await service.fetchCoupons(isUsed: true);
-      final captured = verify(() => mockApi.getAny('/coupons', query: captureAny(named: 'query'))).captured;
+      final captured = verify(
+        () => mockApi.getAny('/coupons', query: captureAny(named: 'query')),
+      ).captured;
       expect((captured.first as Map)['is_used'], 'true');
     });
 
     test('API が null を返すとき空リストを返す', () async {
-      when(() => mockApi.getAny('/coupons', query: any(named: 'query')))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockApi.getAny('/coupons', query: any(named: 'query')),
+      ).thenAnswer((_) async => null);
 
       final coupons = await service.fetchCoupons();
       expect(coupons, isEmpty);
@@ -61,8 +66,9 @@ void main() {
 
   group('createCoupon', () {
     test('新しい Coupon を返す', () async {
-      when(() => mockApi.postAny('/coupons', body: any(named: 'body')))
-          .thenAnswer((_) async => couponJson);
+      when(
+        () => mockApi.postAny('/coupons', body: any(named: 'body')),
+      ).thenAnswer((_) async => couponJson);
 
       final coupon = await service.createCoupon(
         storeName: 'イオン',
@@ -75,8 +81,9 @@ void main() {
 
   group('useCoupon', () {
     test('patch /coupons/c1/use が呼ばれる', () async {
-      when(() => mockApi.patch('/coupons/c1/use', body: any(named: 'body')))
-          .thenAnswer((_) async => <String, dynamic>{});
+      when(
+        () => mockApi.patch('/coupons/c1/use', body: any(named: 'body')),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await service.useCoupon('c1');
       verify(() => mockApi.patch('/coupons/c1/use', body: {})).called(1);
@@ -85,8 +92,7 @@ void main() {
 
   group('deleteCoupon', () {
     test('delete /coupons/c1 が呼ばれる', () async {
-      when(() => mockApi.delete('/coupons/c1'))
-          .thenAnswer((_) async {});
+      when(() => mockApi.delete('/coupons/c1')).thenAnswer((_) async {});
 
       await service.deleteCoupon('c1');
       verify(() => mockApi.delete('/coupons/c1')).called(1);
@@ -95,11 +101,17 @@ void main() {
 
   group('shareToCommunity', () {
     test('patch /coupons/c1/share-to-community が呼ばれる', () async {
-      when(() => mockApi.patch('/coupons/c1/share-to-community', body: any(named: 'body')))
-          .thenAnswer((_) async => <String, dynamic>{});
+      when(
+        () => mockApi.patch(
+          '/coupons/c1/share-to-community',
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await service.shareToCommunity('c1');
-      verify(() => mockApi.patch('/coupons/c1/share-to-community', body: {})).called(1);
+      verify(
+        () => mockApi.patch('/coupons/c1/share-to-community', body: {}),
+      ).called(1);
     });
   });
 }

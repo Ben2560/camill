@@ -51,15 +51,22 @@ class _NotificationInboxSheetState extends State<NotificationInboxSheet> {
             padding: const EdgeInsets.fromLTRB(20, 0, 8, 8),
             child: Row(
               children: [
-                Text('通知',
-                    style: camillBodyStyle(17, c.textPrimary,
-                        weight: FontWeight.w700)),
+                Text(
+                  '通知',
+                  style: camillBodyStyle(
+                    17,
+                    c.textPrimary,
+                    weight: FontWeight.w700,
+                  ),
+                ),
                 const Spacer(),
                 if (_items.isNotEmpty)
                   TextButton(
                     onPressed: _clearAll,
-                    child: Text('全て削除',
-                        style: camillBodyStyle(13, c.textMuted)),
+                    child: Text(
+                      '全て削除',
+                      style: camillBodyStyle(13, c.textMuted),
+                    ),
                   ),
               ],
             ),
@@ -71,11 +78,16 @@ class _NotificationInboxSheetState extends State<NotificationInboxSheet> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.notifications_off_outlined,
-                            size: 48, color: c.textMuted.withAlpha(120)),
+                        Icon(
+                          Icons.notifications_off_outlined,
+                          size: 48,
+                          color: c.textMuted.withAlpha(120),
+                        ),
                         const SizedBox(height: 12),
-                        Text('通知はありません',
-                            style: camillBodyStyle(14, c.textMuted)),
+                        Text(
+                          '通知はありません',
+                          style: camillBodyStyle(14, c.textMuted),
+                        ),
                       ],
                     ),
                   )
@@ -88,7 +100,9 @@ class _NotificationInboxSheetState extends State<NotificationInboxSheet> {
                       final item = _items[i];
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 6),
+                          horizontal: 20,
+                          vertical: 6,
+                        ),
                         leading: Container(
                           width: 36,
                           height: 36,
@@ -96,22 +110,32 @@ class _NotificationInboxSheetState extends State<NotificationInboxSheet> {
                             color: c.primaryLight.withAlpha(80),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.notifications_outlined,
-                              size: 18, color: c.primary),
+                          child: Icon(
+                            Icons.notifications_outlined,
+                            size: 18,
+                            color: c.primary,
+                          ),
                         ),
-                        title: Text(item.title,
-                            style: camillBodyStyle(14, c.textPrimary,
-                                weight: FontWeight.w600)),
+                        title: Text(
+                          item.title,
+                          style: camillBodyStyle(
+                            14,
+                            c.textPrimary,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (item.body.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
-                                child: Text(item.body,
-                                    style: camillBodyStyle(12, c.textSecondary),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  item.body,
+                                  style: camillBodyStyle(12, c.textSecondary),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             Padding(
                               padding: const EdgeInsets.only(top: 4),

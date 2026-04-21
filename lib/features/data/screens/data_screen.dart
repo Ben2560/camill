@@ -147,4 +147,3 @@ class _BalanceChartScreenState extends State<BalanceChartScreen>
     );
   }
 }
-

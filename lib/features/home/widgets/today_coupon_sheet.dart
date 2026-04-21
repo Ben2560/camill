@@ -43,15 +43,24 @@ class TodayCouponSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                const Icon(Icons.local_offer_rounded, color: Color(0xFFD4A017), size: 20),
+                const Icon(
+                  Icons.local_offer_rounded,
+                  color: Color(0xFFD4A017),
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
-                Text('今日使えるクーポン', style: camillHeadingStyle(16, colors.textPrimary)),
+                Text(
+                  '今日使えるクーポン',
+                  style: camillHeadingStyle(16, colors.textPrimary),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 16),
           ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
             child: ListView.separated(
               shrinkWrap: true,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -59,7 +68,11 @@ class TodayCouponSheet extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (_, i) {
                 final c = coupons[i];
-                return _CouponRow(coupon: c, colors: colors, onUsed: () => onUsed(c));
+                return _CouponRow(
+                  coupon: c,
+                  colors: colors,
+                  onUsed: () => onUsed(c),
+                );
               },
             ),
           ),
@@ -72,10 +85,15 @@ class TodayCouponSheet extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   side: BorderSide(color: colors.surfaceBorder),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: onViewAll,
-                child: Text('クーポン財布をすべて見る', style: camillBodyStyle(14, colors.textSecondary)),
+                child: Text(
+                  'クーポン財布をすべて見る',
+                  style: camillBodyStyle(14, colors.textSecondary),
+                ),
               ),
             ),
           ),
@@ -90,7 +108,11 @@ class _CouponRow extends StatelessWidget {
   final CamillColors colors;
   final VoidCallback onUsed;
 
-  const _CouponRow({required this.coupon, required this.colors, required this.onUsed});
+  const _CouponRow({
+    required this.coupon,
+    required this.colors,
+    required this.onUsed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +153,10 @@ class _FreeCouponCard extends StatelessWidget {
             child: Container(
               width: 80,
               height: 80,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withAlpha(20)),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withAlpha(20),
+              ),
             ),
           ),
           Padding(
@@ -141,45 +166,87 @@ class _FreeCouponCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded, size: 14, color: Colors.white),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 4),
-                    Text(coupon.storeName, style: camillBodyStyle(13, Colors.white70)),
+                    Text(
+                      coupon.storeName,
+                      style: camillBodyStyle(13, Colors.white70),
+                    ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withAlpha(40),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('無料クーポン',
-                          style: camillBodyStyle(10, Colors.white, weight: FontWeight.bold)),
+                      child: Text(
+                        '無料クーポン',
+                        style: camillBodyStyle(
+                          10,
+                          Colors.white,
+                          weight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(coupon.description,
-                    style: camillBodyStyle(16, Colors.white, weight: FontWeight.bold)),
+                Text(
+                  coupon.description,
+                  style: camillBodyStyle(
+                    16,
+                    Colors.white,
+                    weight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.card_giftcard, size: 24, color: Colors.white),
+                    const Icon(
+                      Icons.card_giftcard,
+                      size: 24,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 6),
-                    const Text('無料',
-                        style: TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)),
+                    const Text(
+                      '無料',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
                     const Spacer(),
                     GestureDetector(
                       onTap: onUsed,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withAlpha(50),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white.withAlpha(120)),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(120),
+                          ),
                         ),
-                        child: const Text('使用済みにする',
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        child: const Text(
+                          '使用済みにする',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -188,10 +255,16 @@ class _FreeCouponCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 12, color: Colors.white70),
+                      const Icon(
+                        Icons.schedule,
+                        size: 12,
+                        color: Colors.white70,
+                      ),
                       const SizedBox(width: 3),
                       Text(
-                        coupon.daysUntilExpiry == 0 ? '本日まで！' : '残り${coupon.daysUntilExpiry}日',
+                        coupon.daysUntilExpiry == 0
+                            ? '本日まで！'
+                            : '残り${coupon.daysUntilExpiry}日',
                         style: camillBodyStyle(11, Colors.white70),
                       ),
                     ],
@@ -210,7 +283,11 @@ class _DiscountCouponCard extends StatelessWidget {
   final Coupon coupon;
   final CamillColors colors;
   final VoidCallback onUsed;
-  const _DiscountCouponCard({required this.coupon, required this.colors, required this.onUsed});
+  const _DiscountCouponCard({
+    required this.coupon,
+    required this.colors,
+    required this.onUsed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -226,17 +303,33 @@ class _DiscountCouponCard extends StatelessWidget {
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(color: colors.primaryLight, borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.local_offer_outlined, color: colors.primary, size: 20),
+            decoration: BoxDecoration(
+              color: colors.primaryLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.local_offer_outlined,
+              color: colors.primary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(coupon.storeName, style: camillBodyStyle(11, colors.textMuted)),
-                Text(coupon.description,
-                    style: camillBodyStyle(14, colors.textPrimary, weight: FontWeight.bold)),
+                Text(
+                  coupon.storeName,
+                  style: camillBodyStyle(11, colors.textMuted),
+                ),
+                Text(
+                  coupon.description,
+                  style: camillBodyStyle(
+                    14,
+                    colors.textPrimary,
+                    weight: FontWeight.bold,
+                  ),
+                ),
                 if (coupon.validFrom != null && coupon.validUntil != null)
                   Text(
                     '${coupon.validFrom!.month}/${coupon.validFrom!.day}〜${coupon.validUntil!.month}/${coupon.validUntil!.day}',
@@ -244,7 +337,9 @@ class _DiscountCouponCard extends StatelessWidget {
                   )
                 else if (coupon.validUntil != null)
                   Text(
-                    coupon.daysUntilExpiry == 0 ? '本日まで！' : '残り${coupon.daysUntilExpiry}日',
+                    coupon.daysUntilExpiry == 0
+                        ? '本日まで！'
+                        : '残り${coupon.daysUntilExpiry}日',
                     style: camillBodyStyle(11, colors.textMuted),
                   ),
               ],
@@ -254,16 +349,34 @@ class _DiscountCouponCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${coupon.discountAmount}円引き',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: colors.primary)),
+              Text(
+                '${coupon.discountAmount}円引き',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: colors.primary,
+                ),
+              ),
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: onUsed,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(color: colors.primary, borderRadius: BorderRadius.circular(8)),
-                  child: Text('使用済みにする',
-                      style: camillBodyStyle(12, Colors.white, weight: FontWeight.bold)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '使用済みにする',
+                    style: camillBodyStyle(
+                      12,
+                      Colors.white,
+                      weight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],

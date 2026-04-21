@@ -110,8 +110,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
     if (!silent) setState(() => _loading = true);
     try {
       final now = DateTime.now();
-      final yearMonth =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final yearMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
       final data = await _api.get(
         '/receipts',
         query: {'year_month': yearMonth},
@@ -145,15 +144,14 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
 
     // 検索
     if (_searchQuery.isNotEmpty) {
-      list = list
-          .where((r) =>
-              r.storeName.contains(_searchQuery))
-          .toList();
+      list = list.where((r) => r.storeName.contains(_searchQuery)).toList();
     }
 
     // カテゴリフィルタ
     if (_selectedCategories.isNotEmpty) {
-      list = list.where((r) => _selectedCategories.contains(r.category)).toList();
+      list = list
+          .where((r) => _selectedCategories.contains(r.category))
+          .toList();
     }
 
     // 金額フィルタ
@@ -195,8 +193,7 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
     return entries;
   }
 
-  bool get _hasFilter =>
-      _selectedCategories.isNotEmpty || _amountRange != null;
+  bool get _hasFilter => _selectedCategories.isNotEmpty || _amountRange != null;
 
   Set<String> get _bottomThreeIds {
     final all = _grouped.expand((e) => e.value).toList();
@@ -274,11 +271,13 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
         content: const Text('このレシートを削除しますか？この操作は元に戻せません。'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('キャンセル')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('削除', style: TextStyle(color: Colors.red))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('削除', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -351,7 +350,10 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
                   ),
                   onChanged: (v) => setState(() => _searchQuery = v),
                 )
-              : Text('レシート一覧', style: camillHeadingStyle(17, colors.textPrimary)),
+              : Text(
+                  'レシート一覧',
+                  style: camillHeadingStyle(17, colors.textPrimary),
+                ),
           iconTheme: IconThemeData(color: colors.textSecondary),
           actions: [
             IconButton(
@@ -371,148 +373,160 @@ class _ReceiptListScreenState extends State<ReceiptListScreen>
         body: LoadingOverlay(
           isLoading: _loading,
           child: Stack(
-                children: [
-                  Listener(
-                    onPointerMove: (e) {
-                      if (_isDismissing) return;
-                      if (_scrollController.hasClients &&
-                          _scrollController.position.pixels <= 0 &&
-                          e.delta.dy > 0) {
-                        _pullDistance += e.delta.dy;
-                        _dismissOffset.value = _pullDistance;
-                      } else if (e.delta.dy < 0 && _pullDistance > 0) {
-                        _pullDistance = 0;
-                        _dismissOffset.value = 0;
-                      }
-                    },
-                    onPointerUp: (_) {
-                      if (_isDismissing) return;
-                      endDismiss();
-                      _pullDistance = 0;
-                    },
-                    onPointerCancel: (_) {
-                      if (_isDismissing) return;
-                      _pullDistance = 0;
-                      _dismissOffset.value = 0;
-                    },
-                    child: CustomScrollView(
-                      controller: _scrollController,
-                      physics: const DismissScrollPhysicsWithTopBounce(),
-                      slivers: [
-                        // フィルタバー
-                        SliverToBoxAdapter(
-                          child: _FilterBar(
-                            colors: colors,
-                            selectedCategories: _selectedCategories,
-                            amountRange: _amountRange,
-                            hasFilter: _hasFilter,
-                            onCategoryToggle: (cat) {
-                              setState(() {
-                                if (_selectedCategories.contains(cat)) {
-                                  _selectedCategories.remove(cat);
-                                } else {
-                                  _selectedCategories.add(cat);
-                                }
-                              });
-                            },
-                            onAmountRangeChanged: (v) =>
-                                setState(() => _amountRange = v),
-                            onClearFilter: _clearFilter,
-                          ),
-                        ),
-                        // フィルタ適用中バッジ
-                        if (_hasFilter)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: colors.primary.withAlpha(20),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('フィルタ適用中',
-                                            style: camillBodyStyle(
-                                                12, colors.primary)),
-                                        const SizedBox(width: 4),
-                                        GestureDetector(
-                                          onTap: _clearFilter,
-                                          child: Icon(Icons.close,
-                                              size: 14, color: colors.primary),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        // レシートリスト（カテゴリ別グループ）
-                        if (_grouped.isEmpty)
-                          SliverFillRemaining(
-                            child: Center(
-                              child: _errorMessage != null
-                                  ? Text('エラー: $_errorMessage',
-                                      style: camillBodyStyle(13, colors.danger),
-                                      textAlign: TextAlign.center)
-                                  : Text('レシートがありません',
-                                      style: camillBodyStyle(14, colors.textMuted)),
-                            ),
-                          )
-                        else
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final entry = _grouped[index];
-                                return _CategoryGroup(
-                                  category: entry.key,
-                                  receipts: entry.value,
-                                  colors: colors,
-                                  currencyFmt: _currencyFmt,
-                                  expandedIds: _expandedIds,
-                                  loadedItems: _loadedItems,
-                                  loadingItems: _loadingItems,
-                                  cardKeys: _cardKeys,
-                                  onToggleExpand: _toggleExpand,
-                                  onDelete: _deleteReceipt,
-                                  onEdit: _editReceipt,
-                                );
-                              },
-                              childCount: _grouped.length,
-                            ),
-                          ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                      ],
+            children: [
+              Listener(
+                onPointerMove: (e) {
+                  if (_isDismissing) return;
+                  if (_scrollController.hasClients &&
+                      _scrollController.position.pixels <= 0 &&
+                      e.delta.dy > 0) {
+                    _pullDistance += e.delta.dy;
+                    _dismissOffset.value = _pullDistance;
+                  } else if (e.delta.dy < 0 && _pullDistance > 0) {
+                    _pullDistance = 0;
+                    _dismissOffset.value = 0;
+                  }
+                },
+                onPointerUp: (_) {
+                  if (_isDismissing) return;
+                  endDismiss();
+                  _pullDistance = 0;
+                },
+                onPointerCancel: (_) {
+                  if (_isDismissing) return;
+                  _pullDistance = 0;
+                  _dismissOffset.value = 0;
+                },
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const DismissScrollPhysicsWithTopBounce(),
+                  slivers: [
+                    // フィルタバー
+                    SliverToBoxAdapter(
+                      child: _FilterBar(
+                        colors: colors,
+                        selectedCategories: _selectedCategories,
+                        amountRange: _amountRange,
+                        hasFilter: _hasFilter,
+                        onCategoryToggle: (cat) {
+                          setState(() {
+                            if (_selectedCategories.contains(cat)) {
+                              _selectedCategories.remove(cat);
+                            } else {
+                              _selectedCategories.add(cat);
+                            }
+                          });
+                        },
+                        onAmountRangeChanged: (v) =>
+                            setState(() => _amountRange = v),
+                        onClearFilter: _clearFilter,
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    top: 0, left: 0, right: 0,
-                    child: IgnorePointer(
-                      child: Container(
-                        height: 32,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.background,
-                              colors.background.withAlpha(0),
+                    // フィルタ適用中バッジ
+                    if (_hasFilter)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.primary.withAlpha(20),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'フィルタ適用中',
+                                      style: camillBodyStyle(
+                                        12,
+                                        colors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    GestureDetector(
+                                      onTap: _clearFilter,
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 14,
+                                        color: colors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
+                    // レシートリスト（カテゴリ別グループ）
+                    if (_grouped.isEmpty)
+                      SliverFillRemaining(
+                        child: Center(
+                          child: _errorMessage != null
+                              ? Text(
+                                  'エラー: $_errorMessage',
+                                  style: camillBodyStyle(13, colors.danger),
+                                  textAlign: TextAlign.center,
+                                )
+                              : Text(
+                                  'レシートがありません',
+                                  style: camillBodyStyle(14, colors.textMuted),
+                                ),
+                        ),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final entry = _grouped[index];
+                          return _CategoryGroup(
+                            category: entry.key,
+                            receipts: entry.value,
+                            colors: colors,
+                            currencyFmt: _currencyFmt,
+                            expandedIds: _expandedIds,
+                            loadedItems: _loadedItems,
+                            loadingItems: _loadingItems,
+                            cardKeys: _cardKeys,
+                            onToggleExpand: _toggleExpand,
+                            onDelete: _deleteReceipt,
+                            onEdit: _editReceipt,
+                          );
+                        }, childCount: _grouped.length),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          colors.background,
+                          colors.background.withAlpha(0),
+                        ],
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-          ),        // LoadingOverlay
-        ),
+            ],
+          ),
+        ), // LoadingOverlay
+      ),
     );
   }
 }
@@ -550,10 +564,13 @@ class _FilterBar extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(right: 6),
               child: FilterChip(
-                label: Text(e.value,
-                    style: camillBodyStyle(
-                        12,
-                        selected ? colors.fabIcon : colors.textPrimary)),
+                label: Text(
+                  e.value,
+                  style: camillBodyStyle(
+                    12,
+                    selected ? colors.fabIcon : colors.textPrimary,
+                  ),
+                ),
                 selected: selected,
                 backgroundColor: colors.surface,
                 selectedColor: colors.primary,
@@ -616,7 +633,8 @@ class _DropdownChip extends StatelessWidget {
                 Center(
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 36, height: 4,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: colors.surfaceBorder,
                       borderRadius: BorderRadius.circular(2),
@@ -624,26 +642,54 @@ class _DropdownChip extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                  child: Text(label, style: camillBodyStyle(17, colors.textPrimary, weight: FontWeight.w700)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    label,
+                    style: camillBodyStyle(
+                      17,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ListTile(
-                  title: Text('すべて', style: camillBodyStyle(15, colors.textPrimary)),
+                  title: Text(
+                    'すべて',
+                    style: camillBodyStyle(15, colors.textPrimary),
+                  ),
                   leading: Icon(
-                    value == null ? Icons.check_circle : Icons.radio_button_unchecked,
+                    value == null
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
                     color: value == null ? colors.primary : colors.textMuted,
                   ),
-                  onTap: () { Navigator.pop(ctx); onChanged(null); },
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    onChanged(null);
+                  },
                 ),
-                ...items.entries.map((e) => ListTile(
-                  title: Text(e.value, style: camillBodyStyle(15, colors.textPrimary)),
-                  leading: Icon(
-                    value == e.key ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: value == e.key ? colors.primary : colors.textMuted,
+                ...items.entries.map(
+                  (e) => ListTile(
+                    title: Text(
+                      e.value,
+                      style: camillBodyStyle(15, colors.textPrimary),
+                    ),
+                    leading: Icon(
+                      value == e.key
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: value == e.key ? colors.primary : colors.textMuted,
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onChanged(e.key);
+                    },
                   ),
-                  onTap: () { Navigator.pop(ctx); onChanged(e.key); },
-                )),
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -663,12 +709,16 @@ class _DropdownChip extends StatelessWidget {
             Text(
               selected ? (items[value!] ?? label) : label,
               style: camillBodyStyle(
-                  12, selected ? colors.fabIcon : colors.textPrimary),
+                12,
+                selected ? colors.fabIcon : colors.textPrimary,
+              ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down,
-                size: 16,
-                color: selected ? colors.fabIcon : colors.textMuted),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: selected ? colors.fabIcon : colors.textMuted,
+            ),
           ],
         ),
       ),
@@ -706,8 +756,7 @@ class _CategoryGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label =
-        AppConstants.categoryLabels[category] ?? category;
+    final label = AppConstants.categoryLabels[category] ?? category;
     final total = receipts.fold(0, (s, r) => s + r.totalAmount);
 
     return Column(
@@ -718,32 +767,40 @@ class _CategoryGroup extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
-              Text(label,
-                  style: camillBodyStyle(13, colors.textMuted,
-                      weight: FontWeight.w600)),
+              Text(
+                label,
+                style: camillBodyStyle(
+                  13,
+                  colors.textMuted,
+                  weight: FontWeight.w600,
+                ),
+              ),
               const Spacer(),
-              Text(currencyFmt.format(total),
-                  style: camillAmountStyle(13, colors.textMuted)),
+              Text(
+                currencyFmt.format(total),
+                style: camillAmountStyle(13, colors.textMuted),
+              ),
             ],
           ),
         ),
         // レシートカード一覧
-        ...receipts.map((r) => Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: _ReceiptCard(
-                key: cardKeys[r.receiptId],
-                receipt: r,
-                colors: colors,
-                currencyFmt: currencyFmt,
-                isExpanded: expandedIds.contains(r.receiptId),
-                isLoadingItems: loadingItems.contains(r.receiptId),
-                loadedItems: loadedItems[r.receiptId],
-                onTap: () => onToggleExpand(r.receiptId),
-                onDelete: () => onDelete(r),
-                onEdit: () => onEdit(r),
-              ),
-            )),
+        ...receipts.map(
+          (r) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: _ReceiptCard(
+              key: cardKeys[r.receiptId],
+              receipt: r,
+              colors: colors,
+              currencyFmt: currencyFmt,
+              isExpanded: expandedIds.contains(r.receiptId),
+              isLoadingItems: loadingItems.contains(r.receiptId),
+              loadedItems: loadedItems[r.receiptId],
+              onTap: () => onToggleExpand(r.receiptId),
+              onDelete: () => onDelete(r),
+              onEdit: () => onEdit(r),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -821,7 +878,9 @@ class _ReceiptCardState extends State<_ReceiptCard>
     final dt = DateTime.tryParse(widget.receipt.purchasedAt)?.toLocal();
     final hasTime = dt != null && (dt.hour != 0 || dt.minute != 0);
     final dateStr = dt != null
-        ? (hasTime ? DateFormat('M月d日 HH:mm').format(dt) : DateFormat('M月d日').format(dt))
+        ? (hasTime
+              ? DateFormat('M月d日 HH:mm').format(dt)
+              : DateFormat('M月d日').format(dt))
         : widget.receipt.purchasedAt;
 
     final colors = widget.colors;
@@ -841,13 +900,22 @@ class _ReceiptCardState extends State<_ReceiptCard>
             children: [
               ListTile(
                 leading: Icon(Icons.edit_outlined, color: colors.primary),
-                title: Text('編集', style: camillBodyStyle(15, colors.textPrimary)),
-                onTap: () { Navigator.pop(ctx); widget.onEdit(); },
+                title: Text(
+                  '編集',
+                  style: camillBodyStyle(15, colors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onEdit();
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
                 title: const Text('削除', style: TextStyle(color: Colors.red)),
-                onTap: () { Navigator.pop(ctx); widget.onDelete(); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onDelete();
+                },
               ),
             ],
           ),
@@ -879,25 +947,36 @@ class _ReceiptCardState extends State<_ReceiptCard>
                       color: colors.primaryLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.receipt_outlined,
-                        color: colors.primary, size: 18),
+                    child: Icon(
+                      Icons.receipt_outlined,
+                      color: colors.primary,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(receipt.storeName,
-                            style: camillBodyStyle(
-                                14, colors.textPrimary,
-                                weight: FontWeight.w500)),
-                        Text(dateStr,
-                            style: camillBodyStyle(12, colors.textMuted)),
+                        Text(
+                          receipt.storeName,
+                          style: camillBodyStyle(
+                            14,
+                            colors.textPrimary,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          dateStr,
+                          style: camillBodyStyle(12, colors.textMuted),
+                        ),
                       ],
                     ),
                   ),
-                  Text(currencyFmt.format(receipt.totalAmount),
-                      style: camillAmountStyle(14, colors.textPrimary)),
+                  Text(
+                    currencyFmt.format(receipt.totalAmount),
+                    style: camillAmountStyle(14, colors.textPrimary),
+                  ),
                   const SizedBox(width: 4),
                   Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
@@ -919,48 +998,83 @@ class _ReceiptCardState extends State<_ReceiptCard>
                     if (isLoadingItems)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary))),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.primary,
+                            ),
+                          ),
+                        ),
                       ),
                     if (!isLoadingItems)
-                      ...?loadedItems?.map((item) => Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 46),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(item.itemName,
-                                          style: camillBodyStyle(13, colors.textPrimary)),
-                                      Builder(builder: (context) {
+                      ...?loadedItems?.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 46),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.itemName,
+                                      style: camillBodyStyle(
+                                        13,
+                                        colors.textPrimary,
+                                      ),
+                                    ),
+                                    Builder(
+                                      builder: (context) {
                                         final catColor =
-                                            AppConstants.categoryColors[item.category] ??
-                                                colors.textMuted;
+                                            AppConstants.categoryColors[item
+                                                .category] ??
+                                            colors.textMuted;
                                         return Container(
                                           margin: const EdgeInsets.only(top: 2),
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 1,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: catColor.withAlpha(30),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: catColor, width: 0.5),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: catColor,
+                                              width: 0.5,
+                                            ),
                                           ),
                                           child: Text(
-                                            AppConstants.categoryLabels[item.category] ?? item.category,
-                                            style: camillBodyStyle(10, catColor),
+                                            AppConstants.categoryLabels[item
+                                                    .category] ??
+                                                item.category,
+                                            style: camillBodyStyle(
+                                              10,
+                                              catColor,
+                                            ),
                                           ),
                                         );
-                                      }),
-                                    ],
-                                  ),
+                                      },
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  '${item.quantity > 1 ? '×${item.quantity}  ' : ''}${currencyFmt.format(item.amount)}',
-                                  style: camillBodyStyle(13, colors.textSecondary),
+                              ),
+                              Text(
+                                '${item.quantity > 1 ? '×${item.quantity}  ' : ''}${currencyFmt.format(item.amount)}',
+                                style: camillBodyStyle(
+                                  13,
+                                  colors.textSecondary,
                                 ),
-                              ],
-                            ),
-                          )),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

@@ -62,7 +62,8 @@ class SunTimes {
 
     // 太陽の方程式
     final mRad = _toRad(m);
-    final c = sin(mRad) * (1.9146 - t * (0.004817 + 0.000014 * t)) +
+    final c =
+        sin(mRad) * (1.9146 - t * (0.004817 + 0.000014 * t)) +
         sin(2 * mRad) * (0.019993 - 0.000101 * t) +
         sin(3 * mRad) * 0.00029;
 
@@ -74,10 +75,10 @@ class SunTimes {
     final lambda = sunLon - 0.00569 - 0.00478 * sin(_toRad(omega));
 
     // 黄道傾斜角
-    final eps0 = 23.0 +
+    final eps0 =
+        23.0 +
         (26.0 +
-                (21.448 -
-                        t * (46.8150 + t * (0.00059 - t * 0.001813))) /
+                (21.448 - t * (46.8150 + t * (0.00059 - t * 0.001813))) /
                     60.0) /
             60.0;
     final eps = eps0 + 0.00256 * cos(_toRad(omega));
@@ -88,17 +89,20 @@ class SunTimes {
     // 均時差 (minutes)
     final y2 = pow(tan(_toRad(eps / 2)), 2).toDouble();
     final l0Rad = _toRad(l0);
-    final eot = 4 *
-        _toDeg(y2 * sin(2 * l0Rad) -
-            2 * e * sin(mRad) +
-            4 * e * y2 * sin(mRad) * cos(2 * l0Rad) -
-            0.5 * y2 * y2 * sin(4 * l0Rad) -
-            1.25 * e * e * sin(2 * mRad));
+    final eot =
+        4 *
+        _toDeg(
+          y2 * sin(2 * l0Rad) -
+              2 * e * sin(mRad) +
+              4 * e * y2 * sin(mRad) * cos(2 * l0Rad) -
+              0.5 * y2 * y2 * sin(4 * l0Rad) -
+              1.25 * e * e * sin(2 * mRad),
+        );
 
     // 太陽の時角 (degrees)
     const zenith = 90.833; // 大気屈折補正込みの地平線
-    final cosHA = (cos(_toRad(zenith)) /
-            (cos(_toRad(lat)) * cos(decl)) -
+    final cosHA =
+        (cos(_toRad(zenith)) / (cos(_toRad(lat)) * cos(decl)) -
         tan(_toRad(lat)) * tan(decl));
 
     // 白夜 / 極夜 判定
@@ -108,12 +112,14 @@ class SunTimes {
 
     // 正午の真太陽時 → UTC (minutes)
     final solarNoonUtc = 720 - 4 * lng - eot;
-    final eventUtcMin =
-        sunrise ? solarNoonUtc - ha * 4 : solarNoonUtc + ha * 4;
+    final eventUtcMin = sunrise ? solarNoonUtc - ha * 4 : solarNoonUtc + ha * 4;
 
     // UTC → local
     final base = DateTime.utc(
-        _dateFromJd(jd).year, _dateFromJd(jd).month, _dateFromJd(jd).day);
+      _dateFromJd(jd).year,
+      _dateFromJd(jd).month,
+      _dateFromJd(jd).day,
+    );
     final utcEvent = base.add(Duration(seconds: (eventUtcMin * 60).round()));
     return utcEvent.toLocal();
   }

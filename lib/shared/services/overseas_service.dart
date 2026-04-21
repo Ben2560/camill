@@ -12,20 +12,53 @@ const _keyLastCountry = 'last_country_code';
 
 /// 対応通貨コードの国コード→通貨コードマッピング
 const Map<String, String> _countryCurrencyMap = {
-  'US': 'USD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR', 'IT': 'EUR',
-  'ES': 'EUR', 'NL': 'EUR', 'PT': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
-  'FI': 'EUR', 'IE': 'EUR', 'GR': 'EUR', 'CN': 'CNY', 'TH': 'THB',
-  'KR': 'KRW', 'TW': 'TWD', 'SG': 'SGD', 'AU': 'AUD', 'HK': 'HKD',
-  'PH': 'PHP', 'VN': 'VND', 'ID': 'IDR', 'MY': 'MYR', 'IN': 'INR',
+  'US': 'USD',
+  'GB': 'GBP',
+  'DE': 'EUR',
+  'FR': 'EUR',
+  'IT': 'EUR',
+  'ES': 'EUR',
+  'NL': 'EUR',
+  'PT': 'EUR',
+  'AT': 'EUR',
+  'BE': 'EUR',
+  'FI': 'EUR',
+  'IE': 'EUR',
+  'GR': 'EUR',
+  'CN': 'CNY',
+  'TH': 'THB',
+  'KR': 'KRW',
+  'TW': 'TWD',
+  'SG': 'SGD',
+  'AU': 'AUD',
+  'HK': 'HKD',
+  'PH': 'PHP',
+  'VN': 'VND',
+  'ID': 'IDR',
+  'MY': 'MYR',
+  'IN': 'INR',
 };
 
 /// 国コードの日本語名（通知文言用）
 const Map<String, String> _countryNames = {
-  'US': 'アメリカ', 'GB': 'イギリス', 'DE': 'ドイツ', 'FR': 'フランス',
-  'IT': 'イタリア', 'ES': 'スペイン', 'CN': '中国', 'TH': 'タイ',
-  'KR': '韓国', 'TW': '台湾', 'SG': 'シンガポール', 'AU': 'オーストラリア',
-  'HK': '香港', 'PH': 'フィリピン', 'VN': 'ベトナム', 'ID': 'インドネシア',
-  'MY': 'マレーシア', 'IN': 'インド',
+  'US': 'アメリカ',
+  'GB': 'イギリス',
+  'DE': 'ドイツ',
+  'FR': 'フランス',
+  'IT': 'イタリア',
+  'ES': 'スペイン',
+  'CN': '中国',
+  'TH': 'タイ',
+  'KR': '韓国',
+  'TW': '台湾',
+  'SG': 'シンガポール',
+  'AU': 'オーストラリア',
+  'HK': '香港',
+  'PH': 'フィリピン',
+  'VN': 'ベトナム',
+  'ID': 'インドネシア',
+  'MY': 'マレーシア',
+  'IN': 'インド',
 };
 
 class OverseasDetectionResult {
@@ -57,7 +90,11 @@ class OverseasService {
     return (await UserPrefs.getString(p, _keyCurrency)) ?? 'JPY';
   }
 
-  Future<void> _saveLocally(bool isOverseas, String currency, String countryCode) async {
+  Future<void> _saveLocally(
+    bool isOverseas,
+    String currency,
+    String countryCode,
+  ) async {
     final p = await SharedPreferences.getInstance();
     await UserPrefs.setBool(p, _keyIsOverseas, isOverseas);
     await UserPrefs.setString(p, _keyCurrency, currency);
@@ -70,7 +107,10 @@ class OverseasService {
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json',
       );
-      final res = await http.get(url, headers: {'User-Agent': 'camill-app/1.0'});
+      final res = await http.get(
+        url,
+        headers: {'User-Agent': 'camill-app/1.0'},
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final address = data['address'] as Map<String, dynamic>?;
@@ -101,7 +141,10 @@ class OverseasService {
       return null;
     }
 
-    final countryCode = await _getCountryCode(position.latitude, position.longitude);
+    final countryCode = await _getCountryCode(
+      position.latitude,
+      position.longitude,
+    );
     if (countryCode == null) return null;
 
     final p = await SharedPreferences.getInstance();
@@ -131,10 +174,10 @@ class OverseasService {
   }) async {
     await _saveLocally(isOverseas, currency, countryCode);
     try {
-      await _api.patch('/exchange-rates/overseas', body: {
-        'is_overseas': isOverseas,
-        'current_currency': currency,
-      });
+      await _api.patch(
+        '/exchange-rates/overseas',
+        body: {'is_overseas': isOverseas, 'current_currency': currency},
+      );
     } catch (_) {
       // オフラインでも継続（ローカルには保存済み）
     }
@@ -155,7 +198,9 @@ class OverseasService {
   /// 指定通貨の直近3日履歴を取得する（認証不要）
   Future<List<Map<String, dynamic>>> fetchRateHistory(String currency) async {
     try {
-      final uri = Uri.parse('${AppConstants.apiBaseUrl}/exchange-rates/history?currency=$currency');
+      final uri = Uri.parse(
+        '${AppConstants.apiBaseUrl}/exchange-rates/history?currency=$currency',
+      );
       final res = await http.get(uri);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;

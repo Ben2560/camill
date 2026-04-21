@@ -38,9 +38,12 @@ sealed class FixedExpenseSetting with _$FixedExpenseSetting {
 
   String? get holidayRuleLabel {
     switch (holidayRule) {
-      case 'before': return '前営業日';
-      case 'after':  return '翌営業日';
-      default:       return null;
+      case 'before':
+        return '前営業日';
+      case 'after':
+        return '翌営業日';
+      default:
+        return null;
     }
   }
 }
@@ -62,7 +65,10 @@ sealed class FixedPayment with _$FixedPayment {
 
   /// APIレスポンス（category・yearMonth は外部から注入）用ファクトリ
   static FixedPayment fromEntry(
-      String category, String yearMonth, Map<String, dynamic> json) {
+    String category,
+    String yearMonth,
+    Map<String, dynamic> json,
+  ) {
     return FixedPayment(
       category: category,
       yearMonth: yearMonth,
@@ -74,9 +80,12 @@ sealed class FixedPayment with _$FixedPayment {
 
   String get confirmedByLabel {
     switch (confirmedBy) {
-      case 'auto': return '自動確認';
-      case 'ocr':  return '明細確認';
-      default:     return '手動確認';
+      case 'auto':
+        return '自動確認';
+      case 'ocr':
+        return '明細確認';
+      default:
+        return '手動確認';
     }
   }
 }

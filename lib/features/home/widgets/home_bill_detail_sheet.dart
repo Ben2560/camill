@@ -47,7 +47,10 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: colors.surface,
-          title: Text('メモを編集', style: camillHeadingStyle(16, colors.textPrimary)),
+          title: Text(
+            'メモを編集',
+            style: camillHeadingStyle(16, colors.textPrimary),
+          ),
           content: TextField(
             controller: ctrl,
             autofocus: true,
@@ -61,12 +64,21 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('キャンセル', style: camillBodyStyle(14, colors.textMuted)),
+              child: Text(
+                'キャンセル',
+                style: camillBodyStyle(14, colors.textMuted),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: Text('保存',
-                  style: camillBodyStyle(14, colors.primary, weight: FontWeight.w700)),
+              child: Text(
+                '保存',
+                style: camillBodyStyle(
+                  14,
+                  colors.primary,
+                  weight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         );
@@ -137,30 +149,43 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                           color: const Color(0xFFE53935).withAlpha(20),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.description_outlined,
-                            color: Color(0xFFE53935), size: 22),
+                        child: const Icon(
+                          Icons.description_outlined,
+                          color: Color(0xFFE53935),
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(bill.title,
-                                style: camillBodyStyle(17, colors.textPrimary,
-                                    weight: FontWeight.w700)),
+                            Text(
+                              bill.title,
+                              style: camillBodyStyle(
+                                17,
+                                colors.textPrimary,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
                             Container(
                               margin: const EdgeInsets.only(top: 4),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: catColor.withAlpha(30),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Text(catLabel,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: catColor,
-                                      fontWeight: FontWeight.w600)),
+                              child: Text(
+                                catLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: catColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -172,8 +197,10 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('金額', style: camillBodyStyle(13, colors.textMuted)),
-                      Text(fmt.format(bill.amount),
-                          style: camillAmountStyle(20, colors.textPrimary)),
+                      Text(
+                        fmt.format(bill.amount),
+                        style: camillAmountStyle(20, colors.textPrimary),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -182,7 +209,9 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.surfaceBorder.withAlpha(60),
                         borderRadius: BorderRadius.circular(10),
@@ -202,7 +231,11 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                               ),
                             ),
                           ),
-                          Icon(Icons.edit_outlined, size: 14, color: colors.textMuted),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 14,
+                            color: colors.textMuted,
+                          ),
                         ],
                       ),
                     ),
@@ -212,14 +245,20 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('支払期限', style: camillBodyStyle(13, colors.textMuted)),
+                        Text(
+                          '支払期限',
+                          style: camillBodyStyle(13, colors.textMuted),
+                        ),
                         Row(
                           children: [
                             if (urgent)
                               const Padding(
                                 padding: EdgeInsets.only(right: 4),
-                                child: Icon(Icons.warning_amber_outlined,
-                                    size: 14, color: Color(0xFFE53935)),
+                                child: Icon(
+                                  Icons.warning_amber_outlined,
+                                  size: 14,
+                                  color: Color(0xFFE53935),
+                                ),
                               ),
                             Text(
                               '${bill.dueDate!.year}/${bill.dueDate!.month}/${bill.dueDate!.day}',
@@ -242,10 +281,9 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                         child: Text(
                           days >= 0 ? '残り$days日' : '期限切れ',
                           style: camillBodyStyle(
-                              12,
-                              urgent
-                                  ? const Color(0xFFE53935)
-                                  : colors.textMuted),
+                            12,
+                            urgent ? const Color(0xFFE53935) : colors.textMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -258,17 +296,25 @@ class _HomeBillDetailSheetState extends State<HomeBillDetailSheet> {
                         backgroundColor: colors.success,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
                         widget.onPaid();
                       },
-                      icon: const Icon(Icons.check_circle_outline,
-                          color: Colors.white),
-                      label: Text('支払いました',
-                          style: camillBodyStyle(15, Colors.white,
-                              weight: FontWeight.w600)),
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        '支払いました',
+                        style: camillBodyStyle(
+                          15,
+                          Colors.white,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],

@@ -27,20 +27,23 @@ class CouponService {
     String? surveyUrl,
     bool surveyAnswered = false,
   }) async {
-    final data = await _api.postAny('/coupons', body: {
-      'store_name': storeName,
-      'description': description,
-      'discount_amount': discountAmount,
-      'valid_from': ?validFrom,
-      'valid_until': ?validUntil,
-      'available_days': ?availableDays,
-      'is_from_ocr': isFromOcr,
-      'is_used': isUsed,
-      'receipt_id': ?receiptId,
-      'requires_survey': requiresSurvey,
-      'survey_url': ?surveyUrl,
-      'survey_answered': surveyAnswered,
-    });
+    final data = await _api.postAny(
+      '/coupons',
+      body: {
+        'store_name': storeName,
+        'description': description,
+        'discount_amount': discountAmount,
+        'valid_from': ?validFrom,
+        'valid_until': ?validUntil,
+        'available_days': ?availableDays,
+        'is_from_ocr': isFromOcr,
+        'is_used': isUsed,
+        'receipt_id': ?receiptId,
+        'requires_survey': requiresSurvey,
+        'survey_url': ?surveyUrl,
+        'survey_answered': surveyAnswered,
+      },
+    );
     return Coupon.fromJson(data as Map<String, dynamic>);
   }
 

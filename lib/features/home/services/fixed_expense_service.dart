@@ -7,7 +7,7 @@ class FixedExpenseService {
   /// 全固定費の引き落とし日設定を取得（category → billingDay）
   Future<Map<String, FixedExpenseSetting>> getSettings() async {
     final data = await _api.get('/fixed-expenses/settings');
-    return data.map((cat, day) => MapEntry(cat, FixedExpenseSetting.fromJson(cat, day)));
+    return data.map((cat, day) => MapEntry(cat, FixedExpenseSetting.fromEntry(cat, day)));
   }
 
   /// 引き落とし日・休日ルールを更新（billingDay=null で削除）
@@ -27,7 +27,7 @@ class FixedExpenseService {
     final data = await _api.get('/fixed-expenses/payments/$yearMonth');
     return data.map((cat, json) => MapEntry(
       cat,
-      FixedPayment.fromJson(cat, yearMonth, json as Map<String, dynamic>),
+      FixedPayment.fromEntry(cat, yearMonth, json as Map<String, dynamic>),
     ));
   }
 

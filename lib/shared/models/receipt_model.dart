@@ -1,278 +1,107 @@
-class ReceiptItem {
-  final String itemName;
-  final String itemNameRaw;
-  final String category;
-  final int unitPrice;
-  final int quantity;
-  final int amount;
-  final int points; // 医療レシートの場合の点数（通常は0）
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  ReceiptItem({
-    required this.itemName,
-    required this.itemNameRaw,
-    required this.category,
-    required this.unitPrice,
-    required this.quantity,
-    required this.amount,
-    this.points = 0,
-  });
+part 'receipt_model.freezed.dart';
+part 'receipt_model.g.dart';
 
-  factory ReceiptItem.fromJson(Map<String, dynamic> json) => ReceiptItem(
-        itemName: json['item_name'] as String,
-        itemNameRaw: json['item_name_raw'] as String? ?? '',
-        category: json['category'] as String? ?? 'other',
-        unitPrice: (json['unit_price'] as num).toInt(),
-        quantity: (json['quantity'] as num).toInt(),
-        amount: (json['amount'] as num).toInt(),
-        points: (json['points'] as num?)?.toInt() ?? 0,
-      );
+@freezed
+sealed class ReceiptItem with _$ReceiptItem {
+  const factory ReceiptItem({
+    required String itemName,
+    @Default('') String itemNameRaw,
+    @Default('other') String category,
+    required int unitPrice,
+    required int quantity,
+    required int amount,
+    @Default(0) int points,
+  }) = _ReceiptItem;
 
-  Map<String, dynamic> toJson() => {
-        'item_name': itemName,
-        'item_name_raw': itemNameRaw,
-        'category': category,
-        'unit_price': unitPrice,
-        'quantity': quantity,
-        'amount': amount,
-        'points': points,
-      };
-
-  ReceiptItem copyWith({
-    String? itemName,
-    String? category,
-    int? unitPrice,
-    int? quantity,
-    int? amount,
-  }) =>
-      ReceiptItem(
-        itemName: itemName ?? this.itemName,
-        itemNameRaw: itemNameRaw,
-        category: category ?? this.category,
-        unitPrice: unitPrice ?? this.unitPrice,
-        quantity: quantity ?? this.quantity,
-        amount: amount ?? this.amount,
-        points: points,
-      );
+  factory ReceiptItem.fromJson(Map<String, dynamic> json) =>
+      _$ReceiptItemFromJson(json);
 }
 
-class CouponDetected {
-  final String description;
-  final int discountAmount;
-  /// 'yen' | 'percent' | 'other'  (null は 'yen' 扱い)
-  final String? discountUnit;
-  final String? validFrom;
-  final String? validUntil;
-  final String? storageLocation;
-  final bool requiresSurvey;
-  final String? surveyUrl;
+@freezed
+sealed class CouponDetected with _$CouponDetected {
+  const factory CouponDetected({
+    required String description,
+    required int discountAmount,
+    @Default('yen') String? discountUnit,
+    String? validFrom,
+    String? validUntil,
+    String? storageLocation,
+    @Default(false) bool requiresSurvey,
+    String? surveyUrl,
+  }) = _CouponDetected;
 
-  CouponDetected({
-    required this.description,
-    required this.discountAmount,
-    this.discountUnit = 'yen',
-    this.validFrom,
-    this.validUntil,
-    this.storageLocation,
-    this.requiresSurvey = false,
-    this.surveyUrl,
-  });
-
-  factory CouponDetected.fromJson(Map<String, dynamic> json) => CouponDetected(
-        description: json['description'] as String,
-        discountAmount: (json['discount_amount'] as num).toInt(),
-        discountUnit: json['discount_unit'] as String? ?? 'yen',
-        validFrom: json['valid_from'] as String?,
-        validUntil: json['valid_until'] as String?,
-        storageLocation: json['storage_location'] as String?,
-        requiresSurvey: json['requires_survey'] as bool? ?? false,
-        surveyUrl: json['survey_url'] as String?,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'description': description,
-        'discount_amount': discountAmount,
-        'discount_unit': discountUnit,
-        if (validFrom != null) 'valid_from': validFrom,
-        if (validUntil != null) 'valid_until': validUntil,
-        if (storageLocation != null) 'storage_location': storageLocation,
-        'requires_survey': requiresSurvey,
-        if (surveyUrl != null) 'survey_url': surveyUrl,
-      };
+  factory CouponDetected.fromJson(Map<String, dynamic> json) =>
+      _$CouponDetectedFromJson(json);
 }
 
-class LinePromotion {
-  final String description;
-  final String? lineUrl; // QRコードから読み取ったURL（null = QRのみで解析不可）
+@freezed
+sealed class LinePromotion with _$LinePromotion {
+  const factory LinePromotion({
+    required String description,
+    String? lineUrl,
+  }) = _LinePromotion;
 
-  LinePromotion({required this.description, this.lineUrl});
-
-  factory LinePromotion.fromJson(Map<String, dynamic> json) => LinePromotion(
-        description: json['description'] as String,
-        lineUrl: json['line_url'] as String?,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'description': description,
-        if (lineUrl != null) 'line_url': lineUrl,
-      };
+  factory LinePromotion.fromJson(Map<String, dynamic> json) =>
+      _$LinePromotionFromJson(json);
 }
 
-class ReceiptAnalysis {
-  final String storeName;
-  final String purchasedAt;
-  final int totalAmount;
-  final int? taxAmount;
-  final String paymentMethod;
-  final String? category;
-  final List<ReceiptItem> items;
-  final List<CouponDetected> couponsDetected;
-  final List<LinePromotion> linePromotions;
-  final String duplicateCheckHash;
-  final bool isMedical;
-  final bool isUncovered; // 自由診療（保険外）フラグ
-  final int? totalPoints; // 医療レシートの場合の合計点数
-  final double? burdenRate; // 負担率（例: 0.3）
-  final String? memo; // メモ
-  final bool isBill; // 請求書フラグ
-  final DateTime? billDueDate; // 請求書の支払期限
-  final String billStatus; // 'paid' | 'unpaid'（印鑑・スタンプによる支払済み判定）
-  final DateTime? billPaidDate; // 印鑑・スタンプから読み取った支払済み日
-  final bool billIsTaxExempt; // 請求書が消費税非課税か（住民税・国民健康保険等）
-  final int savingsAmount; // 今回の会計で適用された割引合計額
+@freezed
+sealed class ReceiptDiscount with _$ReceiptDiscount {
+  const factory ReceiptDiscount({
+    required String description,
+    required int discountAmount,
+  }) = _ReceiptDiscount;
 
-  ReceiptAnalysis({
-    required this.storeName,
-    required this.purchasedAt,
-    required this.totalAmount,
-    this.taxAmount,
-    required this.paymentMethod,
-    this.category,
-    required this.items,
-    required this.couponsDetected,
-    this.linePromotions = const [],
-    required this.duplicateCheckHash,
-    this.isMedical = false,
-    this.isUncovered = false,
-    this.totalPoints,
-    this.burdenRate,
-    this.memo,
-    this.isBill = false,
-    this.billDueDate,
-    this.billStatus = 'unpaid',
-    this.billPaidDate,
-    this.billIsTaxExempt = false,
-    this.savingsAmount = 0,
-  });
+  factory ReceiptDiscount.fromJson(Map<String, dynamic> json) =>
+      _$ReceiptDiscountFromJson(json);
+}
+
+@freezed
+sealed class ReceiptAnalysis with _$ReceiptAnalysis {
+  const factory ReceiptAnalysis({
+    required String storeName,
+    required String purchasedAt,
+    required int totalAmount,
+    @JsonKey(includeIfNull: false) int? taxAmount,
+    @Default('cash') String paymentMethod,
+    @JsonKey(includeIfNull: false) String? category,
+    required List<ReceiptItem> items,
+    required List<CouponDetected> couponsDetected,
+    @Default([]) List<LinePromotion> linePromotions,
+    @Default('') String duplicateCheckHash,
+    @Default(false) bool isMedical,
+    @Default(false) bool isUncovered,
+    @JsonKey(includeIfNull: false) int? totalPoints,
+    @JsonKey(includeIfNull: false) double? burdenRate,
+    @JsonKey(includeIfNull: false) String? memo,
+    @Default(false) bool isBill,
+    @JsonKey(includeIfNull: false) DateTime? billDueDate,
+    @Default('unpaid') String billStatus,
+    @JsonKey(includeIfNull: false) DateTime? billPaidDate,
+    @Default(false) bool billIsTaxExempt,
+    @Default(0) int savingsAmount,
+  }) = _ReceiptAnalysis;
 
   factory ReceiptAnalysis.fromJson(Map<String, dynamic> json) =>
-      ReceiptAnalysis(
-        storeName: json['store_name'] as String,
-        purchasedAt: json['purchased_at'] as String,
-        totalAmount: (json['total_amount'] as num).toInt(),
-        taxAmount: json['tax_amount'] != null
-            ? (json['tax_amount'] as num).toInt()
-            : null,
-        paymentMethod: json['payment_method'] as String? ?? 'cash',
-        items: (json['items'] as List<dynamic>)
-            .map((e) => ReceiptItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        couponsDetected: (json['coupons_detected'] as List<dynamic>? ?? [])
-            .map((e) => CouponDetected.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        linePromotions: (json['line_promotions'] as List<dynamic>? ?? [])
-            .map((e) => LinePromotion.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        duplicateCheckHash: json['duplicate_check_hash'] as String? ?? '',
-        isMedical: json['is_medical'] as bool? ?? false,
-        isUncovered: json['is_uncovered'] as bool? ?? false,
-        totalPoints: (json['total_points'] as num?)?.toInt(),
-        burdenRate: (json['burden_rate'] as num?)?.toDouble(),
-        memo: json['memo'] as String?,
-        isBill: json['is_bill'] as bool? ?? false,
-        billDueDate: json['bill_due_date'] != null
-            ? DateTime.tryParse(json['bill_due_date'] as String)?.toLocal()
-            : null,
-        billStatus: json['bill_status'] as String? ?? 'unpaid',
-        billPaidDate: json['bill_paid_date'] != null
-            ? DateTime.tryParse(json['bill_paid_date'] as String)?.toLocal()
-            : null,
-        billIsTaxExempt: json['bill_is_tax_exempt'] as bool? ?? false,
-        savingsAmount: (json['savings_amount'] as num? ?? 0).toInt(),
-      );
-
-  Map<String, dynamic> toJson() => {
-        'store_name': storeName,
-        'purchased_at': purchasedAt,
-        'total_amount': totalAmount,
-        if (taxAmount != null) 'tax_amount': taxAmount,
-        'payment_method': paymentMethod,
-        if (category != null) 'category': category,
-        'items': items.map((e) => e.toJson()).toList(),
-        'coupons_detected': couponsDetected.map((e) => e.toJson()).toList(),
-        'line_promotions': linePromotions.map((e) => e.toJson()).toList(),
-        'duplicate_check_hash': duplicateCheckHash,
-        'is_medical': isMedical,
-        'is_uncovered': isUncovered,
-        if (totalPoints != null) 'total_points': totalPoints,
-        if (burdenRate != null) 'burden_rate': burdenRate,
-        if (memo != null && memo!.isNotEmpty) 'memo': memo,
-        'is_bill': isBill,
-        if (billDueDate != null) 'bill_due_date': billDueDate!.toIso8601String(),
-        'bill_status': billStatus,
-        if (billPaidDate != null) 'bill_paid_date': billPaidDate!.toIso8601String(),
-        'bill_is_tax_exempt': billIsTaxExempt,
-        'savings_amount': savingsAmount,
-      };
+      _$ReceiptAnalysisFromJson(json);
 }
 
-class ReceiptDiscount {
-  final String description;
-  final int discountAmount;
+@freezed
+sealed class Receipt with _$Receipt {
+  const factory Receipt({
+    required String receiptId,
+    required String storeName,
+    required int totalAmount,
+    required String purchasedAt,
+    @Default('cash') String paymentMethod,
+    required List<ReceiptItem> items,
+    @Default([]) List<ReceiptDiscount> discounts,
+    String? memo,
+    @Default(0) int savingsAmount,
+  }) = _Receipt;
 
-  ReceiptDiscount({required this.description, required this.discountAmount});
-
-  factory ReceiptDiscount.fromJson(Map<String, dynamic> json) => ReceiptDiscount(
-        description: json['description'] as String,
-        discountAmount: (json['discount_amount'] as num).toInt(),
-      );
-}
-
-class Receipt {
-  final String receiptId;
-  final String storeName;
-  final int totalAmount;
-  final String purchasedAt;
-  final String paymentMethod;
-  final List<ReceiptItem> items;
-  final List<ReceiptDiscount> discounts;
-  final String? memo;
-  final int savingsAmount;
-
-  Receipt({
-    required this.receiptId,
-    required this.storeName,
-    required this.totalAmount,
-    required this.purchasedAt,
-    required this.paymentMethod,
-    required this.items,
-    this.discounts = const [],
-    this.memo,
-    this.savingsAmount = 0,
-  });
-
-  factory Receipt.fromJson(Map<String, dynamic> json) => Receipt(
-        receiptId: json['receipt_id'] as String,
-        storeName: json['store_name'] as String,
-        totalAmount: (json['total_amount'] as num).toInt(),
-        purchasedAt: json['purchased_at'] as String,
-        paymentMethod: json['payment_method'] as String? ?? 'cash',
-        items: (json['items'] as List<dynamic>? ?? [])
-            .map((e) => ReceiptItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        discounts: (json['discounts'] as List<dynamic>? ?? [])
-            .map((e) => ReceiptDiscount.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        memo: json['memo'] as String?,
-        savingsAmount: (json['savings_amount'] as num? ?? 0).toInt(),
-      );
+  factory Receipt.fromJson(Map<String, dynamic> json) =>
+      _$ReceiptFromJson(json);
 }

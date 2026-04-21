@@ -1,5 +1,6 @@
 # Claude Code
 CLAUDE.md
+rippling-wiggling-locket.md
 
 # ローカル開発スクリプト
 admin.sh
@@ -57,6 +58,10 @@ secrets.properties
 ios/Flutter/Secrets.xcconfig
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+
+# dart-define で渡す環境変数メモ書きなど
+*.env.local
+dart_defines*.json
 
 # Claude Code local settings
 .claude/settings.local.json

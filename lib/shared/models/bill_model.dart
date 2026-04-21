@@ -1,72 +1,28 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'bill_model.freezed.dart';
+part 'bill_model.g.dart';
+
 enum BillStatus { unpaid, pending, paid }
 
-class Bill {
-  final String billId;
-  final String title;
-  final int amount;
-  final DateTime? dueDate;
-  final BillStatus status;
-  final DateTime createdAt;
-  final String? category;
-  final bool isTaxExempt;
-  final DateTime? paidAt;
-  final String? memo;
+@freezed
+sealed class Bill with _$Bill {
+  const Bill._();
 
-  Bill({
-    required this.billId,
-    required this.title,
-    required this.amount,
-    this.dueDate,
-    required this.status,
-    required this.createdAt,
-    this.category,
-    this.isTaxExempt = false,
-    this.paidAt,
-    this.memo,
-  });
+  const factory Bill({
+    required String billId,
+    required String title,
+    required int amount,
+    DateTime? dueDate,
+    @JsonKey(unknownEnumValue: BillStatus.unpaid) required BillStatus status,
+    required DateTime createdAt,
+    String? category,
+    @Default(false) bool isTaxExempt,
+    DateTime? paidAt,
+    String? memo,
+  }) = _Bill;
 
-  factory Bill.fromJson(Map<String, dynamic> json) => Bill(
-        billId: json['bill_id'] as String,
-        title: json['title'] as String,
-        amount: (json['amount'] as num).toInt(),
-        dueDate: json['due_date'] != null
-            ? DateTime.parse(json['due_date'] as String)
-            : null,
-        status: _statusFromString(json['status'] as String? ?? 'unpaid'),
-        createdAt: DateTime.parse(json['created_at'] as String),
-        category: json['category'] as String?,
-        isTaxExempt: json['is_tax_exempt'] as bool? ?? false,
-        paidAt: json['paid_at'] != null
-            ? DateTime.parse(json['paid_at'] as String).toLocal()
-            : null,
-        memo: json['memo'] as String?,
-      );
-
-  static BillStatus _statusFromString(String s) {
-    switch (s) {
-      case 'pending':
-        return BillStatus.pending;
-      case 'paid':
-        return BillStatus.paid;
-      default:
-        return BillStatus.unpaid;
-    }
-  }
-
-  Bill copyWith({BillStatus? status, DateTime? paidAt, Object? memo = _sentinel}) => Bill(
-        billId: billId,
-        title: title,
-        amount: amount,
-        dueDate: dueDate,
-        status: status ?? this.status,
-        createdAt: createdAt,
-        category: category,
-        isTaxExempt: isTaxExempt,
-        paidAt: paidAt ?? this.paidAt,
-        memo: memo == _sentinel ? this.memo : memo as String?,
-      );
-
-  static const Object _sentinel = Object();
+  factory Bill.fromJson(Map<String, dynamic> json) => _$BillFromJson(json);
 
   int? get daysUntilDue {
     if (dueDate == null) return null;

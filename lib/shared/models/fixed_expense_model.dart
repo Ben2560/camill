@@ -1,15 +1,25 @@
-class FixedExpenseSetting {
-  final String category;
-  final int? billingDay;     // 1-31, 32=末日, null=未設定
-  final String? holidayRule; // 'before'=前営業日 | 'after'=翌営業日 | null=そのまま
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const FixedExpenseSetting({
-    required this.category,
-    this.billingDay,
-    this.holidayRule,
-  });
+part 'fixed_expense_model.freezed.dart';
+part 'fixed_expense_model.g.dart';
 
-  factory FixedExpenseSetting.fromJson(String category, dynamic json) {
+int _amountToInt(num v) => v.toInt();
+
+@freezed
+sealed class FixedExpenseSetting with _$FixedExpenseSetting {
+  const FixedExpenseSetting._();
+
+  const factory FixedExpenseSetting({
+    required String category,
+    int? billingDay,
+    String? holidayRule,
+  }) = _FixedExpenseSetting;
+
+  factory FixedExpenseSetting.fromJson(Map<String, dynamic> json) =>
+      _$FixedExpenseSettingFromJson(json);
+
+  /// APIレスポンス（category=mapキー, json=値）用ファクトリ
+  static FixedExpenseSetting fromEntry(String category, dynamic json) {
     if (json is Map<String, dynamic>) {
       return FixedExpenseSetting(
         category: category,
@@ -17,7 +27,6 @@ class FixedExpenseSetting {
         holidayRule: json['holiday_rule'] as String?,
       );
     }
-    // 旧フォーマット（int のみ）との互換
     return FixedExpenseSetting(category: category, billingDay: json as int?);
   }
 
@@ -36,22 +45,24 @@ class FixedExpenseSetting {
   }
 }
 
-class FixedPayment {
-  final String category;
-  final String yearMonth;
-  final DateTime paidAt;
-  final String confirmedBy; // auto | manual | ocr
-  final int? amount;
+@freezed
+sealed class FixedPayment with _$FixedPayment {
+  const FixedPayment._();
 
-  const FixedPayment({
-    required this.category,
-    required this.yearMonth,
-    required this.paidAt,
-    required this.confirmedBy,
-    this.amount,
-  });
+  const factory FixedPayment({
+    required String category,
+    required String yearMonth,
+    required DateTime paidAt,
+    required String confirmedBy,
+    int? amount,
+  }) = _FixedPayment;
 
-  factory FixedPayment.fromJson(String category, String yearMonth, Map<String, dynamic> json) {
+  factory FixedPayment.fromJson(Map<String, dynamic> json) =>
+      _$FixedPaymentFromJson(json);
+
+  /// APIレスポンス（category・yearMonth は外部から注入）用ファクトリ
+  static FixedPayment fromEntry(
+      String category, String yearMonth, Map<String, dynamic> json) {
     return FixedPayment(
       category: category,
       yearMonth: yearMonth,
@@ -63,35 +74,22 @@ class FixedPayment {
 
   String get confirmedByLabel {
     switch (confirmedBy) {
-      case 'auto':
-        return '自動確認';
-      case 'ocr':
-        return '明細確認';
-      default:
-        return '手動確認';
+      case 'auto': return '自動確認';
+      case 'ocr':  return '明細確認';
+      default:     return '手動確認';
     }
   }
 }
 
-class BankTransaction {
-  final String date;
-  final String description;
-  final int amount;
-  final String? matchedCategory;
+@freezed
+sealed class BankTransaction with _$BankTransaction {
+  const factory BankTransaction({
+    required String date,
+    required String description,
+    @JsonKey(fromJson: _amountToInt) required int amount,
+    String? matchedCategory,
+  }) = _BankTransaction;
 
-  const BankTransaction({
-    required this.date,
-    required this.description,
-    required this.amount,
-    this.matchedCategory,
-  });
-
-  factory BankTransaction.fromJson(Map<String, dynamic> json) {
-    return BankTransaction(
-      date: json['date'] as String,
-      description: json['description'] as String,
-      amount: (json['amount'] as num).toInt(),
-      matchedCategory: json['matched_category'] as String?,
-    );
-  }
+  factory BankTransaction.fromJson(Map<String, dynamic> json) =>
+      _$BankTransactionFromJson(json);
 }

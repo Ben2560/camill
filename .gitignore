@@ -5,6 +5,7 @@ rippling-wiggling-locket.md
 # ローカル開発スクリプト
 admin.sh
 dev.sh
+coverage.sh
 
 # 管理画面（Next.js）— Flutterリポジトリとは別管理
 camill-admin-web/

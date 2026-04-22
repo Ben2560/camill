@@ -67,6 +67,7 @@
 
 ### 構造
 
+```text
 lib/
 ├── main.dart
 ├── firebase_options.dart

@@ -188,6 +188,7 @@ lib/
         ├── month_greeting_overlay.dart
         ├── pull_to_refresh.dart
         └── top_notification.dart
+```text
 
 ---
 

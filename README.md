@@ -99,7 +99,7 @@ lib/
 │   │       └── calendar_receipt_detail_sheet.dart
 │   ├── community/
 │   │   ├── screens/
-│   │   │   ├── community_screen.dart       # Google Maps
+│   │   │   ├── community_screen.dart
 │   │   │   └── community_settings_screen.dart
 │   │   ├── services/community_service.dart
 │   │   └── widgets/
@@ -189,6 +189,8 @@ lib/
         ├── pull_to_refresh.dart
         └── top_notification.dart
 ```
+
+今後も追加予定あり。
 
 ---
 

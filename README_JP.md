@@ -1,71 +1,71 @@
 # Camill
 
-A household finance app for families — just snap a receipt and you're done.
+レシートを撮るだけで家計が整う、家族向け家計管理アプリです。
 
 ---
 
-## What is this?
+## どんなアプリか
 
-It started from a simple frustration: manually tracking expenses in a household ledger is tedious and doesn't really help you save money. Point your camera at a receipt and the AI reads the items, amounts, and categories automatically. Medical bills, utility invoices, and regular receipts all go through the same flow, so snapping a few receipts from your wallet is basically enough to know where your money went this month.
+「いちいち手書きで家計簿をつけるのが面倒だし節約にならない」といった問題を解決するところから始まりました。カメラを向けるだけでAIが品目・金額・カテゴリを読み取り、あとは勝手に集計してくれます。医療明細や請求書（光熱費・税金など）も同じフローで登録できるので、財布の中のレシートをまとめて撮るだけで今月の支出がほぼ把握できます。
 
-The Family Plan lets you split spending by wallet per family member, so you can keep an eye on your partner's and kids' expenses all in one place.
-
----
-
-## Features
-
-### Receipt & Document Scanning
-
-- Shoot from camera or gallery → AI auto-detects items, amounts, and categories
-- Separate input flows for regular receipts, medical bills, and invoices
-- Auto-detection of uncovered medical expenses (self-pay) with badge display
-- Grouped display for identical items (`×N` badge)
-- Up to 3 automatic retries on analysis failure (exponential backoff)
-- Manual entry form also available
-
-### Budget & Expense Tracking
-
-- Per-category budget settings with progress bars
-- Calendar view for day-by-day spending
-- Monthly, weekly, and yearly summaries
-- Automatic consumption tax estimation (tax-exempt items excluded)
-- Savings tracking — discounts and coupons are tallied automatically
-
-### Invoice Management
-
-- Alert banner for unpaid invoices (red highlight within 3 days)
-- Automatic "paid" detection from stamps and seals on invoices
-- Public utility bills and taxes excluded from tax calculations
-
-### Coupon Wallet
-
-- Auto-detection of reusable coupons from receipts
-- Push notifications for coupons expiring soon
-- Community feature to share nearby users' coupon info
-
-### Family Plan
-
-- Invite family members via QR code
-- Wallet rules to split and assign expenses
-- Partner spending summary and children's monthly expenses on the home screen
-- Per-member view permissions
-
-### Reports & Analytics
-
-- Monthly AI-generated spending commentary (premium only)
-- Configurable day of week for weekly reports
-- Top stores ranking and scan count statistics
-
-### Miscellaneous
-
-- FCM push notifications (invoice reminders, coupon expiry, budget alerts)
-- Automatic dark mode based on sunrise / sunset times
-- Drag-to-reorder home screen widgets
-- Profile picture that survives app container UUID changes (iOS updates, restores)
+ファミリープランでは家族ごとにウォレットを分けて管理でき、パートナーや子供の支出もまとめて見られます。
 
 ---
 
-### Structure
+## 主な機能
+
+### レシート・明細管理
+
+- カメラまたはギャラリーから撮影 → AIが品目・金額・カテゴリを自動解析
+- 医療明細・請求書・通常レシートをそれぞれ最適なフォームで登録
+- 自由診療（保険外）の自動検出とバッジ表示
+- 同一品目のグループ折りたたみ表示（`×N`バッジ）
+- 解析失敗時は最大3回まで自動リトライ（指数バックオフ）
+- 手動入力フォームも完備
+
+### 予算・支出管理
+
+- カテゴリ別予算設定と進捗バー
+- カレンダービューで日ごとの支出確認
+- 月次・週次・年次のサマリー集計
+- 消費税の自動推定（非課税品目は除外）
+- 節約額の自動集計と表示（割引・クーポン分）
+
+### 請求書管理
+
+- 未払い請求書のアラートバナー（3日以内は赤色強調）
+- 印鑑・スタンプから支払済みを自動判定
+- 公共料金・税金は消費税計算から自動除外
+
+### クーポン管理
+
+- レシートから次回利用できるクーポンを自動検出
+- 有効期限が近いクーポンのプッシュ通知
+- コミュニティ機能で近くのユーザーのクーポン情報を共有
+
+### ファミリープラン
+
+- QRコードでメンバー招待
+- ウォレット機能で支出の振り分けルール設定
+- パートナーの支出サマリー・子供の今月支出をホームに表示
+- メンバーごとの閲覧権限管理
+
+### レポート・分析
+
+- 月次AIコメント（プレミアムのみ）
+- 週次レポートの曜日設定
+- 上位店舗ランキング・スキャン枚数統計
+
+### その他
+
+- FCMプッシュ通知（請求書リマインダー・クーポン期限・予算超過アラート）
+- 日の出・日の入りベースの自動ダークモード切替
+- ホーム画面のウィジェット並び替え（ドラッグ）
+- プロフィール画像（アプリコンテナUUID変更にも対応）
+
+---
+
+### 構造
 
 ```text
 lib/
@@ -190,10 +190,10 @@ lib/
         └── top_notification.dart
 ```
 
-More features planned.
+今後も追加予定あり。
 
 ---
 
-### Developer's Note
+### 開発者から一言
 
-- Giving it my all. Over and out.
+- 頑張ります。以上です。

@@ -11,9 +11,6 @@ coverage.sh
 # 管理画面（Next.js）— Flutterリポジトリとは別管理
 camill-admin-web/
 
-# code
-firebase_options.dart
-
 # Miscellaneous
 *.class
 *.log
@@ -62,6 +59,7 @@ ios/Flutter/Secrets.xcconfig
 # dart-define で渡す環境変数メモ書きなど
 *.env.local
 dart_defines*.json
+!dart_defines.template.json
 
 # Claude Code local settings
 .claude/settings.local.json

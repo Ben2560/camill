@@ -93,7 +93,7 @@ sleep 2
 
 # Start Flutter app
 cd "$CAMILL_ROOT"
-flutter run --device-timeout 30 2> >(grep -Ev "maps to more than one section|Dart VM Service was not discovered" >&2)
+flutter run --device-timeout 30 --dart-define-from-file=dart_defines.json 2> >(grep -Ev "maps to more than one section|Dart VM Service was not discovered" >&2)
 
 # Stop API server after Flutter exits
 echo "Stopping API server..."

@@ -64,3 +64,128 @@
 - รูปโปรไฟล์ที่ไม่หายแม้จะอัปเดตแอปหรือกู้คืนข้อมูล (iOS UUID)
 
 ---
+
+### โครงสร้าง
+
+```text
+lib/
+├── main.dart
+├── firebase_options.dart
+├── core/
+│   ├── constants.dart
+│   ├── theme.dart
+│   └── theme/
+│       ├── camill_colors.dart
+│       ├── camill_theme.dart
+│       ├── camill_theme_mode.dart
+│       ├── theme_provider.dart
+│       └── sun_times.dart
+├── features/
+│   ├── auth/
+│   │   ├── screens/
+│   │   │   ├── login_screen.dart
+│   │   │   ├── phone_verify_screen.dart
+│   │   │   └── register_screen.dart
+│   │   └── services/auth_service.dart
+│   ├── bill/
+│   │   ├── screens/bill_screen.dart
+│   │   └── services/bill_service.dart
+│   ├── calendar/
+│   │   ├── screens/calendar_screen.dart
+│   │   └── widgets/
+│   │       ├── calendar_bill_detail_sheet.dart
+│   │       ├── calendar_coupon_action_sheet.dart
+│   │       ├── calendar_day_panel.dart
+│   │       └── calendar_receipt_detail_sheet.dart
+│   ├── community/
+│   │   ├── screens/
+│   │   │   ├── community_screen.dart
+│   │   │   └── community_settings_screen.dart
+│   │   ├── services/community_service.dart
+│   │   └── widgets/
+│   │       ├── community_store_sheet.dart
+│   │       ├── map_styles.dart
+│   │       └── store_card.dart
+│   ├── coupon/
+│   │   ├── screens/coupon_wallet_screen.dart
+│   │   ├── services/coupon_service.dart
+│   │   └── widgets/coupon_card_widgets.dart
+│   ├── data/
+│   │   ├── screens/data_screen.dart
+│   │   └── widgets/data_chart_widgets.dart
+│   ├── family/
+│   │   ├── screens/
+│   │   │   ├── family_invite_screen.dart
+│   │   │   ├── family_join_screen.dart
+│   │   │   ├── family_management_screen.dart
+│   │   │   └── wallet_management_screen.dart
+│   │   └── services/
+│   │       ├── family_service.dart
+│   │       └── wallet_service.dart
+│   ├── home/
+│   │   ├── screens/
+│   │   │   ├── home_screen.dart
+│   │   │   ├── category_budget_screen.dart
+│   │   │   └── fixed_expense_scan_screen.dart
+│   │   ├── services/fixed_expense_service.dart
+│   │   └── widgets/
+│   │       ├── home_bill_detail_sheet.dart
+│   │       ├── home_month_page.dart
+│   │       ├── notification_inbox_sheet.dart
+│   │       ├── overseas_rate_card.dart
+│   │       ├── subscription_editor_sheet.dart
+│   │       ├── tax_breakdown_row.dart
+│   │       └── today_coupon_sheet.dart
+│   ├── profile/
+│   │   ├── screens/
+│   │   │   ├── account_settings_screen.dart
+│   │   │   ├── income_settings_screen.dart
+│   │   │   ├── notification_settings_screen.dart
+│   │   │   ├── plan_screen.dart
+│   │   │   ├── profile_screen.dart
+│   │   │   ├── settings_screen.dart
+│   │   │   ├── support_detail_screen.dart
+│   │   │   ├── support_screen.dart
+│   │   │   └── theme_settings_screen.dart
+│   │   └── services/
+│   │       ├── drive_export_service.dart
+│   │       └── purchase_service.dart
+│   ├── receipt/
+│   │   ├── screens/
+│   │   │   ├── analysis_preview_screen.dart
+│   │   │   ├── camera_screen.dart
+│   │   │   ├── manual_input_screen.dart
+│   │   │   ├── receipt_edit_screen.dart
+│   │   │   └── receipt_list_screen.dart
+│   │   ├── services/receipt_service.dart
+│   │   └── widgets/
+│   │       ├── receipt_form_page.dart
+│   │       └── receipt_form_widgets.dart
+│   ├── reports/screens/report_screen.dart
+│   ├── shell/main_shell.dart
+│   └── subscriptions/screens/subscription_screen.dart
+└── shared/
+    ├── models/
+    │   ├── bill_model.dart
+    │   ├── community_model.dart
+    │   ├── coupon_model.dart
+    │   ├── family_model.dart
+    │   ├── fixed_expense_model.dart
+    │   ├── receipt_model.dart
+    │   ├── summary_model.dart
+    │   └── wallet_model.dart
+    ├── services/
+    │   ├── api_service.dart
+    │   ├── notification_inbox.dart
+    │   ├── notification_service.dart
+    │   ├── overseas_service.dart
+    │   └── user_prefs.dart
+    └── widgets/
+        ├── animated_counter.dart
+        ├── budget_sheet.dart
+        ├── camill_card.dart
+        ├── loading_overlay.dart
+        ├── month_greeting_overlay.dart
+        ├── pull_to_refresh.dart
+        └── top_notification.dart
+```

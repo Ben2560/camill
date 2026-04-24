@@ -5,6 +5,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../calendar/screens/calendar_screen.dart';
+import '../../shell/main_shell.dart';
 import '../widgets/receipt_form_page.dart';
 
 // ── 外側ウィジェット ────────────────────────────────────────────
@@ -66,6 +67,7 @@ class _AnalysisPreviewScreenState extends State<AnalysisPreviewScreen> {
         CalendarScreen.billRefreshSignal.value++;
       }
       CalendarScreen.receiptRefreshSignal.value++;
+      MainShell.navigateToHomeSignal.value++;
       context.go('/');
     }
   }

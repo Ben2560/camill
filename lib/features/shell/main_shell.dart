@@ -21,6 +21,8 @@ import '../profile/screens/profile_screen.dart';
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
+  static final navigateToHomeSignal = ValueNotifier<int>(0);
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
@@ -89,6 +91,16 @@ class _MainShellState extends State<MainShell>
     _checkMonthGreeting();
     _initNotifications();
     WidgetsBinding.instance.addObserver(this);
+    MainShell.navigateToHomeSignal.addListener(_onNavigateToHome);
+  }
+
+  void _onNavigateToHome() {
+    if (mounted) {
+      setState(() {
+        _currentIndex = 0;
+        _headerBlurred = false;
+      });
+    }
   }
 
   @override
@@ -193,6 +205,7 @@ class _MainShellState extends State<MainShell>
 
   @override
   void dispose() {
+    MainShell.navigateToHomeSignal.removeListener(_onNavigateToHome);
     WidgetsBinding.instance.removeObserver(this);
     _fcmMessageSub?.cancel();
     _fcmRouteSub?.cancel();
@@ -284,6 +297,12 @@ class _MainShellState extends State<MainShell>
     setState(() => _currentIndex = index);
   }
 
+  double _tabOpacity(int i, int pageIndex) {
+    if (_headerBlurred) return 0.0;
+    if (_speedDialOpen && pageIndex == 1) return 0.0;
+    return pageIndex == i ? 1.0 : 0.0;
+  }
+
   Widget _buildTabPages() {
     final pageIndex = _currentIndex > 2 ? _currentIndex - 1 : _currentIndex;
     final pages = [
@@ -299,7 +318,7 @@ class _MainShellState extends State<MainShell>
       children: [
         for (int i = 0; i < pages.length; i++)
           AnimatedOpacity(
-            opacity: pageIndex == i ? 1.0 : 0.0,
+            opacity: _tabOpacity(i, pageIndex),
             duration: const Duration(milliseconds: 200),
             child: IgnorePointer(ignoring: pageIndex != i, child: pages[i]),
           ),
@@ -360,11 +379,11 @@ class _MainShellState extends State<MainShell>
                 child: GestureDetector(
                   onTap: _closeSpeedDial,
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                     child: Container(
                       color: colors.isDark
-                          ? Colors.black.withAlpha(70)
-                          : Colors.black.withAlpha(40),
+                          ? Colors.black.withAlpha(90)
+                          : Colors.black.withAlpha(60),
                     ),
                   ),
                 ),
@@ -385,8 +404,8 @@ class _MainShellState extends State<MainShell>
             Positioned.fill(
               child: IgnorePointer(
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(color: Colors.transparent),
+                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                  child: Container(color: colors.background.withAlpha(160)),
                 ),
               ),
             ),

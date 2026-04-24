@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Firebase UID をプレフィックスとして SharedPreferences のキーを
@@ -9,7 +10,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UserPrefs {
   UserPrefs._();
 
-  static String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+  /// テスト用: UID 取得ロジックをオーバーライドする。
+  /// null にセットすると Firebase デフォルトに戻る。
+  @visibleForTesting
+  static String? Function()? uidGetter;
+
+  static String? get _uid {
+    if (uidGetter != null) return uidGetter!();
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// 現在ログイン中のユーザーに対応するプレフィックス付きキーを返す。
   static String prefixed(String key) {

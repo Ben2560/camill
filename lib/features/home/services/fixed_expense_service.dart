@@ -2,7 +2,9 @@ import '../../../shared/models/fixed_expense_model.dart';
 import '../../../shared/services/api_service.dart';
 
 class FixedExpenseService {
-  final _api = ApiService();
+  final ApiService _api;
+
+  FixedExpenseService({ApiService? api}) : _api = api ?? ApiService();
 
   /// 全固定費の引き落とし日設定を取得（category → billingDay）
   Future<Map<String, FixedExpenseSetting>> getSettings() async {

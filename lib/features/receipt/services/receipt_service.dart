@@ -1,13 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../shared/models/receipt_model.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/overseas_service.dart';
 
 class ReceiptService {
-  final _api = ApiService();
+  final ApiService _api;
+  final OverseasService? _overseasServiceOverride;
+
+  ReceiptService({ApiService? api, OverseasService? overseasService})
+      : _api = api ?? ApiService(),
+        _overseasServiceOverride = overseasService;
+
+  OverseasService get _overseas =>
+      _overseasServiceOverride ?? OverseasService(_api);
 
   Future<Uint8List> _compressImage(File imageFile) async {
     final result = await FlutterImageCompress.compressWithFile(
@@ -26,7 +34,7 @@ class ReceiptService {
   }) async {
     final compressed = await _compressImage(imageFile);
     final base64Image = base64Encode(compressed);
-    final overseasService = OverseasService(_api);
+    final overseasService = _overseas;
     final isOverseas = await overseasService.getIsOverseas();
     final overseasCurrency = isOverseas
         ? await overseasService.getCurrentCurrency()
@@ -51,16 +59,17 @@ class ReceiptService {
     } else {
       receipts = [ReceiptAnalysis.fromJson(data)];
     }
-    return _mergeReceiptsAndCoupons(receipts);
+    return mergeReceiptsAndCoupons(receipts);
   }
 
-  List<ReceiptAnalysis> _mergeReceiptsAndCoupons(
+  @visibleForTesting
+  List<ReceiptAnalysis> mergeReceiptsAndCoupons(
     List<ReceiptAnalysis> receipts,
   ) {
     if (receipts.length <= 1) return receipts;
     final groups = <String, List<ReceiptAnalysis>>{};
     for (final r in receipts) {
-      final key = _mergeKey(r.storeName, r.purchasedAt);
+      final key = mergeKey(r.storeName, r.purchasedAt);
       groups.putIfAbsent(key, () => []).add(r);
     }
     return groups.values.map((group) {
@@ -90,7 +99,8 @@ class ReceiptService {
     }).toList();
   }
 
-  String _mergeKey(String storeName, String purchasedAt) {
+  @visibleForTesting
+  String mergeKey(String storeName, String purchasedAt) {
     final normalized = storeName.toLowerCase().trim();
     final dt = DateTime.tryParse(purchasedAt)?.toLocal();
     if (dt == null) return normalized;

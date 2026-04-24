@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -77,8 +78,18 @@ class OverseasDetectionResult {
 
 class OverseasService {
   final ApiService _api;
+  final http.Client _httpClient;
+  final Future<LocationPermission> Function()? _checkPermissionFn;
+  final Future<Position> Function()? _getCurrentPositionFn;
 
-  OverseasService(this._api);
+  OverseasService(
+    this._api, {
+    http.Client? httpClient,
+    Future<LocationPermission> Function()? checkPermission,
+    Future<Position> Function()? getCurrentPosition,
+  })  : _httpClient = httpClient ?? http.Client(),
+        _checkPermissionFn = checkPermission,
+        _getCurrentPositionFn = getCurrentPosition;
 
   Future<bool> getIsOverseas() async {
     final p = await SharedPreferences.getInstance();
@@ -102,12 +113,13 @@ class OverseasService {
   }
 
   /// 位置情報から国コードを取得する（Nominatim逆ジオコーディング）
-  Future<String?> _getCountryCode(double lat, double lon) async {
+  @visibleForTesting
+  Future<String?> getCountryCode(double lat, double lon) async {
     try {
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json',
       );
-      final res = await http.get(
+      final res = await _httpClient.get(
         url,
         headers: {'User-Agent': 'camill-app/1.0'},
       );
@@ -123,7 +135,9 @@ class OverseasService {
   /// 現在地の国を取得し、前回と異なれば OverseasDetectionResult を返す。
   /// 変化なし・取得失敗の場合は null を返す。
   Future<OverseasDetectionResult?> detectCountryChange() async {
-    final permission = await Geolocator.checkPermission();
+    final permission = _checkPermissionFn != null
+        ? await _checkPermissionFn()
+        : await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       return null;
@@ -131,17 +145,19 @@ class OverseasService {
 
     Position position;
     try {
-      position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
+      position = _getCurrentPositionFn != null
+          ? await _getCurrentPositionFn()
+          : await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.low,
+                timeLimit: Duration(seconds: 10),
+              ),
+            );
     } catch (_) {
       return null;
     }
 
-    final countryCode = await _getCountryCode(
+    final countryCode = await getCountryCode(
       position.latitude,
       position.longitude,
     );
@@ -187,7 +203,7 @@ class OverseasService {
   Future<Map<String, dynamic>> fetchRates() async {
     try {
       final uri = Uri.parse('${AppConstants.apiBaseUrl}/exchange-rates');
-      final res = await http.get(uri);
+      final res = await _httpClient.get(uri);
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as Map<String, dynamic>;
       }
@@ -201,7 +217,7 @@ class OverseasService {
       final uri = Uri.parse(
         '${AppConstants.apiBaseUrl}/exchange-rates/history?currency=$currency',
       );
-      final res = await http.get(uri);
+      final res = await _httpClient.get(uri);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         return List<Map<String, dynamic>>.from(data['history'] ?? []);

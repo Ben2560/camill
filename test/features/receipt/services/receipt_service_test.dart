@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:camill/features/receipt/services/receipt_service.dart';
@@ -412,6 +414,128 @@ void main() {
       final mockOverseas = MockOverseasService();
       final injected = ReceiptService(api: mockApi, overseasService: mockOverseas);
       expect(injected, isNotNull);
+    });
+
+    test('引数なしでデフォルト構築できる', () {
+      // ApiService() / OverseasService() のフォールバックパスを通す
+      expect(ReceiptService(), isNotNull);
+    });
+  });
+
+  // ─────────────────────────────────────────
+  // analyzeReceipt
+  // ─────────────────────────────────────────
+  group('analyzeReceipt', () {
+    final fakeBytes = Uint8List.fromList([1, 2, 3]);
+    final dummyFile = File('/dev/null');
+
+    final singleAnalysisJson = <String, dynamic>{
+      'store_name': 'テスト店',
+      'purchased_at': '2026-04-01T10:00:00',
+      'total_amount': 1000,
+      'items': [],
+      'coupons_detected': [],
+    };
+
+    test('非海外: is_overseas がボディに含まれない', () async {
+      final mockOverseas = MockOverseasService();
+      when(() => mockOverseas.getIsOverseas()).thenAnswer((_) async => false);
+      when(() => mockApi.post('/receipts/analyze', body: any(named: 'body')))
+          .thenAnswer((_) async => singleAnalysisJson);
+
+      final svc = ReceiptService(
+        api: mockApi,
+        overseasService: mockOverseas,
+        compressImage: (_) async => fakeBytes,
+      );
+      final results = await svc.analyzeReceipt(dummyFile);
+      expect(results.length, 1);
+      expect(results.first.storeName, 'テスト店');
+
+      final captured = verify(
+        () => mockApi.post('/receipts/analyze', body: captureAny(named: 'body')),
+      ).captured;
+      final body = captured.first as Map<String, dynamic>;
+      expect(body.containsKey('is_overseas'), isFalse);
+    });
+
+    test('海外モード: is_overseas と current_currency がボディに含まれる', () async {
+      final mockOverseas = MockOverseasService();
+      when(() => mockOverseas.getIsOverseas()).thenAnswer((_) async => true);
+      when(() => mockOverseas.getCurrentCurrency()).thenAnswer((_) async => 'USD');
+      when(() => mockApi.post('/receipts/analyze', body: any(named: 'body')))
+          .thenAnswer((_) async => singleAnalysisJson);
+
+      final svc = ReceiptService(
+        api: mockApi,
+        overseasService: mockOverseas,
+        compressImage: (_) async => fakeBytes,
+      );
+      await svc.analyzeReceipt(dummyFile);
+
+      final captured = verify(
+        () => mockApi.post('/receipts/analyze', body: captureAny(named: 'body')),
+      ).captured;
+      final body = captured.first as Map<String, dynamic>;
+      expect(body['is_overseas'], true);
+      expect(body['current_currency'], 'USD');
+    });
+
+    test('receipts キーがある場合は複数レシートをパースする', () async {
+      final mockOverseas = MockOverseasService();
+      when(() => mockOverseas.getIsOverseas()).thenAnswer((_) async => false);
+      when(() => mockApi.post('/receipts/analyze', body: any(named: 'body')))
+          .thenAnswer((_) async => {
+                'receipts': [singleAnalysisJson, singleAnalysisJson],
+              });
+
+      final svc = ReceiptService(
+        api: mockApi,
+        overseasService: mockOverseas,
+        compressImage: (_) async => fakeBytes,
+      );
+      final results = await svc.analyzeReceipt(dummyFile);
+      // 同一店舗・同一日時なので mergeReceiptsAndCoupons で1件にまとまる
+      expect(results.length, 1);
+    });
+
+    test('documentHint がボディに含まれる', () async {
+      final mockOverseas = MockOverseasService();
+      when(() => mockOverseas.getIsOverseas()).thenAnswer((_) async => false);
+      when(() => mockApi.post('/receipts/analyze', body: any(named: 'body')))
+          .thenAnswer((_) async => singleAnalysisJson);
+
+      final svc = ReceiptService(
+        api: mockApi,
+        overseasService: mockOverseas,
+        compressImage: (_) async => fakeBytes,
+      );
+      await svc.analyzeReceipt(dummyFile, documentHint: 'receipt');
+
+      final captured = verify(
+        () => mockApi.post('/receipts/analyze', body: captureAny(named: 'body')),
+      ).captured;
+      expect((captured.first as Map)['document_hint'], 'receipt');
+    });
+
+    test('image_base64 が data:image/jpeg;base64, プレフィックス付きで送られる', () async {
+      final mockOverseas = MockOverseasService();
+      when(() => mockOverseas.getIsOverseas()).thenAnswer((_) async => false);
+      when(() => mockApi.post('/receipts/analyze', body: any(named: 'body')))
+          .thenAnswer((_) async => singleAnalysisJson);
+
+      final svc = ReceiptService(
+        api: mockApi,
+        overseasService: mockOverseas,
+        compressImage: (_) async => fakeBytes,
+      );
+      await svc.analyzeReceipt(dummyFile);
+
+      final captured = verify(
+        () => mockApi.post('/receipts/analyze', body: captureAny(named: 'body')),
+      ).captured;
+      final imageBase64 = (captured.first as Map)['image_base64'] as String;
+      expect(imageBase64.startsWith('data:image/jpeg;base64,'), isTrue);
     });
   });
 

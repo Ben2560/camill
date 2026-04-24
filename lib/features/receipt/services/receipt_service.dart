@@ -9,15 +9,21 @@ import '../../../shared/services/overseas_service.dart';
 class ReceiptService {
   final ApiService _api;
   final OverseasService? _overseasServiceOverride;
+  final Future<Uint8List> Function(File)? _compressImageFn;
 
-  ReceiptService({ApiService? api, OverseasService? overseasService})
-      : _api = api ?? ApiService(),
-        _overseasServiceOverride = overseasService;
+  ReceiptService({
+    ApiService? api,
+    OverseasService? overseasService,
+    Future<Uint8List> Function(File)? compressImage,
+  })  : _api = api ?? ApiService(),
+        _overseasServiceOverride = overseasService,
+        _compressImageFn = compressImage;
 
   OverseasService get _overseas =>
       _overseasServiceOverride ?? OverseasService(_api);
 
   Future<Uint8List> _compressImage(File imageFile) async {
+    if (_compressImageFn != null) return _compressImageFn(imageFile);
     final result = await FlutterImageCompress.compressWithFile(
       imageFile.absolute.path,
       minWidth: 1000,

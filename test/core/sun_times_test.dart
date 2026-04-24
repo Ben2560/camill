@@ -18,26 +18,28 @@ void main() {
       expect(result.sunrise!.isBefore(result.sunset!), isTrue);
     });
 
-    test('東京・4月15日: 日の出は午前4〜7時', () {
+    test('東京・4月15日: 日の出は午前4〜7時 (JST)', () {
       final result = SunTimes.calculate(
         latitude: tokyoLat,
         longitude: tokyoLng,
         date: DateTime(2026, 4, 15),
       );
-      final sr = result.sunrise!.toLocal();
+      // タイムゾーン非依存: UTCに戻してJST(+9h)に変換
+      final sr = result.sunrise!.toUtc().add(const Duration(hours: 9));
       expect(sr.hour >= 4 && sr.hour < 7, isTrue,
-          reason: '日の出は ${sr.hour}:${sr.minute.toString().padLeft(2, '0')}');
+          reason: '日の出は ${sr.hour}:${sr.minute.toString().padLeft(2, '0')} JST');
     });
 
-    test('東京・4月15日: 日の入りは午後17〜20時', () {
+    test('東京・4月15日: 日の入りは午後17〜20時 (JST)', () {
       final result = SunTimes.calculate(
         latitude: tokyoLat,
         longitude: tokyoLng,
         date: DateTime(2026, 4, 15),
       );
-      final ss = result.sunset!.toLocal();
+      // タイムゾーン非依存: UTCに戻してJST(+9h)に変換
+      final ss = result.sunset!.toUtc().add(const Duration(hours: 9));
       expect(ss.hour >= 17 && ss.hour < 20, isTrue,
-          reason: '日の入りは ${ss.hour}:${ss.minute.toString().padLeft(2, '0')}');
+          reason: '日の入りは ${ss.hour}:${ss.minute.toString().padLeft(2, '0')} JST');
     });
 
     test('東京・夏至付近: 日の出が冬至付近より早い', () {

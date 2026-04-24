@@ -106,4 +106,22 @@ void main() {
       verify(() => mockApi.delete('/bills/b1')).called(1);
     });
   });
+
+  group('analyzeBill', () {
+    test('post が /bills/analyze で呼ばれ結果を返す', () async {
+      final result = <String, dynamic>{'title': '電気代', 'amount': 5000};
+      when(
+        () => mockApi.post('/bills/analyze', body: any(named: 'body')),
+      ).thenAnswer((_) async => result);
+
+      final response = await service.analyzeBill('base64str', 'receipt');
+      expect(response['title'], '電気代');
+      verify(
+        () => mockApi.post(
+          '/bills/analyze',
+          body: {'image_base64': 'base64str', 'image_type': 'receipt'},
+        ),
+      ).called(1);
+    });
+  });
 }

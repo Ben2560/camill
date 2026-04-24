@@ -45,11 +45,27 @@ import 'shared/models/receipt_model.dart';
 import 'shared/models/summary_model.dart';
 import 'shared/services/notification_inbox.dart';
 import 'shared/services/notification_service.dart';
+import 'shared/services/error_reporter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Flutter フレームワーク内のエラーを Crashlytics + 管理画面に送信
+  FlutterError.onError = (details) {
+    ErrorReporter.report(
+      details.exception,
+      details.stack,
+      endpoint: 'flutter_framework',
+      fatal: true,
+    );
+  };
+  // Dart の非同期エラー（Zone外）も捕捉
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    ErrorReporter.report(error, stack, endpoint: 'platform_dispatcher');
+    return true;
+  };
 
   // 保存済み通知インボックスを読み込む
   await NotificationInbox().load();

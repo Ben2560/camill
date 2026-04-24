@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
+import '../../../shared/services/cache_service.dart';
+import '../../../shared/services/error_reporter.dart';
 import '../../../shared/models/bill_model.dart';
 import '../../../shared/models/family_model.dart';
 import '../../../shared/models/summary_model.dart';
@@ -230,17 +232,34 @@ class HomeMonthPageState extends State<HomeMonthPage>
 
   Future<void> _load({bool silent = false}) async {
     if (!mounted) return;
-    if (!silent) setState(() => _loading = true);
-    try {
-      final yearMonth = DateFormat('yyyy-MM').format(widget.month);
-      final prevMonth = DateTime(widget.month.year, widget.month.month - 1);
-      final prevYearMonth = DateFormat('yyyy-MM').format(prevMonth);
+    final yearMonth = DateFormat('yyyy-MM').format(widget.month);
+    final prevMonth = DateTime(widget.month.year, widget.month.month - 1);
+    final prevYearMonth = DateFormat('yyyy-MM').format(prevMonth);
 
+    // キャッシュがあれば先に表示してローディングを隠す
+    if (!silent) {
+      final cached = await CacheService.loadSummary(yearMonth);
+      if (cached != null && mounted) {
+        setState(() {
+          _summary = MonthlySummary.fromJson(cached);
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = true);
+      }
+    }
+
+    final sw = ErrorReporter.startTimer();
+    try {
       final results = await Future.wait([
         _api.get('/summary/monthly', query: {'year_month': yearMonth}),
         _api.get('/summary/monthly', query: {'year_month': prevYearMonth}),
       ]);
+      ErrorReporter.checkSlow(sw, 'home_summary/$yearMonth');
+
       if (!mounted) return;
+      // 取得成功したらキャッシュを更新
+      CacheService.saveSummary(yearMonth, results[0]);
       setState(() {
         _summary = MonthlySummary.fromJson(results[0]);
         _prevExpense = (results[1]['total_expense'] as num?)?.toInt() ?? 0;
@@ -254,13 +273,16 @@ class HomeMonthPageState extends State<HomeMonthPage>
       });
       _loadMonthMedicalExpense();
       if (widget.plan == 'family') _loadFamilySummaries();
-    } catch (e) {
+    } catch (e, st) {
+      ErrorReporter.checkSlow(sw, 'home_summary/$yearMonth');
+      ErrorReporter.report(e, st, endpoint: 'home_summary/$yearMonth');
       debugPrint('_load error: $e');
       if (!mounted) return;
       if (!silent) {
         setState(() {
-          _summary = MonthlySummary(
-            yearMonth: DateFormat('yyyy-MM').format(widget.month),
+          // キャッシュがあれば既に表示済みなのでゼロリセットしない
+          _summary ??= MonthlySummary(
+            yearMonth: yearMonth,
             totalExpense: 0,
             totalIncome: 0,
             score: 0,
@@ -268,7 +290,6 @@ class HomeMonthPageState extends State<HomeMonthPage>
             recentReceipts: [],
             allReceipts: [],
           );
-          _prevExpense = null;
           _loading = false;
           if (!_isRefreshing) {
             _bounceController.stop();

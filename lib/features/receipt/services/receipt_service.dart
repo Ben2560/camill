@@ -15,9 +15,9 @@ class ReceiptService {
     ApiService? api,
     OverseasService? overseasService,
     Future<Uint8List> Function(File)? compressImage,
-  })  : _api = api ?? ApiService(),
-        _overseasServiceOverride = overseasService,
-        _compressImageFn = compressImage;
+  }) : _api = api ?? ApiService(),
+       _overseasServiceOverride = overseasService,
+       _compressImageFn = compressImage;
 
   OverseasService get _overseas =>
       _overseasServiceOverride ?? OverseasService(_api);

@@ -87,9 +87,9 @@ class OverseasService {
     http.Client? httpClient,
     Future<LocationPermission> Function()? checkPermission,
     Future<Position> Function()? getCurrentPosition,
-  })  : _httpClient = httpClient ?? http.Client(),
-        _checkPermissionFn = checkPermission,
-        _getCurrentPositionFn = getCurrentPosition;
+  }) : _httpClient = httpClient ?? http.Client(),
+       _checkPermissionFn = checkPermission,
+       _getCurrentPositionFn = getCurrentPosition;
 
   Future<bool> getIsOverseas() async {
     final p = await SharedPreferences.getInstance();

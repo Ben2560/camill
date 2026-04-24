@@ -11,10 +11,7 @@ class CacheService {
     Map<String, dynamic> json,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final entry = {
-      'data': json,
-      'saved_at': DateTime.now().toIso8601String(),
-    };
+    final entry = {'data': json, 'saved_at': DateTime.now().toIso8601String()};
     await prefs.setString('$_summaryPrefix$yearMonth', jsonEncode(entry));
   }
 

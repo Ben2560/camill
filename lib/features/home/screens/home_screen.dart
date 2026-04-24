@@ -259,10 +259,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final bills = await _billService.fetchBills(status: 'unpaid');
       if (!mounted) return;
       setState(() {
-        _upcomingBills = bills
-            .where((b) => b.dueDate != null && (b.daysUntilDue ?? 1) >= 0)
-            .toList()
-          ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+        _upcomingBills =
+            bills
+                .where((b) => b.dueDate != null && (b.daysUntilDue ?? 1) >= 0)
+                .toList()
+              ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
       });
     } catch (e) {
       debugPrint('_loadUpcomingBills error: $e');

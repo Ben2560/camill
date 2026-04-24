@@ -20,8 +20,8 @@ class ApiService {
   final Future<String> Function()? _tokenProvider;
 
   ApiService({http.Client? client, Future<String> Function()? tokenProvider})
-      : _client = client ?? http.Client(),
-        _tokenProvider = tokenProvider;
+    : _client = client ?? http.Client(),
+      _tokenProvider = tokenProvider;
 
   static final Future<void> _authReady = FirebaseAuth.instance
       .authStateChanges()

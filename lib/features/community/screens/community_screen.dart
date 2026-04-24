@@ -612,89 +612,86 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             left: 0,
             right: 0,
             child: Container(
-                padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 20, 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [colors.background, colors.background.withAlpha(0)],
-                    stops: const [0.6, 1.0],
-                  ),
+              padding: EdgeInsets.fromLTRB(20, statusBarH + 10, 20, 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [colors.background, colors.background.withAlpha(0)],
+                  stops: const [0.6, 1.0],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'コミュニティ',
-                          style: camillBodyStyle(
-                            26,
-                            colors.textPrimary,
-                            weight: FontWeight.w800,
-                          ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'コミュニティ',
+                        style: camillBodyStyle(
+                          26,
+                          colors.textPrimary,
+                          weight: FontWeight.w800,
                         ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () async {
-                            await context.push('/community-settings');
-                            if (mounted) _loadSettings();
-                          },
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: colors.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: colors.surfaceBorder),
-                            ),
-                            child: Icon(
-                              Icons.settings_outlined,
-                              size: 18,
-                              color: colors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!_locationPermissionGranted) ...[
-                      const SizedBox(height: 6),
+                      ),
+                      const Spacer(),
                       GestureDetector(
-                        onTap: _initLocation,
+                        onTap: () async {
+                          await context.push('/community-settings');
+                          if (mounted) _loadSettings();
+                        },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             color: colors.surface,
-                            borderRadius: BorderRadius.circular(8),
+                            shape: BoxShape.circle,
                             border: Border.all(color: colors.surfaceBorder),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.location_off_outlined,
-                                size: 14,
-                                color: colors.accent,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '位置情報を許可するとより正確な情報が見られます',
-                                style: camillBodyStyle(
-                                  11,
-                                  colors.textSecondary,
-                                ),
-                              ),
-                            ],
+                          child: Icon(
+                            Icons.settings_outlined,
+                            size: 18,
+                            color: colors.textSecondary,
                           ),
                         ),
                       ),
                     ],
+                  ),
+                  if (!_locationPermissionGranted) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: _initLocation,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: colors.surfaceBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_off_outlined,
+                              size: 14,
+                              color: colors.accent,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '位置情報を許可するとより正確な情報が見られます',
+                              style: camillBodyStyle(11, colors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
+            ),
           ),
 
           // 現在地ボタン

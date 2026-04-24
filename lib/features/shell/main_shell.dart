@@ -503,12 +503,14 @@ class _MainShellState extends State<MainShell>
                     _speedDialVisible = false;
                     if (_currentIndex == 1) _headerBlurred = true;
                   });
-                  context.push(
-                    '/camera',
-                    extra: {'source': 'camera', 'hint': hint},
-                  ).then((_) {
-                    if (mounted) setState(() => _headerBlurred = false);
-                  });
+                  context
+                      .push(
+                        '/camera',
+                        extra: {'source': 'camera', 'hint': hint},
+                      )
+                      .then((_) {
+                        if (mounted) setState(() => _headerBlurred = false);
+                      });
                 },
               ),
               const SizedBox(height: 10),

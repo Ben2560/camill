@@ -17,8 +17,11 @@ class ApiException implements Exception {
 
 class ApiService {
   final http.Client _client;
+  final Future<String> Function()? _tokenProvider;
 
-  ApiService({http.Client? client}) : _client = client ?? http.Client();
+  ApiService({http.Client? client, Future<String> Function()? tokenProvider})
+      : _client = client ?? http.Client(),
+        _tokenProvider = tokenProvider;
 
   static final Future<void> _authReady = FirebaseAuth.instance
       .authStateChanges()
@@ -26,10 +29,15 @@ class ApiService {
       .then((_) {});
 
   Future<Map<String, String>> _authHeaders() async {
-    await _authReady;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw ApiException(401, 'UNAUTHORIZED', '未ログインです');
-    final token = await user.getIdToken();
+    final String token;
+    if (_tokenProvider != null) {
+      token = await _tokenProvider();
+    } else {
+      await _authReady;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw ApiException(401, 'UNAUTHORIZED', '未ログインです');
+      token = await user.getIdToken() ?? '';
+    }
     return {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',

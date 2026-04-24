@@ -30,6 +30,7 @@ class _MainShellState extends State<MainShell>
   int _currentIndex = 0;
   bool _speedDialOpen = false;
   bool _speedDialVisible = false;
+  bool _headerBlurred = false;
   bool _fabPressed = false;
   bool _fabLongPressActivated = false;
   Timer? _fabLongPressTimer;
@@ -250,9 +251,18 @@ class _MainShellState extends State<MainShell>
     }
   }
 
-  void _pickFromGallery() {
+  void _pickFromGallery() async {
     _closeSpeedDial();
-    context.push('/camera', extra: 'gallery');
+    if (_currentIndex == 1) {
+      _animController.stop();
+      _animController.reset();
+      setState(() {
+        _speedDialVisible = false;
+        _headerBlurred = true;
+      });
+    }
+    await context.push('/camera', extra: 'gallery');
+    if (mounted) setState(() => _headerBlurred = false);
   }
 
   void _onNavTap(int index) {
@@ -278,7 +288,7 @@ class _MainShellState extends State<MainShell>
     final pageIndex = _currentIndex > 2 ? _currentIndex - 1 : _currentIndex;
     final pages = [
       HomeScreen(),
-      CommunityScreen(blurred: _speedDialOpen),
+      const CommunityScreen(),
       CalendarScreen(
         returnToTodayNotifier: _calendarReturnNotifier,
         refreshNotifier: _calendarRefreshNotifier,
@@ -370,6 +380,16 @@ class _MainShellState extends State<MainShell>
             right: 0,
             child: Center(child: _buildCenterFab(colors)),
           ),
+          // ギャラリー・解析画面表示中のシェル全体ブラー（FABも含む）
+          if (_headerBlurred)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
           // 月初グリーティング（最前面）
           if (_showMonthGreeting)
             Positioned.fill(
@@ -394,7 +414,10 @@ class _MainShellState extends State<MainShell>
           _fabLongPressActivated = true;
           _fabPressed = false;
           HapticFeedback.mediumImpact();
-          context.push('/camera', extra: 'camera');
+          if (_currentIndex == 1) setState(() => _headerBlurred = true);
+          context.push('/camera', extra: 'camera').then((_) {
+            if (mounted) setState(() => _headerBlurred = false);
+          });
         });
       },
       onTapUp: (_) {
@@ -478,11 +501,14 @@ class _MainShellState extends State<MainShell>
                   setState(() {
                     _speedDialOpen = false;
                     _speedDialVisible = false;
+                    if (_currentIndex == 1) _headerBlurred = true;
                   });
                   context.push(
                     '/camera',
                     extra: {'source': 'camera', 'hint': hint},
-                  );
+                  ).then((_) {
+                    if (mounted) setState(() => _headerBlurred = false);
+                  });
                 },
               ),
               const SizedBox(height: 10),
@@ -491,9 +517,18 @@ class _MainShellState extends State<MainShell>
                 label: 'カメラで撮影',
                 sublabel: 'レシートや請求書をその場で撮る',
                 colors: colors,
-                onTap: () {
+                onTap: () async {
                   _closeSpeedDial();
-                  context.push('/camera', extra: 'camera');
+                  if (_currentIndex == 1) {
+                    _animController.stop();
+                    _animController.reset();
+                    setState(() {
+                      _speedDialVisible = false;
+                      _headerBlurred = true;
+                    });
+                  }
+                  await context.push('/camera', extra: 'camera');
+                  if (mounted) setState(() => _headerBlurred = false);
                 },
               ),
               const SizedBox(height: 10),

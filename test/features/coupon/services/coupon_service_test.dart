@@ -77,6 +77,56 @@ void main() {
       );
       expect(coupon.couponId, 'c1');
     });
+
+    test('全オプション引数を渡したときボディに含まれる', () async {
+      when(
+        () => mockApi.postAny('/coupons', body: any(named: 'body')),
+      ).thenAnswer((_) async => couponJson);
+
+      await service.createCoupon(
+        storeName: 'イオン',
+        description: '100円引き',
+        discountAmount: 100,
+        validFrom: '2026-04-01',
+        validUntil: '2026-04-30',
+        availableDays: [1, 2, 3],
+        isFromOcr: true,
+        isUsed: true,
+        receiptId: 'r1',
+        requiresSurvey: true,
+        surveyUrl: 'https://example.com',
+        surveyAnswered: true,
+      );
+
+      final captured = verify(
+        () => mockApi.postAny('/coupons', body: captureAny(named: 'body')),
+      ).captured;
+      final body = captured.first as Map<String, dynamic>;
+      expect(body['valid_from'], '2026-04-01');
+      expect(body['valid_until'], '2026-04-30');
+      expect(body['available_days'], [1, 2, 3]);
+      expect(body['receipt_id'], 'r1');
+      expect(body['survey_url'], 'https://example.com');
+      expect(body['is_from_ocr'], true);
+      expect(body['requires_survey'], true);
+      expect(body['survey_answered'], true);
+    });
+  });
+
+  group('markSurveyAnswered', () {
+    test('patch /coupons/c1/survey-answered が呼ばれる', () async {
+      when(
+        () => mockApi.patch(
+          '/coupons/c1/survey-answered',
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => <String, dynamic>{});
+
+      await service.markSurveyAnswered('c1');
+      verify(
+        () => mockApi.patch('/coupons/c1/survey-answered', body: {}),
+      ).called(1);
+    });
   });
 
   group('useCoupon', () {

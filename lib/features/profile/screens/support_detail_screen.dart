@@ -54,7 +54,8 @@ class _SupportDetailScreenState extends State<SupportDetailScreen> {
     // FCMフォアグラウンド受信で即リロード
     _fcmSub = NotificationService().onForegroundMessage.stream.listen((msg) {
       final type = msg.data['type'];
-      if (type == 'inquiry_reply' && msg.data['inquiry_id'] == widget.inquiryId) {
+      if (type == 'inquiry_reply' &&
+          msg.data['inquiry_id'] == widget.inquiryId) {
         _load(silent: true);
       } else if (type == 'data_access_request') {
         _load(silent: true);
@@ -75,7 +76,9 @@ class _SupportDetailScreenState extends State<SupportDetailScreen> {
     try {
       final results = await Future.wait([
         _api.getAny('/users/inquiries'),
-        _api.getAny('/users/data-access-requests').catchError((_) => <dynamic>[]),
+        _api
+            .getAny('/users/data-access-requests')
+            .catchError((_) => <dynamic>[]),
       ]);
       if (!mounted) return;
       final list = List<Map<String, dynamic>>.from(results[0] as List);
@@ -83,9 +86,9 @@ class _SupportDetailScreenState extends State<SupportDetailScreen> {
         (e) => e['inquiry_id'] == widget.inquiryId,
         orElse: () => _inquiry,
       );
-      final accessReqs = List<Map<String, dynamic>>.from(results[1] as List)
-          .where((r) => r['inquiry_id'] == widget.inquiryId)
-          .toList();
+      final accessReqs = List<Map<String, dynamic>>.from(
+        results[1] as List,
+      ).where((r) => r['inquiry_id'] == widget.inquiryId).toList();
       final wasAtBottom = _isAtBottom();
       setState(() {
         _inquiry = found;
@@ -117,9 +120,9 @@ class _SupportDetailScreenState extends State<SupportDetailScreen> {
       await _load(silent: true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('エラー: $e')));
       }
     }
   }
@@ -217,7 +220,9 @@ class _SupportDetailScreenState extends State<SupportDetailScreen> {
                         return Column(
                           children: [
                             if (_shouldShowDate(prev, msg))
-                              _DateDivider(isoDate: msg['created_at'] as String?),
+                              _DateDivider(
+                                isoDate: msg['created_at'] as String?,
+                              ),
                             _MessageBubble(message: msg, colors: colors),
                           ],
                         );
@@ -227,10 +232,8 @@ class _SupportDetailScreenState extends State<SupportDetailScreen> {
                       return _DataAccessRequestCard(
                         request: req,
                         colors: colors,
-                        onRespond: (approved) => _respondAccessRequest(
-                          req['id'] as int,
-                          approved,
-                        ),
+                        onRespond: (approved) =>
+                            _respondAccessRequest(req['id'] as int, approved),
                       );
                     },
                   ),
@@ -388,9 +391,12 @@ class _MessageBubble extends StatelessWidget {
 // ── データアクセス許可カード ──────────────────────────────────────────────────
 
 const _scopeLabels = {
-  'receipts': 'レシート', 'profile': 'プロフィール',
-  'subscriptions': 'サブスク', 'bills': '請求書',
-  'family': 'ファミリー', 'community': 'コミュニティ',
+  'receipts': 'レシート',
+  'profile': 'プロフィール',
+  'subscriptions': 'サブスク',
+  'bills': '請求書',
+  'family': 'ファミリー',
+  'community': 'コミュニティ',
 };
 
 const _accessLevelLabels = {
@@ -424,7 +430,9 @@ class _DataAccessRequestCardState extends State<_DataAccessRequestCard> {
 
   @override
   Widget build(BuildContext context) {
-    final scopes = List<String>.from(widget.request['requested_scopes'] as List? ?? []);
+    final scopes = List<String>.from(
+      widget.request['requested_scopes'] as List? ?? [],
+    );
     final level = widget.request['access_level'] as String? ?? 'read';
     final message = widget.request['admin_message'] as String? ?? '';
     final colors = widget.colors;
@@ -447,7 +455,11 @@ class _DataAccessRequestCardState extends State<_DataAccessRequestCard> {
               Expanded(
                 child: Text(
                   'データアクセスの許可を求められています',
-                  style: camillBodyStyle(13, colors.primary, weight: FontWeight.w700),
+                  style: camillBodyStyle(
+                    13,
+                    colors.primary,
+                    weight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -469,7 +481,11 @@ class _DataAccessRequestCardState extends State<_DataAccessRequestCard> {
                 ),
                 child: Text(
                   _scopeLabels[s] ?? s,
-                  style: camillBodyStyle(11, colors.primary, weight: FontWeight.w600),
+                  style: camillBodyStyle(
+                    11,
+                    colors.primary,
+                    weight: FontWeight.w600,
+                  ),
                 ),
               );
             }).toList(),
@@ -483,7 +499,8 @@ class _DataAccessRequestCardState extends State<_DataAccessRequestCard> {
           if (_responding)
             const Center(
               child: SizedBox(
-                width: 20, height: 20,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
@@ -501,7 +518,10 @@ class _DataAccessRequestCardState extends State<_DataAccessRequestCard> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
-                    child: Text('拒否', style: camillBodyStyle(13, colors.textMuted)),
+                    child: Text(
+                      '拒否',
+                      style: camillBodyStyle(13, colors.textMuted),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -519,7 +539,11 @@ class _DataAccessRequestCardState extends State<_DataAccessRequestCard> {
                     ),
                     child: Text(
                       '承認',
-                      style: camillBodyStyle(13, Colors.white, weight: FontWeight.w700),
+                      style: camillBodyStyle(
+                        13,
+                        Colors.white,
+                        weight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

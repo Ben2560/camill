@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -62,27 +63,40 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Future<void> _loadAvatar() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = await UserPrefs.getString(prefs, _avatarPathKey);
-    if (stored == null) return;
-    final rawName = stored.contains('/') ? stored.split('/').last : stored;
     final dir = await getApplicationDocumentsDirectory();
     final expectedName = _avatarFileName();
+    final expectedPath = '${dir.path}/$expectedName';
 
-    // 旧ファイル名（profile_avatar.jpg 等）→ UID 別ファイルへ移行
-    if (rawName != expectedName) {
-      final oldPath = '${dir.path}/$rawName';
-      final newPath = '${dir.path}/$expectedName';
-      if (File(oldPath).existsSync() && !File(newPath).existsSync()) {
-        await File(oldPath).copy(newPath);
+    if (stored != null) {
+      final rawName = stored.contains('/') ? stored.split('/').last : stored;
+      // 旧ファイル名（profile_avatar.jpg 等）→ UID 別ファイルへ移行
+      if (rawName != expectedName) {
+        final oldPath = '${dir.path}/$rawName';
+        if (File(oldPath).existsSync() && !File(expectedPath).existsSync()) {
+          await File(oldPath).copy(expectedPath);
+        }
       }
-      if (File(newPath).existsSync()) {
+    }
+
+    if (File(expectedPath).existsSync()) {
+      if (mounted) setState(() => _avatarPath = expectedPath);
+      return;
+    }
+
+    // ローカルにない場合はサーバーから復元
+    try {
+      final profile = await _authService.fetchProfile();
+      final avatarData = profile['avatar_data'] as String?;
+      if (avatarData != null && avatarData.contains(',')) {
+        final b64 = avatarData.split(',').last;
+        final bytes = base64Decode(b64);
+        await File(expectedPath).writeAsBytes(bytes);
+        final prefs = await SharedPreferences.getInstance();
         await UserPrefs.setString(prefs, _avatarPathKey, expectedName);
-        if (mounted) setState(() => _avatarPath = newPath);
+        if (mounted) setState(() => _avatarPath = expectedPath);
       }
-    } else {
-      final path = '${dir.path}/$rawName';
-      if (File(path).existsSync()) {
-        if (mounted) setState(() => _avatarPath = path);
-      }
+    } catch (e) {
+      debugPrint('avatar restore failed: $e');
     }
   }
 
@@ -107,14 +121,25 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     );
     if (picked == null || !mounted) return;
 
+    final tempFile = File(picked.path);
     final dir = await getApplicationDocumentsDirectory();
     final fileName = _avatarFileName();
     final dest = '${dir.path}/$fileName';
-    await File(picked.path).copy(dest);
+    await tempFile.copy(dest);
+    if (tempFile.existsSync()) tempFile.deleteSync();
 
     final prefs = await SharedPreferences.getInstance();
     await UserPrefs.setString(prefs, _avatarPathKey, fileName);
     if (mounted) setState(() => _avatarPath = dest);
+
+    // サーバーにアップロード（バックグラウンド）
+    try {
+      final bytes = await File(dest).readAsBytes();
+      final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      await _authService.uploadAvatar(b64);
+    } catch (e) {
+      debugPrint('avatar upload failed: $e');
+    }
   }
 
   void _showImagePicker(CamillColors colors) {

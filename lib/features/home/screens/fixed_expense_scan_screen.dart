@@ -50,6 +50,7 @@ class _FixedExpenseScanScreenState extends State<FixedExpenseScanScreen> {
       _confirmed.clear();
     });
 
+    final tempFile = File(picked.path);
     try {
       final bytes =
           await FlutterImageCompress.compressWithFile(
@@ -57,7 +58,7 @@ class _FixedExpenseScanScreenState extends State<FixedExpenseScanScreen> {
             minWidth: 1000,
             quality: 75,
           ) ??
-          await File(picked.path).readAsBytes();
+          await tempFile.readAsBytes();
 
       final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       final result = await _svc.scanBankStatement(b64);
@@ -73,6 +74,7 @@ class _FixedExpenseScanScreenState extends State<FixedExpenseScanScreen> {
       }
     } finally {
       if (mounted) setState(() => _scanning = false);
+      if (tempFile.existsSync()) tempFile.deleteSync();
     }
   }
 

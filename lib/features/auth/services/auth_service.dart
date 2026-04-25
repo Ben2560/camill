@@ -104,6 +104,11 @@ class AuthService {
     return Map<String, dynamic>.from(res as Map);
   }
 
+  // アバター画像をサーバーにアップロード（Base64形式）
+  Future<void> uploadAvatar(String base64Data) async {
+    await _api.put('/auth/avatar', body: {'avatar_data': base64Data});
+  }
+
   // パスワード再設定メール送信
   Future<void> sendPasswordResetEmail() async {
     final email = _auth.currentUser?.email;

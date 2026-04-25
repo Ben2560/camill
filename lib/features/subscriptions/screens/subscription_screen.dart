@@ -175,6 +175,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       builder: (_) => const _ScanningDialog(),
     );
 
+    final tempFile = File(picked.path);
     try {
       final bytes =
           await FlutterImageCompress.compressWithFile(
@@ -182,7 +183,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
             minWidth: 1000,
             quality: 75,
           ) ??
-          await File(picked.path).readAsBytes();
+          await tempFile.readAsBytes();
 
       final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       final result = await _api.postAny(
@@ -240,6 +241,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
           context,
         ).showSnackBar(SnackBar(content: Text('解析に失敗しました: $e')));
       }
+    } finally {
+      if (tempFile.existsSync()) tempFile.deleteSync();
     }
   }
 

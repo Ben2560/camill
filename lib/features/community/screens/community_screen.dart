@@ -46,7 +46,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   Timer? _debounceTimer;
   bool _suppressCameraFetch = false; // プログラム的なカメラ移動時にフェッチを抑制
   double _sheetSize = 0.38;
-  late String _mapStyle;
+  late ValueNotifier<String> _mapStyleNotifier;
   CommunitySettings? _settings;
 
   // 検索フィルター状態
@@ -77,7 +77,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   void initState() {
     super.initState();
-    _mapStyle = communityMapStyle(ref.read(themeProvider).isDarkNow);
+    _mapStyleNotifier = ValueNotifier(communityMapStyle(ref.read(themeProvider).isDarkNow));
     _sheetController.addListener(_onSheetSizeChanged);
     _initLocation();
     _loadSettings();
@@ -101,6 +101,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _mapController?.dispose();
+    _mapStyleNotifier.dispose();
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _listScrollController.dispose();
@@ -569,7 +570,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(themeProvider, (_, next) {
-      setState(() => _mapStyle = communityMapStyle(next.isDarkNow));
+      _mapStyleNotifier.value = communityMapStyle(next.isDarkNow);
     });
     final colors = context.colors;
     final statusBarH = MediaQuery.of(context).padding.top;
@@ -580,29 +581,32 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         children: [
           // Google Maps（全画面）
           Positioned.fill(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _currentCenter,
-                zoom: _currentZoom,
+            child: ValueListenableBuilder<String>(
+              valueListenable: _mapStyleNotifier,
+              builder: (_, style, _) => GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: _currentCenter,
+                  zoom: _currentZoom,
+                ),
+                style: style,
+                markers: _markers,
+                myLocationEnabled: _locationPermissionGranted,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  // _initLocation() がマップ生成前に完了していた場合に備えてカメラを移動
+                  if (_currentCenter != _defaultLatLng) {
+                    controller.moveCamera(CameraUpdate.newLatLng(_currentCenter));
+                  }
+                },
+                onCameraMove: _onCameraMove,
+                onCameraIdle: _onCameraIdle,
+                onTap: (_) {
+                  setState(() => _highlightedStoreId = null);
+                },
               ),
-              style: _mapStyle,
-              markers: _markers,
-              myLocationEnabled: _locationPermissionGranted,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
-              onMapCreated: (controller) {
-                _mapController = controller;
-                // _initLocation() がマップ生成前に完了していた場合に備えてカメラを移動
-                if (_currentCenter != _defaultLatLng) {
-                  controller.moveCamera(CameraUpdate.newLatLng(_currentCenter));
-                }
-              },
-              onCameraMove: _onCameraMove,
-              onCameraIdle: _onCameraIdle,
-              onTap: (_) {
-                setState(() => _highlightedStoreId = null);
-              },
             ),
           ),
 

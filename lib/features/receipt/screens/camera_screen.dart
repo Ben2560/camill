@@ -123,37 +123,44 @@ class _CameraScreenState extends State<CameraScreen> {
       _loadingSubtitle = 'しばらくお待ちください…';
     });
 
+    // widget.initialImage は呼び出し元が管理するため削除しない
+    final isTempFile = imageFile.path != widget.initialImage?.path;
+
     const maxAttempts = 3;
     Object? lastError;
 
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        final analyses = await _receiptService.analyzeReceipt(
-          imageFile,
-          documentHint: widget.documentHint,
-        );
-        // 解析成功
-        if (mounted) setState(() => _loading = false);
-        final maxReceipts = _isPremium ? 5 : 1;
-        if (mounted) {
-          await context.push(
-            '/receipt-preview',
-            extra: (analyses: analyses, maxReceipts: maxReceipts),
+    try {
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          final analyses = await _receiptService.analyzeReceipt(
+            imageFile,
+            documentHint: widget.documentHint,
           );
-          // 保存せずに戻ってきた場合はカメラ画面も閉じる（保存時は context.go('/') でカメラも破棄される）
-          if (mounted && context.canPop()) {
-            context.pop();
+          // 解析成功
+          if (mounted) setState(() => _loading = false);
+          final maxReceipts = _isPremium ? 5 : 1;
+          if (mounted) {
+            await context.push(
+              '/receipt-preview',
+              extra: (analyses: analyses, maxReceipts: maxReceipts),
+            );
+            // 保存せずに戻ってきた場合はカメラ画面も閉じる（保存時は context.go('/') でカメラも破棄される）
+            if (mounted && context.canPop()) {
+              context.pop();
+            }
           }
+          return;
+        } catch (e) {
+          lastError = e;
+          final canRetry = _isRetryable(e) && attempt < maxAttempts;
+          if (!canRetry) break;
+          // リトライ前にメッセージを更新してバックオフ待機
+          if (mounted) setState(() => _loadingSubtitle = 'もうしばらくお待ちください…');
+          await Future.delayed(Duration(seconds: attempt * 2));
         }
-        return;
-      } catch (e) {
-        lastError = e;
-        final canRetry = _isRetryable(e) && attempt < maxAttempts;
-        if (!canRetry) break;
-        // リトライ前にメッセージを更新してバックオフ待機
-        if (mounted) setState(() => _loadingSubtitle = 'もうしばらくお待ちください…');
-        await Future.delayed(Duration(seconds: attempt * 2));
       }
+    } finally {
+      if (isTempFile && imageFile.existsSync()) imageFile.deleteSync();
     }
 
     // 全試行失敗

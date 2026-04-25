@@ -36,7 +36,7 @@ class ApiService {
       await _authReady;
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw ApiException(401, 'UNAUTHORIZED', '未ログインです');
-      token = await user.getIdToken() ?? '';
+      token = await user.getIdToken(true) ?? '';
     }
     return {
       'Authorization': 'Bearer $token',
@@ -93,6 +93,20 @@ class ApiService {
     final uri = Uri.parse('${AppConstants.apiBaseUrl}$path');
     final headers = await _authHeaders();
     final response = await _client.patch(
+      uri,
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> put(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final uri = Uri.parse('${AppConstants.apiBaseUrl}$path');
+    final headers = await _authHeaders();
+    final response = await _client.put(
       uri,
       headers: headers,
       body: jsonEncode(body),

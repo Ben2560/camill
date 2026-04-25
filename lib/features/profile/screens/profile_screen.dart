@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
@@ -100,36 +101,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _loadAvatar() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = await UserPrefs.getString(prefs, _avatarPathKey);
-    if (!mounted) return;
-    if (stored == null) {
-      setState(() => _avatarPath = null);
-      return;
-    }
-    final fileName = stored.contains('/') ? stored.split('/').last : stored;
     final dir = await getApplicationDocumentsDirectory();
-    // UID 別ファイル名への移行（旧: profile_avatar.jpg → 新: profile_avatar_{uid}.jpg）
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     final expectedName = 'profile_avatar_$uid.jpg';
-    if (fileName != expectedName) {
-      final oldPath = '${dir.path}/$fileName';
-      final newPath = '${dir.path}/$expectedName';
-      if (File(oldPath).existsSync() && !File(newPath).existsSync()) {
-        await File(oldPath).copy(newPath);
+    final expectedPath = '${dir.path}/$expectedName';
+
+    if (stored != null) {
+      final fileName = stored.contains('/') ? stored.split('/').last : stored;
+      // 旧ファイル名 → UID別ファイルへ移行
+      if (fileName != expectedName) {
+        final oldPath = '${dir.path}/$fileName';
+        if (File(oldPath).existsSync() && !File(expectedPath).existsSync()) {
+          await File(oldPath).copy(expectedPath);
+        }
       }
-      if (File(newPath).existsSync()) {
+    }
+
+    if (!mounted) return;
+    if (File(expectedPath).existsSync()) {
+      setState(() => _avatarPath = expectedPath);
+      return;
+    }
+
+    // ローカルにない場合はサーバーから復元
+    try {
+      final profile = await _authService.fetchProfile();
+      final avatarData = profile['avatar_data'] as String?;
+      if (avatarData != null && avatarData.contains(',')) {
+        final b64 = avatarData.split(',').last;
+        final bytes = base64Decode(b64);
+        await File(expectedPath).writeAsBytes(bytes);
         await UserPrefs.setString(prefs, _avatarPathKey, expectedName);
-        if (mounted) setState(() => _avatarPath = newPath);
+        if (mounted) setState(() => _avatarPath = expectedPath);
       } else {
         if (mounted) setState(() => _avatarPath = null);
       }
-      return;
-    }
-    final path = '${dir.path}/$fileName';
-    if (!mounted) return;
-    if (File(path).existsSync()) {
-      setState(() => _avatarPath = path);
-    } else {
-      setState(() => _avatarPath = null);
+    } catch (e) {
+      debugPrint('avatar restore failed: $e');
+      if (mounted) setState(() => _avatarPath = null);
     }
   }
 

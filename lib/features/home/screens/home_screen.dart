@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -289,6 +290,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final v = await UserPrefs.getBool(prefs, _weekStartKey);
     if (!mounted) return;
     setState(() => _weekStartsSunday = v ?? true);
+
+    // APIから最新値を同期
+    try {
+      final api = ApiService();
+      final data = await api.get('/users/preferences');
+      final apiVal = data['week_start_sunday'] as bool? ?? true;
+      final p = await SharedPreferences.getInstance();
+      await UserPrefs.setBool(p, _weekStartKey, apiVal);
+      if (mounted) setState(() => _weekStartsSunday = apiVal);
+    } catch (_) {}
   }
 
   Future<void> _loadBudget() async {
@@ -319,11 +330,35 @@ class _HomeScreenState extends State<HomeScreen> {
       final valid = saved.where(_allWidgetIds.contains).toList();
       if (valid.isNotEmpty) setState(() => _homeWidgets = valid);
     }
+
+    // APIから最新値を同期
+    try {
+      final api = ApiService();
+      final data = await api.get('/users/preferences');
+      final layoutJson = data['home_layout'] as String?;
+      if (layoutJson != null && layoutJson.isNotEmpty) {
+        final decoded = (jsonDecode(layoutJson) as List)
+            .cast<String>()
+            .where(_allWidgetIds.contains)
+            .toList();
+        if (decoded.isNotEmpty) {
+          final p = await SharedPreferences.getInstance();
+          await UserPrefs.setStringList(p, _layoutKey, decoded);
+          if (mounted) setState(() => _homeWidgets = decoded);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _saveHomeLayout(List<String> layout) async {
     final prefs = await SharedPreferences.getInstance();
     await UserPrefs.setStringList(prefs, _layoutKey, layout);
+    // APIにも保存
+    try {
+      final api = ApiService();
+      final jsonStr = '[${layout.map((s) => '"$s"').join(',')}]';
+      await api.patch('/users/preferences', body: {'home_layout': jsonStr});
+    } catch (_) {}
   }
 
   Future<void> _saveBudget(int value) async {

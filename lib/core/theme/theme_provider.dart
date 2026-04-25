@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../shared/services/user_prefs.dart';
+import '../../shared/services/api_service.dart';
 import 'camill_colors.dart';
 import 'camill_theme_mode.dart';
 import 'sun_times.dart';
@@ -88,12 +89,18 @@ class ThemeNotifier extends StateNotifier<ThemeState>
     state = state.copyWith(selectedBase: base);
     final prefs = await SharedPreferences.getInstance();
     await UserPrefs.setString(prefs, 'camill_theme_base', base.name);
+    try {
+      await ApiService().patch('/users/preferences', body: {'theme_name': base.name});
+    } catch (_) {}
   }
 
   Future<void> setAutoSwitch(bool value) async {
     state = state.copyWith(autoSwitch: value);
     final prefs = await SharedPreferences.getInstance();
     await UserPrefs.setBool(prefs, 'camill_auto_switch', value);
+    try {
+      await ApiService().patch('/users/preferences', body: {'theme_auto_switch': value});
+    } catch (_) {}
     if (value) {
       await _scheduleFromSunTimes();
     } else {
@@ -117,18 +124,37 @@ class ThemeNotifier extends StateNotifier<ThemeState>
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    // UID付きキーを優先し、なければ旧キー（後方互換）にフォールバック
-    final name =
-        await UserPrefs.getString(prefs, 'camill_theme_base') ??
-        prefs.getString('camill_theme');
-    final auto = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
+    // ローカルキャッシュで即時反映
+    final localName = await UserPrefs.getString(prefs, 'camill_theme_base');
+    final localAuto = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
     CamillThemeMode? base;
-    if (name != null) {
+    if (localName != null) {
       try {
-        base = CamillThemeMode.values.byName(name);
+        base = CamillThemeMode.values.byName(localName);
       } catch (_) {}
     }
-    state = state.copyWith(selectedBase: base, autoSwitch: auto);
+    state = state.copyWith(selectedBase: base, autoSwitch: localAuto);
+
+    // APIから最新値を同期（再インストール後の復元）
+    try {
+      final data = await ApiService().get('/users/preferences');
+      final apiName = data['theme_name'] as String?;
+      final apiAuto = data['theme_auto_switch'] as bool? ?? true;
+      CamillThemeMode? apiBase;
+      if (apiName != null) {
+        try {
+          apiBase = CamillThemeMode.values.byName(apiName);
+        } catch (_) {}
+      }
+      if (apiBase != null || apiAuto != localAuto) {
+        final p = await SharedPreferences.getInstance();
+        if (apiBase != null) {
+          await UserPrefs.setString(p, 'camill_theme_base', apiBase.name);
+        }
+        await UserPrefs.setBool(p, 'camill_auto_switch', apiAuto);
+        state = state.copyWith(selectedBase: apiBase, autoSwitch: apiAuto);
+      }
+    } catch (_) {}
   }
 
   // ── 日の出・日の入りベースのスケジューリング ──────────────────────────────

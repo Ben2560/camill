@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/services/user_prefs.dart';
+import '../../../shared/services/api_service.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../shared/widgets/camill_card.dart';
@@ -20,6 +21,7 @@ class _IncomeSettingsScreenState extends State<IncomeSettingsScreen> {
   static const _paydayTypeKey = 'income_payday_type';
   static const _sideIncomeKey = 'income_side';
 
+  final _api = ApiService();
   late final TextEditingController _incomeCtrl;
   late final TextEditingController _paydayCtrl;
   late final TextEditingController _sideCtrl;
@@ -51,40 +53,64 @@ class _IncomeSettingsScreenState extends State<IncomeSettingsScreen> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final income = await UserPrefs.getInt(prefs, _monthlyIncomeKey) ?? 0;
-    final side = await UserPrefs.getInt(prefs, _sideIncomeKey) ?? 0;
-    final payday = await UserPrefs.getInt(prefs, _paydayKey) ?? 0;
-    final paydayType =
+    // まずローカルキャッシュで即時表示
+    final localIncome = await UserPrefs.getInt(prefs, _monthlyIncomeKey) ?? 0;
+    final localSide = await UserPrefs.getInt(prefs, _sideIncomeKey) ?? 0;
+    final localPayday = await UserPrefs.getInt(prefs, _paydayKey) ?? 0;
+    final localPaydayType =
         await UserPrefs.getString(prefs, _paydayTypeKey) ?? 'before';
     if (!mounted) return;
     setState(() {
-      _incomeCtrl.text = income > 0 ? income.toString() : '';
-      _paydayCtrl.text = payday > 0 ? payday.toString() : '';
-      _sideCtrl.text = side > 0 ? side.toString() : '';
-      _paydayType = paydayType;
+      _incomeCtrl.text = localIncome > 0 ? localIncome.toString() : '';
+      _paydayCtrl.text = localPayday > 0 ? localPayday.toString() : '';
+      _sideCtrl.text = localSide > 0 ? localSide.toString() : '';
+      _paydayType = localPaydayType;
     });
+
+    // APIから最新値を取得してローカルと同期
+    try {
+      final data = await _api.get('/users/preferences');
+      final income = (data['monthly_income'] as num?)?.toInt() ?? 0;
+      final side = (data['side_income'] as num?)?.toInt() ?? 0;
+      final payday = (data['income_payday'] as num?)?.toInt() ?? 0;
+      final paydayType = data['income_payday_type'] as String? ?? 'before';
+      final p = await SharedPreferences.getInstance();
+      await UserPrefs.setInt(p, _monthlyIncomeKey, income);
+      await UserPrefs.setInt(p, _sideIncomeKey, side);
+      await UserPrefs.setInt(p, _paydayKey, payday);
+      await UserPrefs.setString(p, _paydayTypeKey, paydayType);
+      if (!mounted) return;
+      setState(() {
+        _incomeCtrl.text = income > 0 ? income.toString() : '';
+        _paydayCtrl.text = payday > 0 ? payday.toString() : '';
+        _sideCtrl.text = side > 0 ? side.toString() : '';
+        _paydayType = paydayType;
+      });
+    } catch (_) {}
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      final income = int.tryParse(_incomeCtrl.text) ?? 0;
+      final payday = int.tryParse(_paydayCtrl.text) ?? 0;
+      final side = int.tryParse(_sideCtrl.text) ?? 0;
+
+      // ローカルキャッシュ更新
       final prefs = await SharedPreferences.getInstance();
-      await UserPrefs.setInt(
-        prefs,
-        _monthlyIncomeKey,
-        int.tryParse(_incomeCtrl.text) ?? 0,
-      );
-      await UserPrefs.setInt(
-        prefs,
-        _paydayKey,
-        int.tryParse(_paydayCtrl.text) ?? 0,
-      );
+      await UserPrefs.setInt(prefs, _monthlyIncomeKey, income);
+      await UserPrefs.setInt(prefs, _paydayKey, payday);
       await UserPrefs.setString(prefs, _paydayTypeKey, _paydayType);
-      await UserPrefs.setInt(
-        prefs,
-        _sideIncomeKey,
-        int.tryParse(_sideCtrl.text) ?? 0,
-      );
+      await UserPrefs.setInt(prefs, _sideIncomeKey, side);
+
+      // APIに保存
+      await _api.patch('/users/preferences', body: {
+        'monthly_income': income,
+        'side_income': side,
+        'income_payday': payday,
+        'income_payday_type': _paydayType,
+      });
+
       if (mounted) {
         showTopNotification(context, '保存しました');
         Navigator.of(context).pop();

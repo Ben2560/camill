@@ -108,7 +108,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (stored != null) {
       final fileName = stored.contains('/') ? stored.split('/').last : stored;
-      // 旧ファイル名 → UID別ファイルへ移行
       if (fileName != expectedName) {
         final oldPath = '${dir.path}/$fileName';
         if (File(oldPath).existsSync() && !File(expectedPath).existsSync()) {
@@ -123,23 +122,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // ローカルにない場合はサーバーから復元
-    try {
-      final profile = await _authService.fetchProfile();
-      final avatarData = profile['avatar_data'] as String?;
-      if (avatarData != null && avatarData.contains(',')) {
-        final b64 = avatarData.split(',').last;
+    // ローカルにない → サーバーから復元（最大2回リトライ）
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final profile = await _authService.fetchProfile();
+        final avatarData = profile['avatar_data'] as String?;
+        if (avatarData == null || avatarData.isEmpty) break;
+        final b64 = avatarData.contains(',') ? avatarData.split(',').last : avatarData;
         final bytes = base64Decode(b64);
         await File(expectedPath).writeAsBytes(bytes);
-        await UserPrefs.setString(prefs, _avatarPathKey, expectedName);
+        final p = await SharedPreferences.getInstance();
+        await UserPrefs.setString(p, _avatarPathKey, expectedName);
         if (mounted) setState(() => _avatarPath = expectedPath);
-      } else {
-        if (mounted) setState(() => _avatarPath = null);
+        return;
+      } catch (e) {
+        debugPrint('avatar restore attempt ${attempt + 1} failed: $e');
+        if (attempt < 1) await Future.delayed(const Duration(seconds: 2));
       }
-    } catch (e) {
-      debugPrint('avatar restore failed: $e');
-      if (mounted) setState(() => _avatarPath = null);
     }
+    if (mounted) setState(() => _avatarPath = null);
   }
 
   Future<void> _loadBudget() async {
@@ -160,6 +161,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _payday = payday ?? 0;
       _sideIncome = side ?? 0;
     });
+
+    // APIから最新値を同期
+    try {
+      final data = await _apiService.get('/users/preferences');
+      final apiIncome = (data['monthly_income'] as num?)?.toInt() ?? 0;
+      final apiPayday = (data['income_payday'] as num?)?.toInt() ?? 0;
+      final apiSide = (data['side_income'] as num?)?.toInt() ?? 0;
+      final p = await SharedPreferences.getInstance();
+      await UserPrefs.setInt(p, _monthlyIncomeKey, apiIncome);
+      await UserPrefs.setInt(p, _paydayKey, apiPayday);
+      await UserPrefs.setInt(p, _sideIncomeKey, apiSide);
+      if (mounted) {
+        setState(() {
+          _monthlyIncome = apiIncome;
+          _payday = apiPayday;
+          _sideIncome = apiSide;
+        });
+      }
+    } catch (_) {}
   }
 
   String _formatAmount(int amount) {
@@ -211,8 +231,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _loadLastBackupAt() async {
     final prefs = await SharedPreferences.getInstance();
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final saved = prefs.getString('${uid}_$_lastBackupKey');
+    final saved = await UserPrefs.getString(prefs, _lastBackupKey);
     if (saved != null && mounted) {
       setState(() => _lastBackupAt = DateTime.tryParse(saved));
     }
@@ -220,8 +239,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _saveLastBackupAt(DateTime dt) async {
     final prefs = await SharedPreferences.getInstance();
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    await prefs.setString('${uid}_$_lastBackupKey', dt.toIso8601String());
+    await UserPrefs.setString(prefs, _lastBackupKey, dt.toIso8601String());
   }
 
   Future<void> _exportToDrive() async {

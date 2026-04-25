@@ -8,6 +8,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../auth/services/auth_service.dart';
+import '../../../shared/services/api_service.dart';
 import '../../../shared/widgets/top_notification.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const _weekStartKey = 'week_start_sunday';
 
   final _authService = AuthService();
+  final _api = ApiService();
   bool _weekStartsSunday = true;
 
   @override
@@ -33,9 +35,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final v = await UserPrefs.getBool(prefs, _weekStartKey);
     if (!mounted) return;
-    setState(() {
-      _weekStartsSunday = v ?? true;
-    });
+    setState(() => _weekStartsSunday = v ?? true);
+
+    try {
+      final data = await _api.get('/users/preferences');
+      final apiVal = data['week_start_sunday'] as bool? ?? true;
+      final p = await SharedPreferences.getInstance();
+      await UserPrefs.setBool(p, _weekStartKey, apiVal);
+      if (mounted) setState(() => _weekStartsSunday = apiVal);
+    } catch (_) {}
   }
 
   Future<void> _showSecurity(CamillColors colors) async {
@@ -97,6 +105,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await UserPrefs.setBool(prefs, _weekStartKey, sunday);
     if (!mounted) return;
     setState(() => _weekStartsSunday = sunday);
+    try {
+      await _api.patch('/users/preferences', body: {'week_start_sunday': sunday});
+    } catch (_) {}
   }
 
   void _showWeekStartSheet(CamillColors colors) {

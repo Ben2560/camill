@@ -83,20 +83,23 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       return;
     }
 
-    // ローカルにない場合はサーバーから復元
-    try {
-      final profile = await _authService.fetchProfile();
-      final avatarData = profile['avatar_data'] as String?;
-      if (avatarData != null && avatarData.contains(',')) {
-        final b64 = avatarData.split(',').last;
+    // ローカルにない → サーバーから復元（最大2回リトライ）
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final profile = await _authService.fetchProfile();
+        final avatarData = profile['avatar_data'] as String?;
+        if (avatarData == null || avatarData.isEmpty) break;
+        final b64 = avatarData.contains(',') ? avatarData.split(',').last : avatarData;
         final bytes = base64Decode(b64);
         await File(expectedPath).writeAsBytes(bytes);
-        final prefs = await SharedPreferences.getInstance();
-        await UserPrefs.setString(prefs, _avatarPathKey, expectedName);
+        final p = await SharedPreferences.getInstance();
+        await UserPrefs.setString(p, _avatarPathKey, expectedName);
         if (mounted) setState(() => _avatarPath = expectedPath);
+        return;
+      } catch (e) {
+        debugPrint('avatar restore attempt ${attempt + 1} failed: $e');
+        if (attempt < 1) await Future.delayed(const Duration(seconds: 2));
       }
-    } catch (e) {
-      debugPrint('avatar restore failed: $e');
     }
   }
 
@@ -132,13 +135,17 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     await UserPrefs.setString(prefs, _avatarPathKey, fileName);
     if (mounted) setState(() => _avatarPath = dest);
 
-    // サーバーにアップロード（バックグラウンド）
-    try {
-      final bytes = await File(dest).readAsBytes();
-      final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-      await _authService.uploadAvatar(b64);
-    } catch (e) {
-      debugPrint('avatar upload failed: $e');
+    // サーバーにアップロード（最大2回リトライ）
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final bytes = await File(dest).readAsBytes();
+        final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        await _authService.uploadAvatar(b64);
+        break;
+      } catch (e) {
+        debugPrint('avatar upload attempt ${attempt + 1} failed: $e');
+        if (attempt < 1) await Future.delayed(const Duration(seconds: 3));
+      }
     }
   }
 

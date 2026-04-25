@@ -74,11 +74,9 @@ void main() async {
   // await しない（起動ブロックを避ける）
   NotificationService.init();
 
-  // テーマを起動前に読み込んでフラッシュを防ぐ（UID 別キーを優先）
+  // テーマを起動前に読み込んでフラッシュを防ぐ
   final prefs = await SharedPreferences.getInstance();
-  final baseName =
-      await UserPrefs.getString(prefs, 'camill_theme_base') ??
-      prefs.getString('camill_theme'); // 旧キー後方互換
+  final baseName = await UserPrefs.getString(prefs, 'camill_theme_base');
   final autoSwitch =
       await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
 

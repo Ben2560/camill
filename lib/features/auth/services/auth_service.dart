@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/notification_inbox.dart';
 import '../../../shared/services/notification_service.dart';
@@ -140,12 +141,16 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    // 1. FCM トークンをバックエンドから削除（ログアウト後の誤配信を防止）
-    //    onTokenRefresh リスナーもここでキャンセルされる
     await NotificationService().unregisterToken();
-    // 2. 通知インボックスのメモリキャッシュをリセット（前ユーザーの通知を隠す）
     NotificationInbox().reset();
-    // 3. Firebase からサインアウト
+    // UIDプレフィックスなしのキー（CacheService等）を削除して次のアカウントへの漏洩を防ぐ
+    final prefs = await SharedPreferences.getInstance();
+    final staleKeys = prefs.getKeys()
+        .where((k) => !k.startsWith('uid_') && !k.startsWith('flutter.'))
+        .toList();
+    for (final k in staleKeys) {
+      await prefs.remove(k);
+    }
     await _auth.signOut();
   }
 }

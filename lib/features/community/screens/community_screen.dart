@@ -77,7 +77,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   @override
   void initState() {
     super.initState();
-    _mapStyleNotifier = ValueNotifier(communityMapStyle(ref.read(themeProvider).isDarkNow));
+    _mapStyleNotifier = ValueNotifier(
+      communityMapStyle(ref.read(themeProvider).isDarkNow),
+    );
     _sheetController.addListener(_onSheetSizeChanged);
     _initLocation();
     _loadSettings();
@@ -598,7 +600,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   _mapController = controller;
                   // _initLocation() がマップ生成前に完了していた場合に備えてカメラを移動
                   if (_currentCenter != _defaultLatLng) {
-                    controller.moveCamera(CameraUpdate.newLatLng(_currentCenter));
+                    controller.moveCamera(
+                      CameraUpdate.newLatLng(_currentCenter),
+                    );
                   }
                 },
                 onCameraMove: _onCameraMove,

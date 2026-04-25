@@ -104,12 +104,15 @@ class _IncomeSettingsScreenState extends State<IncomeSettingsScreen> {
       await UserPrefs.setInt(prefs, _sideIncomeKey, side);
 
       // APIに保存
-      await _api.patch('/users/preferences', body: {
-        'monthly_income': income,
-        'side_income': side,
-        'income_payday': payday,
-        'income_payday_type': _paydayType,
-      });
+      await _api.patch(
+        '/users/preferences',
+        body: {
+          'monthly_income': income,
+          'side_income': side,
+          'income_payday': payday,
+          'income_payday_type': _paydayType,
+        },
+      );
 
       if (mounted) {
         showTopNotification(context, '保存しました');

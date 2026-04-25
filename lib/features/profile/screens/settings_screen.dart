@@ -106,7 +106,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     setState(() => _weekStartsSunday = sunday);
     try {
-      await _api.patch('/users/preferences', body: {'week_start_sunday': sunday});
+      await _api.patch(
+        '/users/preferences',
+        body: {'week_start_sunday': sunday},
+      );
     } catch (_) {}
   }
 

@@ -145,7 +145,8 @@ class AuthService {
     NotificationInbox().reset();
     // UIDプレフィックスなしのキー（CacheService等）を削除して次のアカウントへの漏洩を防ぐ
     final prefs = await SharedPreferences.getInstance();
-    final staleKeys = prefs.getKeys()
+    final staleKeys = prefs
+        .getKeys()
         .where((k) => !k.startsWith('uid_') && !k.startsWith('flutter.'))
         .toList();
     for (final k in staleKeys) {

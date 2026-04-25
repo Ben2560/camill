@@ -128,7 +128,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final profile = await _authService.fetchProfile();
         final avatarData = profile['avatar_data'] as String?;
         if (avatarData == null || avatarData.isEmpty) break;
-        final b64 = avatarData.contains(',') ? avatarData.split(',').last : avatarData;
+        final b64 = avatarData.contains(',')
+            ? avatarData.split(',').last
+            : avatarData;
         final bytes = base64Decode(b64);
         await File(expectedPath).writeAsBytes(bytes);
         final p = await SharedPreferences.getInstance();

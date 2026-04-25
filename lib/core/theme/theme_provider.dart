@@ -90,7 +90,10 @@ class ThemeNotifier extends StateNotifier<ThemeState>
     final prefs = await SharedPreferences.getInstance();
     await UserPrefs.setString(prefs, 'camill_theme_base', base.name);
     try {
-      await ApiService().patch('/users/preferences', body: {'theme_name': base.name});
+      await ApiService().patch(
+        '/users/preferences',
+        body: {'theme_name': base.name},
+      );
     } catch (_) {}
   }
 
@@ -99,7 +102,10 @@ class ThemeNotifier extends StateNotifier<ThemeState>
     final prefs = await SharedPreferences.getInstance();
     await UserPrefs.setBool(prefs, 'camill_auto_switch', value);
     try {
-      await ApiService().patch('/users/preferences', body: {'theme_auto_switch': value});
+      await ApiService().patch(
+        '/users/preferences',
+        body: {'theme_auto_switch': value},
+      );
     } catch (_) {}
     if (value) {
       await _scheduleFromSunTimes();
@@ -126,7 +132,8 @@ class ThemeNotifier extends StateNotifier<ThemeState>
     final prefs = await SharedPreferences.getInstance();
     // ローカルキャッシュで即時反映
     final localName = await UserPrefs.getString(prefs, 'camill_theme_base');
-    final localAuto = await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
+    final localAuto =
+        await UserPrefs.getBool(prefs, 'camill_auto_switch') ?? true;
     CamillThemeMode? base;
     if (localName != null) {
       try {

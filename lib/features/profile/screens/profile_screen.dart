@@ -13,6 +13,7 @@ import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../auth/services/auth_service.dart';
 import '../../home/screens/fixed_expense_scan_screen.dart';
+import '../../subscriptions/screens/subscription_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../services/drive_export_service.dart';
 import '../../../shared/services/api_service.dart';
@@ -613,7 +614,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             title: 'サブスク管理',
             subtitle: 'スクショから一括追加・種別管理',
             colors: colors,
-            onTap: () => context.push('/subscriptions'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SubscriptionScreen(),
+                ),
+              );
+            },
           ),
           _SettingsItem(
             icon: Icons.account_balance_outlined,

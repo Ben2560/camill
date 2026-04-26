@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
@@ -156,6 +158,175 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     }
   }
 
+  // ---- 手動追加 ----
+
+  Future<void> _addManually() async {
+    final colors = context.colors;
+    final nameCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String selectedType = 'other';
+
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final keyboardBottom = MediaQuery.of(ctx).viewInsets.bottom;
+          final safeBottom = MediaQuery.of(ctx).padding.bottom;
+          final radius = BorderRadius.circular(10);
+          final enabledBorder = OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: colors.surfaceBorder),
+          );
+          final focusedBorder = OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: colors.primary, width: 1.5),
+          );
+          return AnimatedPadding(
+            padding: EdgeInsets.only(bottom: keyboardBottom),
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, safeBottom + 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colors.surfaceBorder,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'サブスクを手動追加',
+                    style: camillBodyStyle(18, colors.textPrimary, weight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameCtrl,
+                    style: camillBodyStyle(14, colors.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'サービス名',
+                      labelStyle: camillBodyStyle(13, colors.textMuted),
+                      enabledBorder: enabledBorder,
+                      focusedBorder: focusedBorder,
+                      filled: true,
+                      fillColor: colors.surface,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(signed: false, decimal: false),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: camillBodyStyle(14, colors.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: '月額（円）',
+                      labelStyle: camillBodyStyle(13, colors.textMuted),
+                      prefixText: '¥',
+                      prefixStyle: camillBodyStyle(14, colors.textMuted),
+                      enabledBorder: enabledBorder,
+                      focusedBorder: focusedBorder,
+                      filled: true,
+                      fillColor: colors.surface,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('種別', style: camillBodyStyle(13, colors.textMuted)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: _subTypeLabel.entries.map((e) {
+                      final selected = selectedType == e.key;
+                      final tc = _subTypeColor[e.key] ?? const Color(0xFF8E8E93);
+                      return GestureDetector(
+                        onTap: () => setSheetState(() => selectedType = e.key),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: selected ? tc.withAlpha(30) : colors.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: selected ? tc : colors.surfaceBorder),
+                          ),
+                          child: Text(
+                            e.value,
+                            style: camillBodyStyle(12, selected ? tc : colors.textMuted, weight: FontWeight.w600),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        final name = nameCtrl.text.trim();
+                        final amt = int.tryParse(amountCtrl.text) ?? 0;
+                        if (name.isEmpty || amt <= 0) return;
+                        Navigator.pop(ctx, true);
+                      },
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: Text(
+                        '登録する',
+                        style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    if (added == true && mounted) {
+      final name = nameCtrl.text.trim();
+      final amt = int.tryParse(amountCtrl.text) ?? 0;
+      try {
+        await _api.postAny('/subscriptions/manual', body: {
+          'service_name': name,
+          'monthly_amount': amt,
+          'subscription_type': selectedType,
+        });
+        await _loadAll();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('サブスクを登録しました')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('登録に失敗しました: $e')),
+          );
+        }
+      }
+    }
+    nameCtrl.dispose();
+    amountCtrl.dispose();
+  }
+
   // ---- スキャン ----
 
   Future<void> _scanFromImage() async {
@@ -261,6 +432,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
           ),
           iconTheme: IconThemeData(color: colors.textSecondary),
           actions: [
+            IconButton(
+              icon: Icon(Icons.add, color: colors.primary),
+              tooltip: '手動で追加',
+              onPressed: _addManually,
+            ),
             IconButton(
               icon: Icon(
                 Icons.document_scanner_outlined,

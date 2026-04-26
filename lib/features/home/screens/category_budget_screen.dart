@@ -1,8 +1,8 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../subscriptions/screens/subscription_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/services/user_prefs.dart';
 import '../../../core/constants.dart';
@@ -206,13 +206,6 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
 
   Future<void> _openSubscriptionEditor() async {
     final colors = context.colors;
-    List<Map<String, dynamic>> subs = [];
-    try {
-      final result = await _api.getAny('/subscriptions');
-      subs = (result as List).cast<Map<String, dynamic>>();
-    } catch (_) {}
-    if (!mounted) return;
-
     final result = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -221,7 +214,6 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SubscriptionEditorSheet(
-        initialSubs: subs,
         initialBudget: _budgets['subscription'] ?? 0,
         colors: colors,
         api: _api,
@@ -590,7 +582,12 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
                   child: GestureDetector(
                     onTap: () {
                       Navigator.pop(ctx);
-                      context.push('/subscriptions');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen(),
+                        ),
+                      );
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -1282,7 +1279,12 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
             if (key == 'subscription') ...[
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () => context.push('/subscriptions'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionScreen(),
+                  ),
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,

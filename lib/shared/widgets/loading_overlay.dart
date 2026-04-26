@@ -90,7 +90,9 @@ class _LoadingOverlayState extends State<LoadingOverlay>
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Stack(
+    return ColoredBox(
+      color: colors.background,
+      child: Stack(
       children: [
         // コンテンツ：blur時は常に表示、非blur時はロード中に非表示
         AnimatedOpacity(
@@ -136,6 +138,7 @@ class _LoadingOverlayState extends State<LoadingOverlay>
           ),
         ),
       ],
+      ),
     );
   }
 }

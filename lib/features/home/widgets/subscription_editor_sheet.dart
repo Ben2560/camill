@@ -9,14 +9,14 @@ import '../../../shared/services/api_service.dart';
 // サブスク一覧エディターシート
 // ─────────────────────────────────────────────────────────
 class SubscriptionEditorSheet extends StatefulWidget {
-  final List<Map<String, dynamic>> initialSubs;
+  final List<Map<String, dynamic>>? initialSubs;
   final int initialBudget;
   final CamillColors colors;
   final ApiService api;
 
   const SubscriptionEditorSheet({
     super.key,
-    required this.initialSubs,
+    this.initialSubs,
     required this.initialBudget,
     required this.colors,
     required this.api,
@@ -37,12 +37,32 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
   final List<({TextEditingController name, TextEditingController amount})>
   _newItems = [];
   bool _saving = false;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _subs = List.from(widget.initialSubs);
+    if (widget.initialSubs != null) {
+      _subs = List.from(widget.initialSubs!);
+    } else {
+      _subs = [];
+      _loading = true;
+      _loadSubs();
+    }
     _addNewRow();
+  }
+
+  Future<void> _loadSubs() async {
+    try {
+      final result = await widget.api.getAny('/subscriptions');
+      if (!mounted) return;
+      setState(() {
+        _subs = (result as List).cast<Map<String, dynamic>>();
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -192,6 +212,20 @@ class SubscriptionEditorSheetState extends State<SubscriptionEditorSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   // 既存サブスク
+                  if (_loading)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
                   ...visibleSubs.map((s) {
                     final id = s['subscription_id']?.toString() ?? '';
                     final name = s['store_name'] as String? ?? '';

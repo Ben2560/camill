@@ -132,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _routerDelegate = GoRouter.of(context).routerDelegate;
+      _prevRoutePath = _routerDelegate?.currentConfiguration.uri.path;
       _routerDelegate?.addListener(_onRouteChanged);
     });
   }

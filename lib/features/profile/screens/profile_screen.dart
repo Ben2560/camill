@@ -617,9 +617,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const SubscriptionScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
               );
             },
           ),

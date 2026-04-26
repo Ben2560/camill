@@ -1281,9 +1281,7 @@ class _CategoryBudgetScreenState extends State<CategoryBudgetScreen>
               GestureDetector(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const SubscriptionScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                 ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(

@@ -93,51 +93,51 @@ class _LoadingOverlayState extends State<LoadingOverlay>
     return ColoredBox(
       color: colors.background,
       child: Stack(
-      children: [
-        // コンテンツ：blur時は常に表示、非blur時はロード中に非表示
-        AnimatedOpacity(
-          opacity: widget.blur || !widget.isLoading ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOut,
-          child: widget.child,
-        ),
-        // ローディング表示：ロード中のみポインターを受け取る
-        IgnorePointer(
-          ignoring: !widget.isLoading,
-          child: AnimatedOpacity(
-            opacity: widget.isLoading ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: widget.blur
-                ? ClipRect(
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        color: Colors.black.withAlpha(60),
-                        child: _buildOverlayContent(colors),
-                      ),
-                    ),
-                  )
-                : Stack(
-                    children: [
-                      // 上部の極細プログレスバー
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: LinearProgressIndicator(
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation(
-                            colors.primary.withAlpha(100),
-                          ),
-                          minHeight: 2,
+        children: [
+          // コンテンツ：blur時は常に表示、非blur時はロード中に非表示
+          AnimatedOpacity(
+            opacity: widget.blur || !widget.isLoading ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+            child: widget.child,
+          ),
+          // ローディング表示：ロード中のみポインターを受け取る
+          IgnorePointer(
+            ignoring: !widget.isLoading,
+            child: AnimatedOpacity(
+              opacity: widget.isLoading ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: widget.blur
+                  ? ClipRect(
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          color: Colors.black.withAlpha(60),
+                          child: _buildOverlayContent(colors),
                         ),
                       ),
-                      _buildOverlayContent(colors),
-                    ],
-                  ),
+                    )
+                  : Stack(
+                      children: [
+                        // 上部の極細プログレスバー
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: LinearProgressIndicator(
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation(
+                              colors.primary.withAlpha(100),
+                            ),
+                            minHeight: 2,
+                          ),
+                        ),
+                        _buildOverlayContent(colors),
+                      ],
+                    ),
+            ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }

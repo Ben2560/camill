@@ -209,7 +209,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                   const SizedBox(height: 16),
                   Text(
                     'サブスクを手動追加',
-                    style: camillBodyStyle(18, colors.textPrimary, weight: FontWeight.w700),
+                    style: camillBodyStyle(
+                      18,
+                      colors.textPrimary,
+                      weight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -223,13 +227,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                       filled: true,
                       fillColor: colors.surface,
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: amountCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(signed: false, decimal: false),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      signed: false,
+                      decimal: false,
+                    ),
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     style: camillBodyStyle(14, colors.textPrimary),
                     decoration: InputDecoration(
@@ -242,7 +252,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                       filled: true,
                       fillColor: colors.surface,
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -253,20 +266,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                     runSpacing: 6,
                     children: _subTypeLabel.entries.map((e) {
                       final selected = selectedType == e.key;
-                      final tc = _subTypeColor[e.key] ?? const Color(0xFF8E8E93);
+                      final tc =
+                          _subTypeColor[e.key] ?? const Color(0xFF8E8E93);
                       return GestureDetector(
                         onTap: () => setSheetState(() => selectedType = e.key),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 120),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: selected ? tc.withAlpha(30) : colors.surface,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: selected ? tc : colors.surfaceBorder),
+                            border: Border.all(
+                              color: selected ? tc : colors.surfaceBorder,
+                            ),
                           ),
                           child: Text(
                             e.value,
-                            style: camillBodyStyle(12, selected ? tc : colors.textMuted, weight: FontWeight.w600),
+                            style: camillBodyStyle(
+                              12,
+                              selected ? tc : colors.textMuted,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       );
@@ -284,11 +307,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                       },
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       child: Text(
                         '登録する',
-                        style: camillBodyStyle(15, Colors.white, weight: FontWeight.w600),
+                        style: camillBodyStyle(
+                          15,
+                          Colors.white,
+                          weight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -304,22 +333,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       final name = nameCtrl.text.trim();
       final amt = int.tryParse(amountCtrl.text) ?? 0;
       try {
-        await _api.postAny('/subscriptions/manual', body: {
-          'service_name': name,
-          'monthly_amount': amt,
-          'subscription_type': selectedType,
-        });
+        await _api.postAny(
+          '/subscriptions/manual',
+          body: {
+            'service_name': name,
+            'monthly_amount': amt,
+            'subscription_type': selectedType,
+          },
+        );
         await _loadAll();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('サブスクを登録しました')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('サブスクを登録しました')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('登録に失敗しました: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('登録に失敗しました: $e')));
         }
       }
     }

@@ -664,7 +664,7 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                   // コミュニティ共有
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: coupon.isCommunityShared
+                    child: coupon.communityStatus == 'published'
                         ? Row(
                             children: [
                               Icon(
@@ -675,6 +675,39 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
                               const SizedBox(width: 6),
                               Text(
                                 'コミュニティに公開済み',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
+                            ],
+                          )
+                        : coupon.communityStatus == 'pending'
+                        ? Row(
+                            children: [
+                              SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: colors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '審査中（1〜3日以内に公開）',
+                                style: camillBodyStyle(13, colors.textMuted),
+                              ),
+                            ],
+                          )
+                        : coupon.communityStatus == 'rejected'
+                        ? Row(
+                            children: [
+                              Icon(
+                                Icons.block,
+                                size: 14,
+                                color: colors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'コミュニティ公開不可',
                                 style: camillBodyStyle(13, colors.textMuted),
                               ),
                             ],
@@ -954,7 +987,7 @@ class _CouponWalletScreenState extends State<CouponWalletScreen>
           style: camillHeadingStyle(16, colors.textPrimary),
         ),
         content: Text(
-          'このクーポン情報をコミュニティに公開しますか？\n一度公開すると取り消せません。',
+          'このクーポン情報をコミュニティに公開申請しますか？\n審査（1〜3日）を経て公開されます。',
           style: camillBodyStyle(14, colors.textSecondary),
         ),
         actions: [

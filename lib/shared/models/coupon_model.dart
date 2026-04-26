@@ -16,6 +16,7 @@ sealed class Coupon with _$Coupon {
     DateTime? validUntil,
     required bool isUsed,
     required bool isFromOcr,
+    @Default(false) bool isUncertain,
     required DateTime createdAt,
     // 0=月, 1=火, 2=水, 3=木, 4=金, 5=土, 6=日 (null = 毎日)
     List<int>? availableDays,
@@ -23,6 +24,9 @@ sealed class Coupon with _$Coupon {
     String? surveyUrl,
     @Default(false) bool surveyAnswered,
     @Default(false) bool isCommunityShared,
+    @Default('none')
+    String communityStatus, // none / pending / published / rejected
+    DateTime? communityPublishAt,
   }) = _Coupon;
 
   factory Coupon.fromJson(Map<String, dynamic> json) => _$CouponFromJson(json);

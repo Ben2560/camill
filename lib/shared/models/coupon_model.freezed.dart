@@ -15,8 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Coupon {
 
- String get couponId; String get storeName; String get description; int get discountAmount; DateTime? get validFrom; DateTime? get validUntil; bool get isUsed; bool get isFromOcr; DateTime get createdAt;// 0=月, 1=火, 2=水, 3=木, 4=金, 5=土, 6=日 (null = 毎日)
- List<int>? get availableDays; bool get requiresSurvey; String? get surveyUrl; bool get surveyAnswered; bool get isCommunityShared;
+ String get couponId; String get storeName; String get description; int get discountAmount; DateTime? get validFrom; DateTime? get validUntil; bool get isUsed; bool get isFromOcr; bool get isUncertain; DateTime get createdAt;// 0=月, 1=火, 2=水, 3=木, 4=金, 5=土, 6=日 (null = 毎日)
+ List<int>? get availableDays; bool get requiresSurvey; String? get surveyUrl; bool get surveyAnswered; bool get isCommunityShared; String get communityStatus;// none / pending / published / rejected
+ DateTime? get communityPublishAt;
 /// Create a copy of Coupon
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +30,16 @@ $CouponCopyWith<Coupon> get copyWith => _$CouponCopyWithImpl<Coupon>(this as Cou
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Coupon&&(identical(other.couponId, couponId) || other.couponId == couponId)&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.description, description) || other.description == description)&&(identical(other.discountAmount, discountAmount) || other.discountAmount == discountAmount)&&(identical(other.validFrom, validFrom) || other.validFrom == validFrom)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.isUsed, isUsed) || other.isUsed == isUsed)&&(identical(other.isFromOcr, isFromOcr) || other.isFromOcr == isFromOcr)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.availableDays, availableDays)&&(identical(other.requiresSurvey, requiresSurvey) || other.requiresSurvey == requiresSurvey)&&(identical(other.surveyUrl, surveyUrl) || other.surveyUrl == surveyUrl)&&(identical(other.surveyAnswered, surveyAnswered) || other.surveyAnswered == surveyAnswered)&&(identical(other.isCommunityShared, isCommunityShared) || other.isCommunityShared == isCommunityShared));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Coupon&&(identical(other.couponId, couponId) || other.couponId == couponId)&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.description, description) || other.description == description)&&(identical(other.discountAmount, discountAmount) || other.discountAmount == discountAmount)&&(identical(other.validFrom, validFrom) || other.validFrom == validFrom)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.isUsed, isUsed) || other.isUsed == isUsed)&&(identical(other.isFromOcr, isFromOcr) || other.isFromOcr == isFromOcr)&&(identical(other.isUncertain, isUncertain) || other.isUncertain == isUncertain)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.availableDays, availableDays)&&(identical(other.requiresSurvey, requiresSurvey) || other.requiresSurvey == requiresSurvey)&&(identical(other.surveyUrl, surveyUrl) || other.surveyUrl == surveyUrl)&&(identical(other.surveyAnswered, surveyAnswered) || other.surveyAnswered == surveyAnswered)&&(identical(other.isCommunityShared, isCommunityShared) || other.isCommunityShared == isCommunityShared)&&(identical(other.communityStatus, communityStatus) || other.communityStatus == communityStatus)&&(identical(other.communityPublishAt, communityPublishAt) || other.communityPublishAt == communityPublishAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,couponId,storeName,description,discountAmount,validFrom,validUntil,isUsed,isFromOcr,createdAt,const DeepCollectionEquality().hash(availableDays),requiresSurvey,surveyUrl,surveyAnswered,isCommunityShared);
+int get hashCode => Object.hash(runtimeType,couponId,storeName,description,discountAmount,validFrom,validUntil,isUsed,isFromOcr,isUncertain,createdAt,const DeepCollectionEquality().hash(availableDays),requiresSurvey,surveyUrl,surveyAnswered,isCommunityShared,communityStatus,communityPublishAt);
 
 @override
 String toString() {
-  return 'Coupon(couponId: $couponId, storeName: $storeName, description: $description, discountAmount: $discountAmount, validFrom: $validFrom, validUntil: $validUntil, isUsed: $isUsed, isFromOcr: $isFromOcr, createdAt: $createdAt, availableDays: $availableDays, requiresSurvey: $requiresSurvey, surveyUrl: $surveyUrl, surveyAnswered: $surveyAnswered, isCommunityShared: $isCommunityShared)';
+  return 'Coupon(couponId: $couponId, storeName: $storeName, description: $description, discountAmount: $discountAmount, validFrom: $validFrom, validUntil: $validUntil, isUsed: $isUsed, isFromOcr: $isFromOcr, isUncertain: $isUncertain, createdAt: $createdAt, availableDays: $availableDays, requiresSurvey: $requiresSurvey, surveyUrl: $surveyUrl, surveyAnswered: $surveyAnswered, isCommunityShared: $isCommunityShared, communityStatus: $communityStatus, communityPublishAt: $communityPublishAt)';
 }
 
 
@@ -49,7 +50,7 @@ abstract mixin class $CouponCopyWith<$Res>  {
   factory $CouponCopyWith(Coupon value, $Res Function(Coupon) _then) = _$CouponCopyWithImpl;
 @useResult
 $Res call({
- String couponId, String storeName, String description, int discountAmount, DateTime? validFrom, DateTime? validUntil, bool isUsed, bool isFromOcr, DateTime createdAt, List<int>? availableDays, bool requiresSurvey, String? surveyUrl, bool surveyAnswered, bool isCommunityShared
+ String couponId, String storeName, String description, int discountAmount, DateTime? validFrom, DateTime? validUntil, bool isUsed, bool isFromOcr, bool isUncertain, DateTime createdAt, List<int>? availableDays, bool requiresSurvey, String? surveyUrl, bool surveyAnswered, bool isCommunityShared, String communityStatus, DateTime? communityPublishAt
 });
 
 
@@ -66,7 +67,7 @@ class _$CouponCopyWithImpl<$Res>
 
 /// Create a copy of Coupon
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? couponId = null,Object? storeName = null,Object? description = null,Object? discountAmount = null,Object? validFrom = freezed,Object? validUntil = freezed,Object? isUsed = null,Object? isFromOcr = null,Object? createdAt = null,Object? availableDays = freezed,Object? requiresSurvey = null,Object? surveyUrl = freezed,Object? surveyAnswered = null,Object? isCommunityShared = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? couponId = null,Object? storeName = null,Object? description = null,Object? discountAmount = null,Object? validFrom = freezed,Object? validUntil = freezed,Object? isUsed = null,Object? isFromOcr = null,Object? isUncertain = null,Object? createdAt = null,Object? availableDays = freezed,Object? requiresSurvey = null,Object? surveyUrl = freezed,Object? surveyAnswered = null,Object? isCommunityShared = null,Object? communityStatus = null,Object? communityPublishAt = freezed,}) {
   return _then(_self.copyWith(
 couponId: null == couponId ? _self.couponId : couponId // ignore: cast_nullable_to_non_nullable
 as String,storeName: null == storeName ? _self.storeName : storeName // ignore: cast_nullable_to_non_nullable
@@ -76,13 +77,16 @@ as int,validFrom: freezed == validFrom ? _self.validFrom : validFrom // ignore: 
 as DateTime?,validUntil: freezed == validUntil ? _self.validUntil : validUntil // ignore: cast_nullable_to_non_nullable
 as DateTime?,isUsed: null == isUsed ? _self.isUsed : isUsed // ignore: cast_nullable_to_non_nullable
 as bool,isFromOcr: null == isFromOcr ? _self.isFromOcr : isFromOcr // ignore: cast_nullable_to_non_nullable
+as bool,isUncertain: null == isUncertain ? _self.isUncertain : isUncertain // ignore: cast_nullable_to_non_nullable
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,availableDays: freezed == availableDays ? _self.availableDays : availableDays // ignore: cast_nullable_to_non_nullable
 as List<int>?,requiresSurvey: null == requiresSurvey ? _self.requiresSurvey : requiresSurvey // ignore: cast_nullable_to_non_nullable
 as bool,surveyUrl: freezed == surveyUrl ? _self.surveyUrl : surveyUrl // ignore: cast_nullable_to_non_nullable
 as String?,surveyAnswered: null == surveyAnswered ? _self.surveyAnswered : surveyAnswered // ignore: cast_nullable_to_non_nullable
 as bool,isCommunityShared: null == isCommunityShared ? _self.isCommunityShared : isCommunityShared // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,communityStatus: null == communityStatus ? _self.communityStatus : communityStatus // ignore: cast_nullable_to_non_nullable
+as String,communityPublishAt: freezed == communityPublishAt ? _self.communityPublishAt : communityPublishAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 
@@ -164,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String couponId,  String storeName,  String description,  int discountAmount,  DateTime? validFrom,  DateTime? validUntil,  bool isUsed,  bool isFromOcr,  DateTime createdAt,  List<int>? availableDays,  bool requiresSurvey,  String? surveyUrl,  bool surveyAnswered,  bool isCommunityShared)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String couponId,  String storeName,  String description,  int discountAmount,  DateTime? validFrom,  DateTime? validUntil,  bool isUsed,  bool isFromOcr,  bool isUncertain,  DateTime createdAt,  List<int>? availableDays,  bool requiresSurvey,  String? surveyUrl,  bool surveyAnswered,  bool isCommunityShared,  String communityStatus,  DateTime? communityPublishAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Coupon() when $default != null:
-return $default(_that.couponId,_that.storeName,_that.description,_that.discountAmount,_that.validFrom,_that.validUntil,_that.isUsed,_that.isFromOcr,_that.createdAt,_that.availableDays,_that.requiresSurvey,_that.surveyUrl,_that.surveyAnswered,_that.isCommunityShared);case _:
+return $default(_that.couponId,_that.storeName,_that.description,_that.discountAmount,_that.validFrom,_that.validUntil,_that.isUsed,_that.isFromOcr,_that.isUncertain,_that.createdAt,_that.availableDays,_that.requiresSurvey,_that.surveyUrl,_that.surveyAnswered,_that.isCommunityShared,_that.communityStatus,_that.communityPublishAt);case _:
   return orElse();
 
 }
@@ -185,10 +189,10 @@ return $default(_that.couponId,_that.storeName,_that.description,_that.discountA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String couponId,  String storeName,  String description,  int discountAmount,  DateTime? validFrom,  DateTime? validUntil,  bool isUsed,  bool isFromOcr,  DateTime createdAt,  List<int>? availableDays,  bool requiresSurvey,  String? surveyUrl,  bool surveyAnswered,  bool isCommunityShared)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String couponId,  String storeName,  String description,  int discountAmount,  DateTime? validFrom,  DateTime? validUntil,  bool isUsed,  bool isFromOcr,  bool isUncertain,  DateTime createdAt,  List<int>? availableDays,  bool requiresSurvey,  String? surveyUrl,  bool surveyAnswered,  bool isCommunityShared,  String communityStatus,  DateTime? communityPublishAt)  $default,) {final _that = this;
 switch (_that) {
 case _Coupon():
-return $default(_that.couponId,_that.storeName,_that.description,_that.discountAmount,_that.validFrom,_that.validUntil,_that.isUsed,_that.isFromOcr,_that.createdAt,_that.availableDays,_that.requiresSurvey,_that.surveyUrl,_that.surveyAnswered,_that.isCommunityShared);}
+return $default(_that.couponId,_that.storeName,_that.description,_that.discountAmount,_that.validFrom,_that.validUntil,_that.isUsed,_that.isFromOcr,_that.isUncertain,_that.createdAt,_that.availableDays,_that.requiresSurvey,_that.surveyUrl,_that.surveyAnswered,_that.isCommunityShared,_that.communityStatus,_that.communityPublishAt);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -202,10 +206,10 @@ return $default(_that.couponId,_that.storeName,_that.description,_that.discountA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String couponId,  String storeName,  String description,  int discountAmount,  DateTime? validFrom,  DateTime? validUntil,  bool isUsed,  bool isFromOcr,  DateTime createdAt,  List<int>? availableDays,  bool requiresSurvey,  String? surveyUrl,  bool surveyAnswered,  bool isCommunityShared)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String couponId,  String storeName,  String description,  int discountAmount,  DateTime? validFrom,  DateTime? validUntil,  bool isUsed,  bool isFromOcr,  bool isUncertain,  DateTime createdAt,  List<int>? availableDays,  bool requiresSurvey,  String? surveyUrl,  bool surveyAnswered,  bool isCommunityShared,  String communityStatus,  DateTime? communityPublishAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Coupon() when $default != null:
-return $default(_that.couponId,_that.storeName,_that.description,_that.discountAmount,_that.validFrom,_that.validUntil,_that.isUsed,_that.isFromOcr,_that.createdAt,_that.availableDays,_that.requiresSurvey,_that.surveyUrl,_that.surveyAnswered,_that.isCommunityShared);case _:
+return $default(_that.couponId,_that.storeName,_that.description,_that.discountAmount,_that.validFrom,_that.validUntil,_that.isUsed,_that.isFromOcr,_that.isUncertain,_that.createdAt,_that.availableDays,_that.requiresSurvey,_that.surveyUrl,_that.surveyAnswered,_that.isCommunityShared,_that.communityStatus,_that.communityPublishAt);case _:
   return null;
 
 }
@@ -217,7 +221,7 @@ return $default(_that.couponId,_that.storeName,_that.description,_that.discountA
 @JsonSerializable()
 
 class _Coupon extends Coupon {
-  const _Coupon({required this.couponId, required this.storeName, required this.description, required this.discountAmount, this.validFrom, this.validUntil, required this.isUsed, required this.isFromOcr, required this.createdAt, final  List<int>? availableDays, this.requiresSurvey = false, this.surveyUrl, this.surveyAnswered = false, this.isCommunityShared = false}): _availableDays = availableDays,super._();
+  const _Coupon({required this.couponId, required this.storeName, required this.description, required this.discountAmount, this.validFrom, this.validUntil, required this.isUsed, required this.isFromOcr, this.isUncertain = false, required this.createdAt, final  List<int>? availableDays, this.requiresSurvey = false, this.surveyUrl, this.surveyAnswered = false, this.isCommunityShared = false, this.communityStatus = 'none', this.communityPublishAt}): _availableDays = availableDays,super._();
   factory _Coupon.fromJson(Map<String, dynamic> json) => _$CouponFromJson(json);
 
 @override final  String couponId;
@@ -228,6 +232,7 @@ class _Coupon extends Coupon {
 @override final  DateTime? validUntil;
 @override final  bool isUsed;
 @override final  bool isFromOcr;
+@override@JsonKey() final  bool isUncertain;
 @override final  DateTime createdAt;
 // 0=月, 1=火, 2=水, 3=木, 4=金, 5=土, 6=日 (null = 毎日)
  final  List<int>? _availableDays;
@@ -244,6 +249,9 @@ class _Coupon extends Coupon {
 @override final  String? surveyUrl;
 @override@JsonKey() final  bool surveyAnswered;
 @override@JsonKey() final  bool isCommunityShared;
+@override@JsonKey() final  String communityStatus;
+// none / pending / published / rejected
+@override final  DateTime? communityPublishAt;
 
 /// Create a copy of Coupon
 /// with the given fields replaced by the non-null parameter values.
@@ -258,16 +266,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Coupon&&(identical(other.couponId, couponId) || other.couponId == couponId)&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.description, description) || other.description == description)&&(identical(other.discountAmount, discountAmount) || other.discountAmount == discountAmount)&&(identical(other.validFrom, validFrom) || other.validFrom == validFrom)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.isUsed, isUsed) || other.isUsed == isUsed)&&(identical(other.isFromOcr, isFromOcr) || other.isFromOcr == isFromOcr)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._availableDays, _availableDays)&&(identical(other.requiresSurvey, requiresSurvey) || other.requiresSurvey == requiresSurvey)&&(identical(other.surveyUrl, surveyUrl) || other.surveyUrl == surveyUrl)&&(identical(other.surveyAnswered, surveyAnswered) || other.surveyAnswered == surveyAnswered)&&(identical(other.isCommunityShared, isCommunityShared) || other.isCommunityShared == isCommunityShared));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Coupon&&(identical(other.couponId, couponId) || other.couponId == couponId)&&(identical(other.storeName, storeName) || other.storeName == storeName)&&(identical(other.description, description) || other.description == description)&&(identical(other.discountAmount, discountAmount) || other.discountAmount == discountAmount)&&(identical(other.validFrom, validFrom) || other.validFrom == validFrom)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.isUsed, isUsed) || other.isUsed == isUsed)&&(identical(other.isFromOcr, isFromOcr) || other.isFromOcr == isFromOcr)&&(identical(other.isUncertain, isUncertain) || other.isUncertain == isUncertain)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._availableDays, _availableDays)&&(identical(other.requiresSurvey, requiresSurvey) || other.requiresSurvey == requiresSurvey)&&(identical(other.surveyUrl, surveyUrl) || other.surveyUrl == surveyUrl)&&(identical(other.surveyAnswered, surveyAnswered) || other.surveyAnswered == surveyAnswered)&&(identical(other.isCommunityShared, isCommunityShared) || other.isCommunityShared == isCommunityShared)&&(identical(other.communityStatus, communityStatus) || other.communityStatus == communityStatus)&&(identical(other.communityPublishAt, communityPublishAt) || other.communityPublishAt == communityPublishAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,couponId,storeName,description,discountAmount,validFrom,validUntil,isUsed,isFromOcr,createdAt,const DeepCollectionEquality().hash(_availableDays),requiresSurvey,surveyUrl,surveyAnswered,isCommunityShared);
+int get hashCode => Object.hash(runtimeType,couponId,storeName,description,discountAmount,validFrom,validUntil,isUsed,isFromOcr,isUncertain,createdAt,const DeepCollectionEquality().hash(_availableDays),requiresSurvey,surveyUrl,surveyAnswered,isCommunityShared,communityStatus,communityPublishAt);
 
 @override
 String toString() {
-  return 'Coupon(couponId: $couponId, storeName: $storeName, description: $description, discountAmount: $discountAmount, validFrom: $validFrom, validUntil: $validUntil, isUsed: $isUsed, isFromOcr: $isFromOcr, createdAt: $createdAt, availableDays: $availableDays, requiresSurvey: $requiresSurvey, surveyUrl: $surveyUrl, surveyAnswered: $surveyAnswered, isCommunityShared: $isCommunityShared)';
+  return 'Coupon(couponId: $couponId, storeName: $storeName, description: $description, discountAmount: $discountAmount, validFrom: $validFrom, validUntil: $validUntil, isUsed: $isUsed, isFromOcr: $isFromOcr, isUncertain: $isUncertain, createdAt: $createdAt, availableDays: $availableDays, requiresSurvey: $requiresSurvey, surveyUrl: $surveyUrl, surveyAnswered: $surveyAnswered, isCommunityShared: $isCommunityShared, communityStatus: $communityStatus, communityPublishAt: $communityPublishAt)';
 }
 
 
@@ -278,7 +286,7 @@ abstract mixin class _$CouponCopyWith<$Res> implements $CouponCopyWith<$Res> {
   factory _$CouponCopyWith(_Coupon value, $Res Function(_Coupon) _then) = __$CouponCopyWithImpl;
 @override @useResult
 $Res call({
- String couponId, String storeName, String description, int discountAmount, DateTime? validFrom, DateTime? validUntil, bool isUsed, bool isFromOcr, DateTime createdAt, List<int>? availableDays, bool requiresSurvey, String? surveyUrl, bool surveyAnswered, bool isCommunityShared
+ String couponId, String storeName, String description, int discountAmount, DateTime? validFrom, DateTime? validUntil, bool isUsed, bool isFromOcr, bool isUncertain, DateTime createdAt, List<int>? availableDays, bool requiresSurvey, String? surveyUrl, bool surveyAnswered, bool isCommunityShared, String communityStatus, DateTime? communityPublishAt
 });
 
 
@@ -295,7 +303,7 @@ class __$CouponCopyWithImpl<$Res>
 
 /// Create a copy of Coupon
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? couponId = null,Object? storeName = null,Object? description = null,Object? discountAmount = null,Object? validFrom = freezed,Object? validUntil = freezed,Object? isUsed = null,Object? isFromOcr = null,Object? createdAt = null,Object? availableDays = freezed,Object? requiresSurvey = null,Object? surveyUrl = freezed,Object? surveyAnswered = null,Object? isCommunityShared = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? couponId = null,Object? storeName = null,Object? description = null,Object? discountAmount = null,Object? validFrom = freezed,Object? validUntil = freezed,Object? isUsed = null,Object? isFromOcr = null,Object? isUncertain = null,Object? createdAt = null,Object? availableDays = freezed,Object? requiresSurvey = null,Object? surveyUrl = freezed,Object? surveyAnswered = null,Object? isCommunityShared = null,Object? communityStatus = null,Object? communityPublishAt = freezed,}) {
   return _then(_Coupon(
 couponId: null == couponId ? _self.couponId : couponId // ignore: cast_nullable_to_non_nullable
 as String,storeName: null == storeName ? _self.storeName : storeName // ignore: cast_nullable_to_non_nullable
@@ -305,13 +313,16 @@ as int,validFrom: freezed == validFrom ? _self.validFrom : validFrom // ignore: 
 as DateTime?,validUntil: freezed == validUntil ? _self.validUntil : validUntil // ignore: cast_nullable_to_non_nullable
 as DateTime?,isUsed: null == isUsed ? _self.isUsed : isUsed // ignore: cast_nullable_to_non_nullable
 as bool,isFromOcr: null == isFromOcr ? _self.isFromOcr : isFromOcr // ignore: cast_nullable_to_non_nullable
+as bool,isUncertain: null == isUncertain ? _self.isUncertain : isUncertain // ignore: cast_nullable_to_non_nullable
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,availableDays: freezed == availableDays ? _self._availableDays : availableDays // ignore: cast_nullable_to_non_nullable
 as List<int>?,requiresSurvey: null == requiresSurvey ? _self.requiresSurvey : requiresSurvey // ignore: cast_nullable_to_non_nullable
 as bool,surveyUrl: freezed == surveyUrl ? _self.surveyUrl : surveyUrl // ignore: cast_nullable_to_non_nullable
 as String?,surveyAnswered: null == surveyAnswered ? _self.surveyAnswered : surveyAnswered // ignore: cast_nullable_to_non_nullable
 as bool,isCommunityShared: null == isCommunityShared ? _self.isCommunityShared : isCommunityShared // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,communityStatus: null == communityStatus ? _self.communityStatus : communityStatus // ignore: cast_nullable_to_non_nullable
+as String,communityPublishAt: freezed == communityPublishAt ? _self.communityPublishAt : communityPublishAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 

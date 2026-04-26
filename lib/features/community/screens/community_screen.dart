@@ -4,15 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/models/community_model.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/user_prefs.dart';
 import '../services/community_service.dart';
 import '../widgets/map_styles.dart';
 import '../widgets/store_card.dart';
-import '../widgets/community_store_sheet.dart';
 
 /// 最小ズームレベル（これ以上ズームアウトするとフェッチしない）
 const _minFetchZoom = 13.0;
@@ -36,12 +38,14 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   final _listScrollController = ScrollController();
 
   List<CommunityStore> _stores = [];
+  Set<String> _reportedCouponIds = {};
   Set<Marker> _markers = {};
   bool _loading = true;
   String? _error;
   LatLng _currentCenter = _defaultLatLng;
   double _currentZoom = 14.0;
   String? _highlightedStoreId;
+  String? _expandedStoreId;
   bool _locationPermissionGranted = false;
   Timer? _debounceTimer;
   bool _suppressCameraFetch = false; // プログラム的なカメラ移動時にフェッチを抑制
@@ -81,8 +85,24 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
       communityMapStyle(ref.read(themeProvider).isDarkNow),
     );
     _sheetController.addListener(_onSheetSizeChanged);
-    _initLocation();
+    _loadReportedCouponIds().then((_) => _initLocation());
     _loadSettings();
+  }
+
+  Future<void> _loadReportedCouponIds() async {
+    final p = await SharedPreferences.getInstance();
+    final ids = await UserPrefs.getStringList(p, 'reported_coupon_ids') ?? [];
+    if (mounted) setState(() => _reportedCouponIds = ids.toSet());
+  }
+
+  Future<void> _saveReportedCouponId(String couponId) async {
+    _reportedCouponIds = {..._reportedCouponIds, couponId};
+    final p = await SharedPreferences.getInstance();
+    await UserPrefs.setStringList(
+      p,
+      'reported_coupon_ids',
+      _reportedCouponIds.toList(),
+    );
   }
 
   Future<void> _loadSettings() async {
@@ -166,8 +186,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         longitude: _currentCenter.longitude,
       );
       if (!mounted) return;
+      final filtered = _applyReportedFilter(stores);
       setState(() {
-        _stores = stores;
+        _stores = filtered;
         _loading = false;
         _buildMarkers();
       });
@@ -191,52 +212,134 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     }
   }
 
+  List<CommunityStore> _applyReportedFilter(List<CommunityStore> stores) {
+    if (_reportedCouponIds.isEmpty) return stores;
+    return stores
+        .map((store) {
+          if (store.isLocked) return store;
+          final updated = store.coupons
+              .where((c) => !_reportedCouponIds.contains(c.couponId))
+              .toList();
+          return store.copyWith(
+            coupons: updated,
+            couponCount: updated.length,
+            isFeatured: updated.length >= 3,
+          );
+        })
+        .where((store) => store.couponCount > 0)
+        .toList();
+  }
+
   void _buildMarkers() {
     final colors = ref.read(themeProvider).colors;
+    final hasExpanded = _expandedStoreId != null;
 
     _markers = _stores.map((store) {
+      final isExpanded = store.storeId == _expandedStoreId;
       return Marker(
         markerId: MarkerId(store.storeId),
         position: LatLng(store.latitude, store.longitude),
+        zIndexInt: isExpanded ? 2 : 0,
+        alpha: hasExpanded ? (isExpanded ? 1.0 : 0.2) : 1.0,
         icon: BitmapDescriptor.defaultMarkerWithHue(
-          store.isFeatured
+          isExpanded
+              ? BitmapDescriptor.hueRed
+              : store.isFeatured
               ? BitmapDescriptor.hueOrange
               : (colors.isDark
                     ? BitmapDescriptor.hueGreen
                     : BitmapDescriptor.hueAzure),
         ),
-        onTap: () => _onPinTap(store),
+        onTap: () => _onPinTap(store.storeId),
       );
     }).toSet();
   }
 
-  void _onPinTap(CommunityStore store) {
-    setState(() => _highlightedStoreId = store.storeId);
-    _showStoreDetailSheet(store);
+  void _onPinTap(String storeId) {
+    final store = _stores.firstWhere(
+      (s) => s.storeId == storeId,
+      orElse: () => _stores.first,
+    );
+    setState(() => _highlightedStoreId = storeId);
+    _showNavigationDialog(store);
   }
 
-  void _showStoreDetailSheet(CommunityStore store) {
+  void _showNavigationDialog(CommunityStore store) {
     final colors = context.colors;
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StoreDetailSheet(
-        store: store,
-        colors: colors,
-        onLockTap: store.isLocked
-            ? () {
-                Navigator.pop(context);
-                _onLockedStoreTap(store);
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          store.storeName,
+          style: camillBodyStyle(
+            17,
+            colors.textPrimary,
+            weight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          'このお店に向かいますか？\nGoogle マップでルートを確認できます。',
+          style: camillBodyStyle(14, colors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('キャンセル', style: camillBodyStyle(14, colors.textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final uri = Uri.parse(
+                'https://www.google.com/maps/dir/?api=1'
+                '&destination=${store.latitude},${store.longitude}'
+                '&travelmode=walking',
+              );
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
-            : null,
+            },
+            child: const Text('Google マップで開く'),
+          ),
+        ],
       ),
     );
   }
 
+  Future<void> _reportCoupon(String couponId) async {
+    // 楽観的更新: API 完了前に即座に非表示にする
+    _reportedCouponIds = {..._reportedCouponIds, couponId};
+    setState(() {
+      _stores = _applyReportedFilter(_stores);
+      _buildMarkers();
+    });
+
+    try {
+      await _communityService.reportCoupon(couponId);
+      await _saveReportedCouponId(couponId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通報を受け付けました。ご協力ありがとうございます。')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('通報に失敗しました。もう一度お試しください。')));
+      }
+    }
+  }
+
   void _onCardTap(CommunityStore store) {
-    setState(() => _highlightedStoreId = store.storeId);
+    setState(() {
+      _highlightedStoreId = store.storeId;
+      _expandedStoreId = _expandedStoreId == store.storeId
+          ? null
+          : store.storeId;
+      _buildMarkers();
+    });
     _suppressCameraFetch = true;
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(LatLng(store.latitude, store.longitude), 16.0),
@@ -260,11 +363,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     final middle = _searchPanelOpen ? 0.55 : 0.38;
     double next;
     if (current < 0.2) {
-      next = middle; // しまう → マニュアル
+      next = middle;
     } else if (current < 0.7) {
-      next = 0.93; // マニュアル → フル画面
+      next = 0.93;
     } else {
-      next = middle; // フル画面 → マニュアル
+      next = middle;
     }
     _sheetController.animateTo(
       next,
@@ -608,7 +711,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 onCameraMove: _onCameraMove,
                 onCameraIdle: _onCameraIdle,
                 onTap: (_) {
-                  setState(() => _highlightedStoreId = null);
+                  setState(() {
+                    _highlightedStoreId = null;
+                    _expandedStoreId = null;
+                    _buildMarkers();
+                  });
                 },
               ),
             ),
@@ -785,7 +892,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             minChildSize: 0.1,
             maxChildSize: 0.93,
             snap: true,
-            snapSizes: const [0.1, 0.38, 0.93],
+            snapSizes: const [0.38],
             builder: (context, scrollController) {
               return Container(
                 decoration: BoxDecoration(
@@ -1356,8 +1463,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         return StoreCard(
           store: store,
           isHighlighted: store.storeId == _highlightedStoreId,
+          isExpanded: store.storeId == _expandedStoreId,
           onTap: () => _onCardTap(store),
           onLockTap: () => _onLockedStoreTap(store),
+          onReport: (couponId) => _reportCoupon(couponId),
         );
       }, childCount: filtered.length),
     );

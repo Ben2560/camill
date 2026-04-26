@@ -9,12 +9,14 @@ class StoreDetailSheet extends StatelessWidget {
   final CommunityStore store;
   final CamillColors colors;
   final VoidCallback? onLockTap;
+  final Future<void> Function(String couponId)? onReport;
 
   const StoreDetailSheet({
     super.key,
     required this.store,
     required this.colors,
     this.onLockTap,
+    this.onReport,
   });
 
   @override
@@ -201,7 +203,9 @@ class StoreDetailSheet extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        ...active.map((c) => CouponRow(coupon: c, colors: colors)),
+        ...active.map(
+          (c) => CouponRow(coupon: c, colors: colors, onReport: onReport),
+        ),
         if (expired.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
@@ -214,7 +218,9 @@ class StoreDetailSheet extends StatelessWidget {
               ),
             ),
           ),
-          ...expired.map((c) => CouponRow(coupon: c, colors: colors)),
+          ...expired.map(
+            (c) => CouponRow(coupon: c, colors: colors, onReport: onReport),
+          ),
         ],
       ],
     );
@@ -224,8 +230,14 @@ class StoreDetailSheet extends StatelessWidget {
 class CouponRow extends StatelessWidget {
   final SharedCoupon coupon;
   final CamillColors colors;
+  final Future<void> Function(String couponId)? onReport;
 
-  const CouponRow({super.key, required this.coupon, required this.colors});
+  const CouponRow({
+    super.key,
+    required this.coupon,
+    required this.colors,
+    this.onReport,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -327,9 +339,47 @@ class CouponRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (onReport != null)
+              GestureDetector(
+                onTap: () => _confirmReport(context),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.flag_outlined,
+                    size: 16,
+                    color: colors.textMuted,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  void _confirmReport(BuildContext context) {
+    final navigator = Navigator.of(context);
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('不審なクーポンを報告'),
+        content: const Text('このクーポンを虚偽・不審な情報として報告しますか？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('報告する'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        navigator.pop();
+        onReport!(coupon.couponId);
+      }
+    });
   }
 }

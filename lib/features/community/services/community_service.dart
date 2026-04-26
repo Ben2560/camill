@@ -58,4 +58,9 @@ class CommunityService {
     );
     return CommunitySettings.fromJson(data);
   }
+
+  /// コミュニティクーポンを通報
+  Future<void> reportCoupon(String couponId) async {
+    await _api.post('/coupons/$couponId/report', body: {});
+  }
 }

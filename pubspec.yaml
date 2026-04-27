@@ -82,10 +82,14 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^6.0.0
 
-  # Google Drive
+  # Google Drive / Google Sign-In
   google_sign_in: ^6.2.0
   googleapis: ^13.0.0
   csv: ^6.0.0
+
+  # Apple Sign-In
+  sign_in_with_apple: ^6.1.0
+  crypto: ^3.0.3
 
   # Code generation
   freezed_annotation: ^3.0.0

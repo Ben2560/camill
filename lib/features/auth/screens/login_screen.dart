@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordFocus = FocusNode();
 
   bool _loading = false;
+  bool _loadingGoogle = false;
+  bool _loadingApple = false;
   bool _obscurePassword = true;
 
   late final AnimationController _heroCtrl;
@@ -65,6 +69,38 @@ class _LoginScreenState extends State<LoginScreen>
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _loadingGoogle = true);
+    try {
+      await _authService.signInWithGoogle();
+      if (mounted) context.go('/');
+    } catch (e) {
+      if (mounted && e.toString() != 'Exception: cancelled') {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Googleサインインに失敗しました')));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingGoogle = false);
+    }
+  }
+
+  Future<void> _loginWithApple() async {
+    setState(() => _loadingApple = true);
+    try {
+      await _authService.signInWithApple();
+      if (mounted) context.go('/');
+    } catch (e) {
+      if (mounted && e.toString() != 'Exception: cancelled') {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Appleサインインに失敗しました')));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingApple = false);
+    }
   }
 
   Future<void> _login() async {
@@ -279,6 +315,57 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Divider(color: colors.surfaceBorder),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              child: Text(
+                                'ソーシャルログイン',
+                                style: camillBodyStyle(12, colors.textMuted),
+                              ),
+                            ),
+                            Expanded(
+                              child: Divider(color: colors.surfaceBorder),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _SocialButton(
+                          onPressed:
+                              (_loadingGoogle || _loadingApple || _loading)
+                              ? null
+                              : _loginWithGoogle,
+                          loading: _loadingGoogle,
+                          icon: _GoogleLogo(),
+                          label: 'Googleでサインイン',
+                          borderColor: colors.surfaceBorder,
+                          textColor: colors.textPrimary,
+                        ),
+                        if (Platform.isIOS) ...[
+                          const SizedBox(height: 12),
+                          _SocialButton(
+                            onPressed:
+                                (_loadingGoogle || _loadingApple || _loading)
+                                ? null
+                                : _loginWithApple,
+                            loading: _loadingApple,
+                            icon: const Icon(
+                              Icons.apple,
+                              size: 22,
+                              color: Colors.black,
+                            ),
+                            label: 'Appleでサインイン',
+                            borderColor: Colors.black,
+                            textColor: Colors.black,
+                            fillColor: Colors.white,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -290,6 +377,158 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
   }
+}
+
+class _SocialButton extends StatelessWidget {
+  const _SocialButton({
+    required this.onPressed,
+    required this.loading,
+    required this.icon,
+    required this.label,
+    required this.borderColor,
+    required this.textColor,
+    this.fillColor,
+  });
+
+  final VoidCallback? onPressed;
+  final bool loading;
+  final Widget icon;
+  final String label;
+  final Color borderColor;
+  final Color textColor;
+  final Color? fillColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: fillColor,
+        foregroundColor: textColor,
+        side: BorderSide(color: borderColor),
+        minimumSize: const Size.fromHeight(52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      onPressed: onPressed,
+      child: loading
+          ? SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: textColor,
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                icon,
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: camillBodyStyle(
+                    15,
+                    textColor,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _GoogleLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Red arc (top-right)
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      -1.57,
+      1.57,
+      true,
+      paint,
+    );
+
+    // Blue arc (bottom-right)
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      0.0,
+      1.57,
+      true,
+      paint,
+    );
+
+    // Yellow arc (bottom-left)
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      1.57,
+      1.57,
+      true,
+      paint,
+    );
+
+    // Green arc (top-left)
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      3.14,
+      1.57,
+      true,
+      paint,
+    );
+
+    // White center circle
+    paint.color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), r * 0.58, paint);
+
+    // Blue right bar
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawRect(
+      Rect.fromLTWH(cx, cy - r * 0.22, r * 0.95, r * 0.44),
+      paint,
+    );
+
+    // Re-draw white inner circle to clip
+    paint.color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), r * 0.58, paint);
+
+    // Inner blue circle (right portion)
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.58),
+      -0.52,
+      1.04,
+      true,
+      paint,
+    );
+
+    // White core
+    paint.color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), r * 0.36, paint);
+  }
+
+  @override
+  bool shouldRepaint(_GoogleLogoPainter _) => false;
 }
 
 class _WaveClipper extends CustomClipper<Path> {

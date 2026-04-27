@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/notification_inbox.dart';
 import '../../../shared/services/notification_service.dart';
@@ -12,6 +18,91 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
+
+  // Googleサインイン（新規登録 or ログイン）
+  Future<UserCredential> signInWithGoogle() async {
+    final googleUser = await GoogleSignIn(
+      scopes: ['email', 'profile'],
+    ).signIn();
+    if (googleUser == null) throw Exception('cancelled');
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final result = await _auth.signInWithCredential(credential);
+    await _ensureBackendUser(result);
+    return result;
+  }
+
+  // Appleサインイン（新規登録 or ログイン）
+  Future<UserCredential> signInWithApple() async {
+    final nonce = _generateNonce();
+    final hashedNonce = _sha256(nonce);
+
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    final oauthCredential = OAuthProvider(
+      'apple.com',
+    ).credential(idToken: appleCredential.identityToken, rawNonce: nonce);
+
+    final result = await _auth.signInWithCredential(oauthCredential);
+
+    // Appleは初回のみ名前を返すのでFirebaseプロフィールに反映
+    final givenName = appleCredential.givenName;
+    final familyName = appleCredential.familyName;
+    if (givenName != null || familyName != null) {
+      final name = [familyName, givenName].whereType<String>().join('');
+      if (name.isNotEmpty) {
+        await result.user?.updateDisplayName(name);
+      }
+    }
+
+    await _ensureBackendUser(result);
+    return result;
+  }
+
+  // ソーシャルログイン後にバックエンドにユーザーを登録（未登録の場合のみ）
+  Future<void> _ensureBackendUser(UserCredential credential) async {
+    final user = credential.user;
+    if (user == null) return;
+    final isNew = credential.additionalUserInfo?.isNewUser ?? false;
+    if (!isNew) return;
+    await _api.post(
+      '/auth/register',
+      body: {
+        'uid': user.uid,
+        'email': user.email ?? '',
+        'display_name':
+            user.displayName ?? user.email?.split('@').first ?? 'ユーザー',
+        'onboarding_type': {
+          'priorities': ['food', 'daily', 'other'],
+          'monthly_budget': {'food': 30000, 'daily': 10000},
+        },
+      },
+    );
+  }
+
+  String _generateNonce([int length = 32]) {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
+  }
+
+  String _sha256(String input) {
+    final bytes = utf8.encode(input);
+    return sha256.convert(bytes).toString();
+  }
 
   // メール + パスワードで新規登録
   Future<UserCredential> registerWithEmail(

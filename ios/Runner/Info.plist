@@ -26,6 +26,8 @@
 	<array>
 		<string>_http._tcp</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>アプリのデータを保護するためにFace IDを使用します</string>
 	<key>NSCameraUsageDescription</key>
 	<string>レシートを撮影するためにカメラを使用します</string>
 	<key>NSPhotoLibraryUsageDescription</key>

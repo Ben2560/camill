@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../shared/services/biometric_service.dart';
 import '../../../shared/services/user_prefs.dart';
 import '../../../core/theme/camill_colors.dart';
 import '../../../core/theme/camill_theme.dart';
@@ -23,7 +24,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final _authService = AuthService();
   final _api = ApiService();
+  final _biometricService = BiometricService();
   bool _weekStartsSunday = true;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
 
   @override
   void initState() {
@@ -44,6 +48,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await UserPrefs.setBool(p, _weekStartKey, apiVal);
       if (mounted) setState(() => _weekStartsSunday = apiVal);
     } catch (_) {}
+
+    final available = await _biometricService.isAvailable();
+    final enabled = await _biometricService.isEnabled();
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available;
+        _biometricEnabled = enabled;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      final success = await _biometricService.authenticate();
+      if (!success || !mounted) return;
+    }
+    await _biometricService.setEnabled(value);
+    if (mounted) setState(() => _biometricEnabled = value);
   }
 
   Future<void> _showSecurity(CamillColors colors) async {
@@ -208,6 +230,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             colors: colors,
             onTap: () => _showSecurity(colors),
           ),
+          if (_biometricAvailable)
+            SwitchListTile(
+              secondary: Icon(
+                Icons.fingerprint,
+                color: colors.textSecondary,
+                size: 22,
+              ),
+              title: Text(
+                'Face ID / Touch ID ロック',
+                style: camillBodyStyle(15, colors.textPrimary),
+              ),
+              subtitle: Text(
+                'バックグラウンド復帰時に認証',
+                style: camillBodyStyle(12, colors.textMuted),
+              ),
+              value: _biometricEnabled,
+              activeThumbColor: colors.primary,
+              onChanged: _toggleBiometric,
+            ),
           _SectionHeader(title: '表示', colors: colors),
           _SettingsItem(
             icon: Icons.palette_outlined,

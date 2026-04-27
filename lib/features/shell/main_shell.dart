@@ -10,7 +10,9 @@ import '../../core/theme/camill_theme.dart';
 import '../../shared/services/api_service.dart';
 import '../../shared/services/notification_inbox.dart';
 import '../../shared/services/notification_service.dart';
+import '../../shared/services/biometric_service.dart';
 import '../../shared/services/overseas_service.dart';
+import '../../shared/widgets/biometric_lock_overlay.dart';
 import '../../shared/widgets/month_greeting_overlay.dart';
 import '../../shared/widgets/top_notification.dart';
 import '../home/screens/home_screen.dart';
@@ -43,6 +45,9 @@ class _MainShellState extends State<MainShell>
   final _apiService = ApiService();
   late final _overseasService = OverseasService(_apiService);
   bool _overseasCheckInProgress = false;
+  final _biometricService = BiometricService();
+  bool _locked = false;
+  DateTime? _bgAt;
   final _calendarReturnNotifier = ValueNotifier<int>(0);
   final _calendarRefreshNotifier = ValueNotifier<int>(0);
   final _profileRefreshNotifier = ValueNotifier<int>(0);
@@ -105,7 +110,22 @@ class _MainShellState extends State<MainShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkOverseas();
+    if (state == AppLifecycleState.paused) {
+      _bgAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      _checkOverseas();
+      _checkBiometricLock();
+    }
+  }
+
+  Future<void> _checkBiometricLock() async {
+    final bg = _bgAt;
+    if (bg == null) return;
+    final elapsed = DateTime.now().difference(bg);
+    if (elapsed.inSeconds < 30) return;
+    final enabled = await _biometricService.isEnabled();
+    if (!enabled || !mounted) return;
+    setState(() => _locked = true);
   }
 
   Future<void> _checkOverseas() async {
@@ -415,6 +435,13 @@ class _MainShellState extends State<MainShell>
               child: MonthGreetingOverlay(
                 month: _greetingMonth,
                 onDismiss: () => setState(() => _showMonthGreeting = false),
+              ),
+            ),
+          // 生体認証ロック（最前面）
+          if (_locked)
+            Positioned.fill(
+              child: BiometricLockOverlay(
+                onUnlocked: () => setState(() => _locked = false),
               ),
             ),
         ],

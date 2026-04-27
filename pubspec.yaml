@@ -91,6 +91,9 @@ dependencies:
   sign_in_with_apple: ^6.1.0
   crypto: ^3.0.3
 
+  # Biometric authentication
+  local_auth: ^2.3.0
+
   # Code generation
   freezed_annotation: ^3.0.0
   json_annotation: ^4.11.0

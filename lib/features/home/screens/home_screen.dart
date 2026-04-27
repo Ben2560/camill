@@ -571,6 +571,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   await _billService.payBill(bill.billId);
                   _loadUpcomingBills();
                   _loadRecentBills();
+                  CalendarScreen.receiptRefreshSignal.value++;
                 } catch (e) {
                   debugPrint('payBill error: $e');
                 }
